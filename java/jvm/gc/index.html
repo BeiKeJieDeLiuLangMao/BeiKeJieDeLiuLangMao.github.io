@@ -1,0 +1,3865 @@
+<!DOCTYPE html><html lang="zh-CN"><head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 5.1.1">
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/avatar.jpg">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/avatar.jpg">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/avatar.jpg">
+  <link rel="mask-icon" href="/images/avatar.jpg" color="#222">
+  <link rel="alternate" href="/atom.xml" title="贝克街的流浪猫" type="application/atom+xml">
+  <meta http-equiv="Cache-Control" content="no-transform">
+  <meta http-equiv="Cache-Control" content="no-siteapp">
+  <meta name="google-site-verification" content="PB8pKbwvyCztAdFAxM1AdLMfqXY7wDk6xWZIy3BYn0M">
+  <meta name="baidu-site-verification" content="lHxDkbImj8">
+
+
+
+
+
+  
+  
+
+
+<script id="hexo-configurations">
+  var NexT = window.NexT || {};
+  var CONFIG = {
+    root: '/',
+    scheme: 'Gemini',
+    version: '7.5.0',
+    exturl: true,
+    sidebar: {"position":"left","display":"post","offset":12,"onmobile":false},
+    copycode: {"enable":true,"show_result":true,"style":null},
+    back2top: {"enable":true,"sidebar":true,"scrollpercent":true},
+    bookmark: {"enable":false,"color":"#222","save":"auto"},
+    fancybox: false,
+    mediumzoom: true,
+    lazyload: false,
+    pangu: true,
+    algolia: {
+      appID: 'XKULKGLQCN',
+      apiKey: '59d463bff59108a7719f93aa31f249f3',
+      indexName: 'Hexo Blog',
+      hits: {"per_page":10},
+      labels: {"input_placeholder":"文章查询","hits_empty":"很抱歉，贝贝猫没有发表关于 \"${query}\" 的文章","hits_stats":"找到了 ${hits} 篇文章，耗时 ${time} 毫秒"}
+    },
+    localsearch: {"enable":false,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false},
+    path: '',
+    motion: {"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},
+    sidebarPadding: 40
+  };
+</script>
+
+  <meta name="description" content="引言前面我们已经在整体上简单地介绍了一下 JVM 组成部分，本文着重介绍其中 GC 相关的内容，更多关于 JVM 的文章均收录于<JVM系列文章>。">
+<meta property="og:type" content="article">
+<meta property="og:title" content="JVM GC">
+<meta property="og:url" content="https://www.beikejiedeliulangmao.top/java/jvm/gc/index.html">
+<meta property="og:site_name" content="贝克街的流浪猫">
+<meta property="og:description" content="引言前面我们已经在整体上简单地介绍了一下 JVM 组成部分，本文着重介绍其中 GC 相关的内容，更多关于 JVM 的文章均收录于<JVM系列文章>。">
+<meta property="og:locale" content="zh_CN">
+<meta property="og:image" content="https://www.beikejiedeliulangmao.top/images/loading-cat.gif">
+<meta property="og:image" content="https://www.beikejiedeliulangmao.top/images/loading-cat.gif">
+<meta property="og:image" content="https://www.beikejiedeliulangmao.top/images/loading-cat.gif">
+<meta property="og:image" content="https://www.beikejiedeliulangmao.top/images/loading-cat.gif">
+<meta property="og:image" content="https://www.beikejiedeliulangmao.top/images/loading-cat.gif">
+<meta property="og:image" content="https://www.beikejiedeliulangmao.top/images/loading-cat.gif">
+<meta property="og:image" content="https://www.beikejiedeliulangmao.top/images/loading-cat.gif">
+<meta property="og:image" content="https://www.beikejiedeliulangmao.top/images/loading-cat.gif">
+<meta property="og:image" content="https://www.beikejiedeliulangmao.top/images/loading-cat.gif">
+<meta property="og:image" content="https://www.beikejiedeliulangmao.top/images/loading-cat.gif">
+<meta property="og:image" content="https://www.beikejiedeliulangmao.top/images/loading-cat.gif">
+<meta property="og:image" content="https://www.beikejiedeliulangmao.top/images/loading-cat.gif">
+<meta property="og:image" content="https://www.beikejiedeliulangmao.top/images/loading-cat.gif">
+<meta property="og:image" content="https://www.beikejiedeliulangmao.top/images/loading-cat.gif">
+<meta property="og:image" content="https://www.beikejiedeliulangmao.top/images/loading-cat.gif">
+<meta property="og:image" content="https://www.beikejiedeliulangmao.top/images/loading-cat.gif">
+<meta property="og:image" content="https://www.beikejiedeliulangmao.top/images/loading-cat.gif">
+<meta property="og:image" content="https://www.beikejiedeliulangmao.top/images/loading-cat.gif">
+<meta property="og:image" content="https://www.beikejiedeliulangmao.top/images/loading-cat.gif">
+<meta property="og:image" content="https://www.beikejiedeliulangmao.top/images/loading-cat.gif">
+<meta property="og:image" content="https://www.beikejiedeliulangmao.top/images/loading-cat.gif">
+<meta property="og:image" content="https://www.beikejiedeliulangmao.top/images/loading-cat.gif">
+<meta property="og:image" content="https://www.beikejiedeliulangmao.top/images/loading-cat.gif">
+<meta property="og:image" content="https://www.beikejiedeliulangmao.top/images/loading-cat.gif">
+<meta property="article:published_time" content="2019-12-16T07:39:20.000Z">
+<meta property="article:modified_time" content="2021-01-17T04:25:40.566Z">
+<meta property="article:author" content="贝克街的流浪猫">
+<meta property="article:tag" content="Java">
+<meta property="article:tag" content="JVM">
+<meta property="article:tag" content="HotSpot">
+<meta property="article:tag" content="GC">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="https://www.beikejiedeliulangmao.top/images/loading-cat.gif">
+
+<link rel="canonical" href="https://www.beikejiedeliulangmao.top/java/jvm/gc/">
+
+
+<script id="page-configurations">
+  // https://hexo.io/docs/variables.html
+  CONFIG.page = {
+    sidebar: "",
+    isHome: false,
+    isPost: true,
+    isPage: false,
+    isArchive: false
+  };
+</script>
+
+  <title>JVM GC | 贝克街的流浪猫</title>
+  
+    <script>
+      function sendPageView() {
+        var host = window.location.hostname;
+        if (host == "localhost" && true) return;
+        var uid = localStorage.getItem('uid') || (Math.random() + '.' + Math.random());
+        localStorage.setItem('uid', uid);
+        navigator.sendBeacon('https://www.google-analytics.com/collect', new URLSearchParams({
+          v  : 1,
+          tid: 'UA-146830566-1',
+          cid: uid,
+          t  : 'pageview',
+          dp : encodeURIComponent(location.pathname)
+        }));
+      }
+      document.addEventListener('pjax:complete', sendPageView);
+      sendPageView();
+    </script>
+
+
+  <script>
+    var _hmt = _hmt || [];
+    (function() {
+      var hm = document.createElement("script");
+      hm.src = "https://hm.baidu.com/hm.js?818a8e6061ff2bd0b5531a739f216601";
+      var s = document.getElementsByTagName("script")[0];
+      s.parentNode.insertBefore(hm, s);
+    })();
+  </script>
+
+
+
+
+  <style>body {
+  background-image: url("https://www.beikejiedeliulangmao.top/images/background.jpeg") !important;
+  background-attachment: fixed !important;
+  background-repeat: no-repeat !important;
+  background-size: 100% 100% !important;
+}
+.bg_content {
+  position: fixed;
+  top: 0;
+  z-index: -1;
+  width: 100%;
+  height: 100%;
+}
+.copyright {
+  color: #000;
+}
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+  background-color: #fff;
+}
+::-webkit-scrollbar-button {
+  width: 0;
+  height: 0;
+}
+::-webkit-scrollbar-button:start:increment,
+::-webkit-scrollbar-button:end:decrement {
+  display: none;
+}
+::-webkit-scrollbar-corner {
+  display: block;
+}
+::-webkit-scrollbar-thumb {
+  border-radius: 6px;
+  background-color: rgba(0,0,0,0.4);
+}
+::-webkit-scrollbar-thumb:hover {
+  border-radius: 6px;
+  background-color: rgba(0,0,0,0.6);
+}
+::-webkit-scrollbar-track,
+::-webkit-scrollbar-thumb {
+  border-right: 1px solid transparent;
+  border-left: 1px solid transparent;
+}
+::-webkit-scrollbar-button:start {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-button:end {
+  width: 6px;
+  height: 6px;
+}
+html {
+  line-height: 1.15; 
+  -webkit-text-size-adjust: 100%; 
+}
+body {
+  margin: 0;
+}
+main {
+  display: block;
+}
+h1 {
+  font-size: 2em;
+  margin: 0.67em 0;
+}
+hr {
+  box-sizing: content-box; 
+  height: 0; 
+  overflow: visible; 
+}
+pre {
+  font-family: monospace, monospace; 
+  font-size: 1em; 
+}
+a {
+  background: transparent;
+}
+abbr[title] {
+  border-bottom: none; 
+  text-decoration: underline; 
+  text-decoration: underline dotted; 
+}
+b,
+strong {
+  font-weight: bolder;
+}
+code,
+kbd,
+samp {
+  font-family: monospace, monospace; 
+  font-size: 1em; 
+}
+small {
+  font-size: 80%;
+}
+sub,
+sup {
+  font-size: 75%;
+  line-height: 0;
+  position: relative;
+  vertical-align: baseline;
+}
+sub {
+  bottom: -0.25em;
+}
+sup {
+  top: -0.5em;
+}
+img {
+  border-style: none;
+}
+button,
+input,
+optgroup,
+select,
+textarea {
+  font-family: inherit; 
+  font-size: 100%; 
+  line-height: 1.15; 
+  margin: 0; 
+}
+button,
+input {
+
+  overflow: visible;
+}
+button,
+select {
+
+  text-transform: none;
+}
+button,
+[type='button'],
+[type='reset'],
+[type='submit'] {
+  -webkit-appearance: button;
+}
+button::-moz-focus-inner,
+[type='button']::-moz-focus-inner,
+[type='reset']::-moz-focus-inner,
+[type='submit']::-moz-focus-inner {
+  border-style: none;
+  padding: 0;
+}
+button:-moz-focusring,
+[type='button']:-moz-focusring,
+[type='reset']:-moz-focusring,
+[type='submit']:-moz-focusring {
+  outline: 1px dotted ButtonText;
+}
+fieldset {
+  padding: 0.35em 0.75em 0.625em;
+}
+legend {
+  box-sizing: border-box; 
+  color: inherit; 
+  display: table; 
+  max-width: 100%; 
+  padding: 0; 
+  white-space: normal; 
+}
+progress {
+  vertical-align: baseline;
+}
+textarea {
+  overflow: auto;
+}
+[type='checkbox'],
+[type='radio'] {
+  box-sizing: border-box; 
+  padding: 0; 
+}
+[type='number']::-webkit-inner-spin-button,
+[type='number']::-webkit-outer-spin-button {
+  height: auto;
+}
+[type='search'] {
+  outline-offset: -2px; 
+  -webkit-appearance: textfield; 
+}
+[type='search']::-webkit-search-decoration {
+  -webkit-appearance: none;
+}
+::-webkit-file-upload-button {
+  font: inherit; 
+  -webkit-appearance: button; 
+}
+details {
+  display: block;
+}
+summary {
+  display: list-item;
+}
+template {
+  display: none;
+}
+[hidden] {
+  display: none;
+}
+::selection {
+  background: #262a30;
+  color: #fff;
+}
+html,
+body {
+  height: 100%;
+}
+body {
+  background: #eee;
+  color: #555;
+  font-family: 'Monda', "PingFang SC", "Microsoft YaHei", sans-serif;
+  font-size: 1em;
+  line-height: 2;
+}
+@media (max-width: 991px) {
+  body {
+    padding-left: 0 !important;
+    padding-right: 0 !important;
+  }
+}
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+  font-family: 'Roboto Slab', 'Monda', "PingFang SC", "Microsoft YaHei", sans-serif;
+  font-weight: bold;
+  line-height: 1.5;
+  margin: 20px 0 15px;
+  padding: 0;
+}
+h1 {
+  font-size: 1.5em;
+}
+h2 {
+  font-size: 1.375em;
+}
+h3 {
+  font-size: 1.25em;
+}
+h4 {
+  font-size: 1.125em;
+}
+h5 {
+  font-size: 1em;
+}
+h6 {
+  font-size: 0.875em;
+}
+p {
+  margin: 0 0 20px 0;
+}
+a,
+span.exturl {
+  border-bottom: 1px solid #999;
+  color: #555;
+  outline: 0;
+  text-decoration: none;
+  overflow-wrap: break-word;
+  word-wrap: break-word;
+  cursor: pointer;
+}
+a:hover,
+span.exturl:hover {
+  border-bottom-color: #222;
+  color: #222;
+}
+iframe,
+img,
+video {
+  display: block;
+  margin-left: auto;
+  margin-right: auto;
+  max-width: 100%;
+}
+hr {
+  background-color: #ddd;
+  background-image: repeating-linear-gradient(-45deg, #fff, #fff 4px, transparent 4px, transparent 8px);
+  border: 0;
+  height: 3px;
+  margin: 40px 0;
+}
+blockquote {
+  border-left: 4px solid #ddd;
+  color: #666;
+  margin: 0;
+  padding: 0 15px;
+}
+blockquote cite::before {
+  content: '-';
+  padding: 0 5px;
+}
+dt {
+  font-weight: 700;
+}
+dd {
+  margin: 0;
+  padding: 0;
+}
+kbd {
+  background-color: #f5f5f5;
+  background-image: linear-gradient(#eee, #fff, #eee);
+  border: 1px solid #ccc;
+  border-radius: 0.2em;
+  box-shadow: 0.1em 0.1em 0.2em rgba(0,0,0,0.1);
+  font-family: inherit;
+  padding: 0.1em 0.3em;
+  white-space: nowrap;
+}
+.table-container {
+  -webkit-overflow-scrolling: touch;
+  overflow: auto;
+}
+table {
+  border-collapse: collapse;
+  border-spacing: 0;
+  font-size: 0.875em;
+  margin: 0 0 20px 0;
+  width: 100%;
+}
+tbody tr:nth-of-type(odd) {
+  background: #f9f9f9;
+}
+tbody tr:hover {
+  background: #f5f5f5;
+}
+caption,
+th,
+td {
+  font-weight: normal;
+  padding: 8px;
+  text-align: left;
+  vertical-align: middle;
+}
+th,
+td {
+  border: 1px solid #ddd;
+  border-bottom: 3px solid #ddd;
+}
+th {
+  font-weight: 700;
+  padding-bottom: 10px;
+}
+td {
+  border-bottom-width: 1px;
+}
+.btn {
+  background: #fff;
+  border: 2px solid #555;
+  border-radius: 2px;
+  color: #555;
+  display: inline-block;
+  font-size: 0.875em;
+  line-height: 2;
+  padding: 0 20px;
+  text-decoration: none;
+  transition-property: background-color;
+  transition-delay: 0s;
+  transition-duration: 0.2s;
+  transition-timing-function: ease-in-out;
+}
+.btn:hover {
+  background: #222;
+  border-color: #222;
+  color: #fff;
+}
+.btn + .btn {
+  margin: 0 0 8px 8px;
+}
+.btn .fa-fw {
+  text-align: left;
+  width: 1.285714285714286em;
+}
+.toggle {
+  line-height: 0;
+}
+.toggle .toggle-line {
+  background: #fff;
+  display: inline-block;
+  height: 2px;
+  left: 0;
+  position: relative;
+  top: 0;
+  transition: all 0.4s;
+  vertical-align: top;
+  width: 100%;
+}
+.toggle .toggle-line:not(:first-child) {
+  margin-top: 3px;
+}
+.toggle.toggle-arrow .toggle-line-first {
+  left: 50%;
+  top: 2px;
+  transform: rotate(45deg);
+  width: 50%;
+}
+.toggle.toggle-arrow .toggle-line-middle {
+  left: 2px;
+  width: 90%;
+}
+.toggle.toggle-arrow .toggle-line-last {
+  left: 50%;
+  top: -2px;
+  transform: rotate(-45deg);
+  width: 50%;
+}
+.toggle.toggle-close .toggle-line-first {
+  transform: rotate(-45deg);
+  top: 5px;
+}
+.toggle.toggle-close .toggle-line-middle {
+  opacity: 0;
+}
+.toggle.toggle-close .toggle-line-last {
+  transform: rotate(45deg);
+  top: -5px;
+}
+.highlight-container {
+  position: relative;
+}
+.highlight-container:hover .copy-btn,
+.highlight-container .copy-btn:focus {
+  opacity: 1;
+}
+.copy-btn {
+  color: #333;
+  cursor: pointer;
+  display: inline-block;
+  font-weight: 700;
+  line-height: 1.6;
+  opacity: 0;
+  outline: 0;
+  padding: 2px 6px;
+  position: absolute;
+  transition: opacity 0.3s ease-in-out;
+  vertical-align: middle;
+  white-space: nowrap;
+  -moz-user-select: none;
+  -ms-user-select: none;
+  -webkit-user-select: none;
+  user-select: none;
+  background-color: #eee;
+  background-image: linear-gradient(#fcfcfc, #eee);
+  border: 1px solid #d5d5d5;
+  border-radius: 3px;
+  font-size: 0.8125em;
+  right: 4px;
+  top: 8px;
+}
+.highlight,
+pre {
+  background: #f7f7f7;
+  color: #4d4d4c;
+  line-height: 1.6;
+  margin: 0 auto 20px;
+}
+pre,
+code {
+  font-family: 'PT Mono', consolas, Menlo, monospace, "PingFang SC", "Microsoft YaHei";
+}
+code {
+  background: #eee;
+  border-radius: 3px;
+  color: #555;
+  padding: 2px 4px;
+  overflow-wrap: break-word;
+  word-wrap: break-word;
+}
+.highlight *::selection {
+  background: #d6d6d6;
+}
+.highlight pre {
+  border: 0;
+  margin: 0;
+  padding: 0;
+}
+.highlight table {
+  border: 0;
+  margin: 0;
+  width: auto;
+}
+.highlight tr:first-child pre {
+  padding-top: 10px;
+}
+.highlight tr:last-child pre {
+  padding-bottom: 10px;
+}
+.highlight td {
+  border: 0;
+  padding: 0;
+}
+.highlight figcaption {
+  background: #eee;
+  color: #4d4d4c;
+  font-size: 0.875em;
+  line-height: 1.2;
+  padding: 0.5em;
+}
+.highlight figcaption::before,
+.highlight figcaption::after {
+  content: ' ';
+  display: table;
+}
+.highlight figcaption::after {
+  clear: both;
+}
+.highlight figcaption a {
+  color: #4d4d4c;
+  float: right;
+}
+.highlight figcaption a:hover {
+  border-bottom-color: #4d4d4c;
+}
+.highlight .gutter pre {
+  background: #eff2f3;
+  color: #869194;
+  padding-left: 10px;
+  padding-right: 10px;
+  text-align: right;
+  -moz-user-select: none;
+  -ms-user-select: none;
+  -webkit-user-select: none;
+  user-select: none;
+}
+.highlight .code pre {
+  background: #f7f7f7;
+  padding-left: 10px;
+  width: 100%;
+}
+.gist table {
+  width: auto;
+}
+.gist table td {
+  border: 0;
+}
+pre {
+  overflow: auto;
+  padding: 10px;
+}
+pre code {
+  background: none;
+  color: #4d4d4c;
+  font-size: 0.875em;
+  padding: 0;
+  text-shadow: none;
+}
+pre .deletion {
+  background: #fdd;
+}
+pre .addition {
+  background: #dfd;
+}
+pre .meta {
+  color: #eab700;
+  -moz-user-select: none;
+  -ms-user-select: none;
+  -webkit-user-select: none;
+  user-select: none;
+}
+pre .comment {
+  color: #8e908c;
+}
+pre .variable,
+pre .attribute,
+pre .tag,
+pre .name,
+pre .regexp,
+pre .ruby .constant,
+pre .xml .tag .title,
+pre .xml .pi,
+pre .xml .doctype,
+pre .html .doctype,
+pre .css .id,
+pre .css .class,
+pre .css .pseudo {
+  color: #c82829;
+}
+pre .number,
+pre .preprocessor,
+pre .built_in,
+pre .builtin-name,
+pre .literal,
+pre .params,
+pre .constant,
+pre .command {
+  color: #f5871f;
+}
+pre .ruby .class .title,
+pre .css .rules .attribute,
+pre .string,
+pre .symbol,
+pre .value,
+pre .inheritance,
+pre .header,
+pre .ruby .symbol,
+pre .xml .cdata,
+pre .special,
+pre .formula {
+  color: #718c00;
+}
+pre .title,
+pre .css .hexcolor {
+  color: #3e999f;
+}
+pre .function,
+pre .python .decorator,
+pre .python .title,
+pre .ruby .function .title,
+pre .ruby .title .keyword,
+pre .perl .sub,
+pre .javascript .title,
+pre .coffeescript .title {
+  color: #4271ae;
+}
+pre .keyword,
+pre .javascript .function {
+  color: #8959a8;
+}
+.blockquote-center {
+  border-left: none;
+  margin: 40px 0;
+  padding: 0;
+  position: relative;
+  text-align: center;
+}
+.blockquote-center::before,
+.blockquote-center::after {
+  background-repeat: no-repeat;
+  background-size: 22px 22px;
+  content: ' ';
+  display: block;
+  height: 24px;
+  opacity: 0.2;
+  position: absolute;
+  width: 100%;
+}
+.blockquote-center::before {
+  background-image: url("../images/quote-l.svg");
+  background-position: 0 -6px;
+  border-top: 1px solid #ccc;
+  top: -20px;
+}
+.blockquote-center::after {
+  background-image: url("../images/quote-r.svg");
+  background-position: 100% 8px;
+  border-bottom: 1px solid #ccc;
+  bottom: -20px;
+}
+.blockquote-center p,
+.blockquote-center div {
+  text-align: center;
+}
+.post-body .group-picture img {
+  border: 0;
+  margin: 0 auto;
+  padding: 0 3px;
+}
+.group-picture-row {
+  margin-bottom: 6px;
+  overflow: hidden;
+}
+.group-picture-column {
+  float: left;
+  margin-bottom: 10px;
+}
+.post-body .label {
+  display: inline;
+  padding: 0 2px;
+}
+.post-body .label.default {
+  background: #f0f0f0;
+}
+.post-body .label.primary {
+  background: #efe6f7;
+}
+.post-body .label.info {
+  background: #e5f2f8;
+}
+.post-body .label.success {
+  background: #e7f4e9;
+}
+.post-body .label.warning {
+  background: #fcf6e1;
+}
+.post-body .label.danger {
+  background: #fae8eb;
+}
+.post-body .tabs {
+  margin-bottom: 20px;
+}
+.post-body .tabs,
+.tabs-comment {
+  display: block;
+  padding-top: 10px;
+  position: relative;
+}
+.post-body .tabs ul.nav-tabs,
+.tabs-comment ul.nav-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  margin: 0;
+  margin-bottom: -1px;
+  padding: 0;
+}
+@media (max-width: 413px) {
+  .post-body .tabs ul.nav-tabs,
+  .tabs-comment ul.nav-tabs {
+    display: block;
+    margin-bottom: 5px;
+  }
+}
+.post-body .tabs ul.nav-tabs li.tab,
+.tabs-comment ul.nav-tabs li.tab {
+  background: #fff;
+  border-bottom: 1px solid #ddd;
+  border-left: 1px solid transparent;
+  border-right: 1px solid transparent;
+  border-top: 3px solid transparent;
+  flex-grow: 1;
+  list-style-type: none;
+}
+@media (max-width: 413px) {
+  .post-body .tabs ul.nav-tabs li.tab,
+  .tabs-comment ul.nav-tabs li.tab {
+    border-bottom: 1px solid transparent;
+    border-left: 3px solid transparent;
+    border-right: 1px solid transparent;
+    border-top: 1px solid transparent;
+  }
+}
+.post-body .tabs ul.nav-tabs li.tab a,
+.tabs-comment ul.nav-tabs li.tab a {
+  border-bottom: initial;
+  display: block;
+  line-height: 1.8;
+  outline: 0;
+  padding: 0.25em 0.75em;
+  text-align: center;
+  transition-delay: 0s;
+  transition-duration: 0.2s;
+  transition-timing-function: ease-out;
+}
+.post-body .tabs ul.nav-tabs li.tab a i,
+.tabs-comment ul.nav-tabs li.tab a i {
+  width: 1.285714285714286em;
+}
+.post-body .tabs ul.nav-tabs li.tab.active,
+.tabs-comment ul.nav-tabs li.tab.active {
+  border-bottom: 1px solid transparent;
+  border-left: 1px solid #ddd;
+  border-right: 1px solid #ddd;
+  border-top: 3px solid #fc6423;
+}
+@media (max-width: 413px) {
+  .post-body .tabs ul.nav-tabs li.tab.active,
+  .tabs-comment ul.nav-tabs li.tab.active {
+    border-bottom: 1px solid #ddd;
+    border-left: 3px solid #fc6423;
+    border-right: 1px solid #ddd;
+    border-top: 1px solid #ddd;
+  }
+}
+.post-body .tabs ul.nav-tabs li.tab.active a,
+.tabs-comment ul.nav-tabs li.tab.active a {
+  color: #555;
+  cursor: default;
+}
+.post-body .tabs .tab-content .tab-pane,
+.tabs-comment .tab-content .tab-pane {
+  border: 1px solid #ddd;
+  padding: 20px 20px 0 20px;
+}
+.post-body .tabs .tab-content .tab-pane:not(.active),
+.tabs-comment .tab-content .tab-pane:not(.active) {
+  display: none;
+}
+.post-body .tabs .tab-content .tab-pane.active,
+.tabs-comment .tab-content .tab-pane.active {
+  display: block;
+}
+.post-body .note {
+  margin-bottom: 20px;
+  padding: 15px;
+  position: relative;
+  border: 1px solid #eee;
+  border-left-width: 5px;
+  border-radius: 3px;
+}
+.post-body .note h2,
+.post-body .note h3,
+.post-body .note h4,
+.post-body .note h5,
+.post-body .note h6 {
+  margin-top: 0;
+  border-bottom: initial;
+  margin-bottom: 0;
+  padding-top: 0;
+}
+.post-body .note p:first-child,
+.post-body .note ul:first-child,
+.post-body .note ol:first-child,
+.post-body .note table:first-child,
+.post-body .note pre:first-child,
+.post-body .note blockquote:first-child,
+.post-body .note img:first-child {
+  margin-top: 0;
+}
+.post-body .note p:last-child,
+.post-body .note ul:last-child,
+.post-body .note ol:last-child,
+.post-body .note table:last-child,
+.post-body .note pre:last-child,
+.post-body .note blockquote:last-child,
+.post-body .note img:last-child {
+  margin-bottom: 0;
+}
+.post-body .note.default {
+  border-left-color: #777;
+}
+.post-body .note.default h2,
+.post-body .note.default h3,
+.post-body .note.default h4,
+.post-body .note.default h5,
+.post-body .note.default h6 {
+  color: #777;
+}
+.post-body .note.primary {
+  border-left-color: #6f42c1;
+}
+.post-body .note.primary h2,
+.post-body .note.primary h3,
+.post-body .note.primary h4,
+.post-body .note.primary h5,
+.post-body .note.primary h6 {
+  color: #6f42c1;
+}
+.post-body .note.info {
+  border-left-color: #428bca;
+}
+.post-body .note.info h2,
+.post-body .note.info h3,
+.post-body .note.info h4,
+.post-body .note.info h5,
+.post-body .note.info h6 {
+  color: #428bca;
+}
+.post-body .note.success {
+  border-left-color: #5cb85c;
+}
+.post-body .note.success h2,
+.post-body .note.success h3,
+.post-body .note.success h4,
+.post-body .note.success h5,
+.post-body .note.success h6 {
+  color: #5cb85c;
+}
+.post-body .note.warning {
+  border-left-color: #f0ad4e;
+}
+.post-body .note.warning h2,
+.post-body .note.warning h3,
+.post-body .note.warning h4,
+.post-body .note.warning h5,
+.post-body .note.warning h6 {
+  color: #f0ad4e;
+}
+.post-body .note.danger {
+  border-left-color: #d9534f;
+}
+.post-body .note.danger h2,
+.post-body .note.danger h3,
+.post-body .note.danger h4,
+.post-body .note.danger h5,
+.post-body .note.danger h6 {
+  color: #d9534f;
+}
+.pagination .prev,
+.pagination .next,
+.pagination .page-number,
+.pagination .space {
+  display: inline-block;
+  margin: 0 10px;
+  padding: 0 11px;
+  position: relative;
+  top: -1px;
+}
+@media (max-width: 767px) {
+  .pagination .prev,
+  .pagination .next,
+  .pagination .page-number,
+  .pagination .space {
+    margin: 0 5px;
+  }
+}
+.pagination {
+  border-top: 1px solid #eee;
+  margin: 120px 0 0;
+  text-align: center;
+}
+.pagination .prev,
+.pagination .next,
+.pagination .page-number {
+  border-bottom: 0;
+  border-top: 1px solid #eee;
+  transition-property: border-color;
+  transition-delay: 0s;
+  transition-duration: 0.2s;
+  transition-timing-function: ease-in-out;
+}
+.pagination .prev:hover,
+.pagination .next:hover,
+.pagination .page-number:hover {
+  border-top-color: #222;
+}
+.pagination .space {
+  margin: 0;
+  padding: 0;
+}
+.pagination .prev {
+  margin-left: 0;
+}
+.pagination .next {
+  margin-right: 0;
+}
+.pagination .page-number.current,
+.algolia-pagination .current .page-number {
+  background: #ccc;
+  border-top-color: #ccc;
+  color: #fff;
+}
+@media (max-width: 767px) {
+  .pagination {
+    border-top: none;
+  }
+  .pagination .prev,
+  .pagination .next,
+  .pagination .page-number {
+    border-bottom: 1px solid #eee;
+    border-top: 0;
+    margin-bottom: 10px;
+    padding: 0 10px;
+  }
+  .pagination .prev:hover,
+  .pagination .next:hover,
+  .pagination .page-number:hover {
+    border-bottom-color: #222;
+  }
+}
+.comments {
+  margin: 60px 20px 0;
+  overflow: hidden;
+}
+.comment-button-group {
+  display: flex;
+  flex-wrap: wrap-reverse;
+  justify-content: center;
+  margin: 1em 0;
+}
+.comment-button-group .comment-button {
+  margin: 0.1em 0.2em;
+}
+.comment-button-group .comment-button.active {
+  background: #222;
+  border-color: #222;
+  color: #fff;
+}
+.comment-position {
+  display: none;
+}
+.comment-position.active {
+  display: block;
+}
+.tabs-comment {
+  background: #fff;
+  margin-top: 4em;
+  padding-top: 0;
+}
+.tabs-comment .comments {
+  border: 0;
+  box-shadow: none;
+  margin-top: 0;
+  padding-top: 0;
+}
+.container {
+  min-height: 100%;
+  position: relative;
+}
+.main-inner {
+  margin: 0 auto;
+  width: calc(100% - 20px);
+}
+@media (min-width: 1200px) {
+  .main-inner {
+    width: 1160px;
+  }
+}
+@media (min-width: 1600px) {
+  .main-inner {
+    width: 73%;
+  }
+}
+.header {
+  background: transparent;
+}
+.header-inner {
+  margin: 0 auto;
+  position: relative;
+  width: calc(100% - 20px);
+}
+@media (min-width: 1200px) {
+  .header-inner {
+    width: 1160px;
+  }
+}
+@media (min-width: 1600px) {
+  .header-inner {
+    width: 73%;
+  }
+}
+.headband {
+  background: #222;
+  height: 3px;
+}
+.site-meta {
+  margin: 0;
+  text-align: center;
+}
+@media (max-width: 767px) {
+  .site-meta {
+    text-align: center;
+  }
+}
+.brand {
+  background: #222;
+  border-bottom: none;
+  color: #fff;
+  display: inline-block;
+  line-height: 1.375em;
+  padding: 0 40px;
+  position: relative;
+}
+.brand:hover {
+  color: #fff;
+}
+.site-title {
+  display: inline-block;
+  font-family: 'Monda', "PingFang SC", "Microsoft YaHei", sans-serif;
+  font-size: 1.375em;
+  font-weight: normal;
+  line-height: 1.5;
+  vertical-align: top;
+}
+.site-subtitle {
+  color: #ddd;
+  font-size: 0.8125em;
+  margin-top: 10px;
+}
+.use-motion .brand {
+  opacity: 0;
+}
+.use-motion .site-title,
+.use-motion .site-subtitle,
+.use-motion .custom-logo-image {
+  opacity: 0;
+  position: relative;
+  top: -10px;
+}
+.site-nav-toggle {
+  display: none;
+  left: 10px;
+  position: absolute;
+}
+@media (max-width: 767px) {
+  .site-nav-toggle {
+    display: block;
+  }
+}
+.site-nav-toggle .toggle {
+  background: transparent;
+  border: 0;
+  margin-top: 2px;
+  padding: 10px;
+  width: 22px;
+}
+.site-nav-toggle .toggle .toggle-line {
+  background: #555;
+  border-radius: 1px;
+}
+.site-nav {
+  display: block;
+}
+@media (max-width: 767px) {
+  .site-nav {
+    border-top: 1px solid #ddd;
+    clear: both;
+    display: none;
+    margin: 0 -10px;
+    padding: 0 10px;
+  }
+}
+.site-nav.site-nav-on {
+  display: block;
+}
+.menu {
+  margin-top: 20px;
+  padding-left: 0;
+  text-align: center;
+}
+.menu-item {
+  display: inline-block;
+  list-style: none;
+  margin: 0 10px;
+}
+@media (max-width: 767px) {
+  .menu-item {
+    margin-top: 10px;
+  }
+}
+.menu-item a,
+.menu-item span.exturl {
+  border-bottom: 0;
+  display: block;
+  font-size: 0.8125em;
+  transition-property: border-color;
+  transition-delay: 0s;
+  transition-duration: 0.2s;
+  transition-timing-function: ease-in-out;
+}
+@media (hover: none) {
+  .menu-item a:hover,
+  .menu-item span.exturl:hover {
+    border-bottom-color: transparent !important;
+  }
+}
+.menu-item .fa {
+  margin-right: 8px;
+}
+.menu-item .badge {
+  display: inline-block;
+  font-weight: 700;
+  line-height: 1;
+  margin-left: 0.35em;
+  margin-top: 0.35em;
+  text-align: center;
+  white-space: nowrap;
+}
+@media (max-width: 767px) {
+  .menu-item .badge {
+    float: right;
+    margin-left: 0;
+  }
+}
+.use-motion .menu-item {
+  opacity: 0;
+}
+.github-corner :hover .octo-arm {
+  animation: octocat-wave 560ms ease-in-out;
+}
+.github-corner svg {
+  border: 0;
+  color: #fff;
+  fill: #222;
+  position: absolute;
+  right: 0;
+  top: 0;
+  z-index: 1000;
+}
+@media (max-width: 991px) {
+  .github-corner svg {
+    color: #222;
+    fill: #fff;
+  }
+  .github-corner .github-corner:hover .octo-arm {
+    animation: none;
+  }
+  .github-corner .github-corner .octo-arm {
+    animation: octocat-wave 560ms ease-in-out;
+  }
+}
+@-moz-keyframes octocat-wave {
+  0%, 100% {
+    transform: rotate(0);
+  }
+  20%, 60% {
+    transform: rotate(-25deg);
+  }
+  40%, 80% {
+    transform: rotate(10deg);
+  }
+}
+@-webkit-keyframes octocat-wave {
+  0%, 100% {
+    transform: rotate(0);
+  }
+  20%, 60% {
+    transform: rotate(-25deg);
+  }
+  40%, 80% {
+    transform: rotate(10deg);
+  }
+}
+@-o-keyframes octocat-wave {
+  0%, 100% {
+    transform: rotate(0);
+  }
+  20%, 60% {
+    transform: rotate(-25deg);
+  }
+  40%, 80% {
+    transform: rotate(10deg);
+  }
+}
+@keyframes octocat-wave {
+  0%, 100% {
+    transform: rotate(0);
+  }
+  20%, 60% {
+    transform: rotate(-25deg);
+  }
+  40%, 80% {
+    transform: rotate(10deg);
+  }
+}
+.sidebar {
+  background: #222;
+  bottom: 0;
+  box-shadow: inset 0 2px 6px #000;
+  position: fixed;
+  top: 0;
+  z-index: 1200;
+}
+.sidebar a,
+.sidebar span.exturl {
+  border-bottom-color: #555;
+  color: #999;
+}
+.sidebar a:hover,
+.sidebar span.exturl:hover {
+  border-bottom-color: #eee;
+  color: #eee;
+}
+@media (max-width: 991px) {
+  .sidebar {
+    display: none;
+  }
+}
+.sidebar-inner {
+  color: #999;
+  padding: 20px 10px;
+  text-align: center;
+}
+.site-overview-wrap {
+  overflow-x: hidden;
+  overflow-y: auto;
+}
+.cc-license {
+  margin-top: 10px;
+  text-align: center;
+}
+.cc-license .cc-opacity {
+  border-bottom: none;
+  opacity: 0.7;
+}
+.cc-license .cc-opacity:hover {
+  opacity: 0.9;
+}
+.cc-license img {
+  display: inline-block;
+}
+.site-author-image {
+  border: 1px solid #eee;
+  display: block;
+  height: auto;
+  margin: 0 auto;
+  max-width: 120px;
+  padding: 2px;
+  border-radius: 50%;
+}
+.site-author-name {
+  color: #222;
+  font-weight: 600;
+  margin: 0;
+  text-align: center;
+}
+.site-description {
+  color: #999;
+  font-size: 0.8125em;
+  margin-top: 0;
+  text-align: center;
+}
+.links-of-author {
+  margin-top: 15px;
+}
+.links-of-author a,
+.links-of-author span.exturl {
+  border-bottom-color: #555;
+  display: inline-block;
+  font-size: 0.8125em;
+  margin-bottom: 10px;
+  margin-right: 10px;
+  vertical-align: middle;
+  transition-delay: 0s;
+  transition-duration: 0.2s;
+  transition-timing-function: ease-in-out;
+}
+.links-of-author a::before,
+.links-of-author span.exturl::before {
+  background: #0ab5cd;
+  border-radius: 50%;
+  content: ' ';
+  display: inline-block;
+  height: 4px;
+  margin-right: 3px;
+  vertical-align: middle;
+  width: 4px;
+}
+.feed-link,
+.chat {
+  margin-top: 15px;
+}
+.feed-link a,
+.chat a {
+  border: 1px solid #fc6423;
+  border-radius: 4px;
+  color: #fc6423;
+  display: inline-block;
+  padding: 0 15px;
+}
+.feed-link a .fa,
+.chat a .fa {
+  margin-right: 5px;
+}
+.feed-link a:hover,
+.chat a:hover {
+  background: #fc6423;
+  border: 1px solid #fc6423;
+  color: #fff;
+}
+.feed-link a:hover .fa,
+.chat a:hover .fa {
+  color: #fff;
+}
+.links-of-blogroll {
+  font-size: 0.8125em;
+  margin-top: 10px;
+}
+.links-of-blogroll-title {
+  font-size: 0.875em;
+  font-weight: 600;
+  margin-top: 0;
+}
+.links-of-blogroll-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.links-of-blogroll-item {
+  padding: 2px 10px;
+}
+.links-of-blogroll-item a,
+.links-of-blogroll-item span.exturl {
+  box-sizing: border-box;
+  display: inline-block;
+  max-width: 280px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+#sidebar-dimmer {
+  display: none;
+}
+@media (max-width: 767px) {
+  #sidebar-dimmer {
+    background: #000;
+    display: block;
+    height: 100%;
+    left: 100%;
+    opacity: 0;
+    position: fixed;
+    top: 0;
+    width: 100%;
+    z-index: 1100;
+  }
+  .sidebar-active + #sidebar-dimmer {
+    opacity: 0.7;
+    transform: translateX(-100%);
+    transition: opacity 0.5s;
+  }
+}
+.sidebar-nav {
+  margin: 0;
+  padding-bottom: 20px;
+  padding-left: 0;
+}
+.sidebar-nav li {
+  border-bottom: 1px solid transparent;
+  color: #555;
+  cursor: pointer;
+  display: inline-block;
+  font-size: 0.875em;
+}
+.sidebar-nav li.sidebar-nav-overview {
+  margin-left: 10px;
+}
+.sidebar-nav li:hover {
+  color: #fc6423;
+}
+.sidebar-nav .sidebar-nav-active {
+  border-bottom-color: #fc6423;
+  color: #fc6423;
+}
+.sidebar-nav .sidebar-nav-active:hover {
+  color: #fc6423;
+}
+.sidebar-panel {
+  display: none;
+}
+.sidebar-panel-active {
+  display: block;
+}
+.sidebar-toggle {
+  background: #222;
+  bottom: 45px;
+  cursor: pointer;
+  height: 14px;
+  left: 30px;
+  padding: 5px;
+  position: fixed;
+  width: 14px;
+  z-index: 1300;
+}
+@media (max-width: 991px) {
+  .sidebar-toggle {
+    left: 20px;
+    opacity: 0.8;
+    display: none;
+  }
+}
+.sidebar-toggle:hover .toggle-line {
+  background: #fc6423;
+}
+.post-toc-wrap {
+  overflow-x: hidden;
+  overflow-y: auto;
+}
+.post-toc {
+  font-size: 0.875em;
+}
+.post-toc ol {
+  list-style: none;
+  margin: 0;
+  padding: 0 2px 5px 10px;
+  text-align: left;
+}
+.post-toc ol > ol {
+  padding-left: 0;
+}
+.post-toc ol a {
+  border-bottom-color: #ccc;
+  color: #666;
+  transition-property: all;
+  transition-delay: 0s;
+  transition-duration: 0.2s;
+  transition-timing-function: ease-in-out;
+}
+.post-toc ol a:hover {
+  border-bottom-color: #000;
+  color: #000;
+}
+.post-toc .nav-item {
+  line-height: 1.8;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.post-toc .nav .nav-child {
+  display: none;
+}
+.post-toc .nav .active > .nav-child {
+  display: block;
+}
+.post-toc .nav .active-current > .nav-child {
+  display: block;
+}
+.post-toc .nav .active-current > .nav-child > .nav-item {
+  display: block;
+}
+.post-toc .nav .active > a {
+  border-bottom-color: #fc6423;
+  color: #fc6423;
+}
+.post-toc .nav .active-current > a {
+  color: #fc6423;
+}
+.post-toc .nav .active-current > a:hover {
+  color: #fc6423;
+}
+.site-state {
+  display: flex;
+  justify-content: center;
+  line-height: 1.4;
+  margin-top: 10px;
+  overflow: hidden;
+  text-align: center;
+  white-space: nowrap;
+}
+.site-state-item {
+  padding: 0 15px;
+}
+.site-state-item:not(:first-child) {
+  border-left: 1px solid #eee;
+}
+.site-state-item a {
+  border-bottom: none;
+}
+.site-state-item-count {
+  color: inherit;
+  display: block;
+  font-size: 1em;
+  font-weight: 600;
+  text-align: center;
+}
+.site-state-item-name {
+  color: #999;
+  font-size: 0.8125em;
+}
+.footer {
+  color: #999;
+  font-size: 0.875em;
+  padding: 20px 0;
+}
+.footer.footer-fixed {
+  bottom: 0;
+  left: 0;
+  position: absolute;
+  right: 0;
+}
+.footer img {
+  border: 0;
+}
+.footer-inner {
+  box-sizing: border-box;
+  margin: 0 auto;
+  text-align: center;
+  width: calc(100% - 20px);
+}
+@media (min-width: 1200px) {
+  .footer-inner {
+    width: 1160px;
+  }
+}
+@media (min-width: 1600px) {
+  .footer-inner {
+    width: 73%;
+  }
+}
+.with-love {
+  color: red;
+  display: inline-block;
+  margin: 0 5px;
+  animation: iconAnimate 1.33s ease-in-out infinite;
+}
+.powered-by,
+.theme-info {
+  display: inline-block;
+}
+@-moz-keyframes iconAnimate {
+  0%, 100% {
+    transform: scale(1);
+  }
+  10%, 30% {
+    transform: scale(0.9);
+  }
+  20%, 40%, 60%, 80% {
+    transform: scale(1.1);
+  }
+  50%, 70% {
+    transform: scale(1.1);
+  }
+}
+@-webkit-keyframes iconAnimate {
+  0%, 100% {
+    transform: scale(1);
+  }
+  10%, 30% {
+    transform: scale(0.9);
+  }
+  20%, 40%, 60%, 80% {
+    transform: scale(1.1);
+  }
+  50%, 70% {
+    transform: scale(1.1);
+  }
+}
+@-o-keyframes iconAnimate {
+  0%, 100% {
+    transform: scale(1);
+  }
+  10%, 30% {
+    transform: scale(0.9);
+  }
+  20%, 40%, 60%, 80% {
+    transform: scale(1.1);
+  }
+  50%, 70% {
+    transform: scale(1.1);
+  }
+}
+@keyframes iconAnimate {
+  0%, 100% {
+    transform: scale(1);
+  }
+  10%, 30% {
+    transform: scale(0.9);
+  }
+  20%, 40%, 60%, 80% {
+    transform: scale(1.1);
+  }
+  50%, 70% {
+    transform: scale(1.1);
+  }
+}
+.back-to-top {
+  background: #eee;
+  font-size: 12px;
+  margin: 8px -10px -20px;
+  opacity: 0;
+  text-align: center;
+  transition-delay: 0s;
+  transition-duration: 0.2s;
+  transition-timing-function: ease-in-out;
+}
+.back-to-top.back-to-top-on {
+  cursor: pointer;
+  opacity: 0.6;
+}
+.back-to-top.back-to-top-on:hover {
+  opacity: 0.8;
+}
+.post-body {
+  font-family: 'Monda', "PingFang SC", "Microsoft YaHei", sans-serif;
+  overflow-wrap: break-word;
+  word-wrap: break-word;
+}
+@media (min-width: 1200px) {
+  .post-body {
+    font-size: 1.125em;
+  }
+}
+.post-body span.exturl .fa {
+  font-size: 0.875em;
+  margin-left: 4px;
+}
+.post-body .image-caption,
+.post-body .figure .caption {
+  color: #999;
+  font-size: 0.875em;
+  font-weight: bold;
+  line-height: 1;
+  margin: -20px auto 15px;
+  text-align: center;
+}
+.post-sticky-flag {
+  display: inline-block;
+  transform: rotate(30deg);
+}
+.post-button {
+  margin-top: 40px;
+  text-align: center;
+}
+.use-motion .post-block,
+.use-motion .pagination,
+.use-motion .comments {
+  opacity: 0;
+}
+.use-motion .post-header {
+  opacity: 0;
+}
+.use-motion .post-body {
+  opacity: 0;
+}
+.use-motion .collection-header {
+  opacity: 0;
+}
+.posts-collapse {
+  margin-left: 55px;
+  position: relative;
+}
+@media (max-width: 767px) {
+  .posts-collapse {
+    margin-left: 20px;
+    margin-right: 20px;
+  }
+}
+.posts-collapse .collection-title {
+  font-size: 1.125em;
+  position: relative;
+}
+.posts-collapse .collection-title::before {
+  background: #999;
+  border: 1px solid #fff;
+  border-radius: 50%;
+  content: ' ';
+  height: 10px;
+  left: 0;
+  margin-left: -6px;
+  margin-top: -4px;
+  position: absolute;
+  top: 50%;
+  width: 10px;
+}
+.posts-collapse .collection-year {
+  margin: 60px 0;
+  position: relative;
+}
+.posts-collapse .collection-year::before {
+  background: #bbb;
+  border-radius: 50%;
+  content: ' ';
+  height: 8px;
+  left: 0;
+  margin-left: -4px;
+  margin-top: -4px;
+  position: absolute;
+  top: 50%;
+  width: 8px;
+}
+.posts-collapse .collection-header {
+  display: inline-block;
+  margin: 0 0 0 20px;
+}
+.posts-collapse .collection-header small {
+  color: #bbb;
+  margin-left: 5px;
+}
+.posts-collapse .post-header {
+  border-bottom: 1px dashed #ccc;
+  margin: 30px 0;
+  padding-left: 15px;
+  position: relative;
+  transition-property: border;
+  transition-delay: 0s;
+  transition-duration: 0.2s;
+  transition-timing-function: ease-in-out;
+}
+.posts-collapse .post-header::before {
+  background: #bbb;
+  border: 1px solid #fff;
+  border-radius: 50%;
+  content: ' ';
+  height: 6px;
+  left: 0;
+  margin-left: -4px;
+  position: absolute;
+  top: 0.75em;
+  transition-property: background;
+  width: 6px;
+  transition-delay: 0s;
+  transition-duration: 0.2s;
+  transition-timing-function: ease-in-out;
+}
+.posts-collapse .post-header:hover {
+  border-bottom-color: #666;
+}
+.posts-collapse .post-header:hover::before {
+  background: #222;
+}
+.posts-collapse .post-meta {
+  display: inline;
+  font-size: 0.75em;
+  margin-right: 10px;
+}
+.posts-collapse .post-title {
+  display: inline;
+  font-size: 1em;
+  font-weight: normal;
+  margin-bottom: 0;
+  margin-top: 0;
+}
+.posts-collapse .post-title a,
+.posts-collapse .post-title span.exturl {
+  border-bottom: none;
+  color: #666;
+}
+.posts-collapse::before {
+  background: #f5f5f5;
+  content: ' ';
+  height: 100%;
+  left: 0;
+  margin-left: -2px;
+  position: absolute;
+  top: 1.25em;
+  width: 4px;
+}
+.posts-collapse .fa-external-link {
+  font-size: 0.875em;
+  margin-left: 5px;
+}
+.post-eof {
+  background: #ccc;
+  height: 1px;
+  margin: 80px auto 60px;
+  text-align: center;
+  width: 8%;
+}
+.post-block:last-child .post-eof {
+  display: none;
+}
+.posts-expand {
+  padding-top: 40px;
+}
+@media (max-width: 767px) {
+  .posts-expand {
+    margin: 0 20px;
+  }
+}
+@media (min-width: 992px) {
+  .post-body {
+    text-align: left;
+  }
+}
+@media (max-width: 991px) {
+  .post-body {
+    text-align: left;
+  }
+}
+.post-body h2,
+.post-body h3,
+.post-body h4,
+.post-body h5,
+.post-body h6 {
+  padding-top: 10px;
+}
+.post-body h2 .header-anchor,
+.post-body h3 .header-anchor,
+.post-body h4 .header-anchor,
+.post-body h5 .header-anchor,
+.post-body h6 .header-anchor {
+  border-bottom-style: none;
+  color: #ccc;
+  float: right;
+  margin-left: 10px;
+  visibility: hidden;
+}
+.post-body h2 .header-anchor:hover,
+.post-body h3 .header-anchor:hover,
+.post-body h4 .header-anchor:hover,
+.post-body h5 .header-anchor:hover,
+.post-body h6 .header-anchor:hover {
+  color: inherit;
+}
+.post-body h2:hover .header-anchor,
+.post-body h3:hover .header-anchor,
+.post-body h4:hover .header-anchor,
+.post-body h5:hover .header-anchor,
+.post-body h6:hover .header-anchor {
+  visibility: visible;
+}
+.post-body img {
+  border: 1px solid #ddd;
+  box-sizing: border-box;
+  padding: 3px;
+}
+@media (max-width: 767px) {
+  .post-body img {
+    padding: initial;
+  }
+}
+.post-body iframe,
+.post-body img,
+.post-body video {
+  margin-bottom: 20px;
+}
+.post-body .video-container {
+  height: 0;
+  margin-bottom: 20px;
+  overflow: hidden;
+  padding-top: 75%;
+  position: relative;
+  width: 100%;
+}
+.post-body .video-container iframe,
+.post-body .video-container object,
+.post-body .video-container embed {
+  height: 100%;
+  left: 0;
+  margin: 0;
+  position: absolute;
+  top: 0;
+  width: 100%;
+}
+.post-gallery {
+  border-collapse: separate;
+  display: table;
+  table-layout: fixed;
+  width: 100%;
+}
+.post-gallery .post-gallery-img {
+  border: 0;
+  display: table-cell;
+  text-align: center;
+  vertical-align: middle;
+}
+.post-gallery .post-gallery-img img {
+  border: 0;
+  max-height: 100%;
+  max-width: 100%;
+}
+.post-gallery-row {
+  display: table-row;
+}
+.posts-expand .post-header {
+  font-size: 1.125em;
+}
+.posts-expand .post-title {
+  font-weight: 400;
+  margin: initial;
+  text-align: center;
+  overflow-wrap: break-word;
+  word-wrap: break-word;
+}
+.posts-expand .post-title-link {
+  border-bottom: none;
+  color: #555;
+  display: inline-block;
+  position: relative;
+  vertical-align: top;
+}
+.posts-expand .post-title-link::before {
+  background: #000;
+  bottom: 0;
+  content: '';
+  height: 2px;
+  left: 0;
+  position: absolute;
+  transform: scaleX(0);
+  visibility: hidden;
+  width: 100%;
+  transition-delay: 0s;
+  transition-duration: 0.2s;
+  transition-timing-function: ease-in-out;
+}
+.posts-expand .post-title-link:hover::before {
+  transform: scaleX(1);
+  visibility: visible;
+}
+.posts-expand .post-title-link .fa {
+  font-size: 0.875em;
+  margin-left: 5px;
+}
+.posts-expand .post-meta {
+  color: #999;
+  font-family: 'Monda', "PingFang SC", "Microsoft YaHei", sans-serif;
+  font-size: 0.75em;
+  margin: 3px 0 60px 0;
+  text-align: center;
+}
+.posts-expand .post-meta .post-description {
+  font-size: 0.875em;
+  margin-top: 2px;
+}
+.posts-expand .post-meta time {
+  border-bottom: 1px dashed #999;
+  cursor: pointer;
+}
+.post-meta .post-meta-item + .post-meta-item::before {
+  content: '|';
+  margin: 0 0.5em;
+}
+.post-meta-divider {
+  margin: 0 0.5em;
+}
+.post-meta-item-icon {
+  margin-right: 3px;
+}
+@media (max-width: 991px) {
+  .post-meta-item-icon {
+    display: inline-block;
+  }
+}
+@media (max-width: 991px) {
+  .post-meta-item-text {
+    display: none;
+  }
+}
+.post-nav {
+  border-top: 1px solid #eee;
+  display: table;
+  margin-top: 15px;
+  width: 100%;
+}
+.post-nav-divider {
+  display: table-cell;
+  width: 10%;
+}
+.post-nav-item {
+  display: table-cell;
+  padding: 10px 0 0 0;
+  vertical-align: top;
+  width: 45%;
+}
+.post-nav-item a {
+  border-bottom: none;
+  color: #555;
+  display: block;
+  font-size: 0.875em;
+  line-height: 1.6;
+  position: relative;
+}
+.post-nav-item a:hover {
+  border-bottom: none;
+  color: #222;
+}
+.post-nav-item a:active {
+  top: 2px;
+}
+.post-nav-item .fa {
+  font-size: 0.75em;
+  margin-right: 5px;
+}
+.post-nav-next a {
+  padding-left: 5px;
+}
+.post-nav-prev {
+  text-align: right;
+}
+.post-nav-prev a {
+  padding-right: 5px;
+}
+.post-nav-prev .fa {
+  margin-left: 5px;
+}
+.rtl.post-body p,
+.rtl.post-body a,
+.rtl.post-body h1,
+.rtl.post-body h2,
+.rtl.post-body h3,
+.rtl.post-body h4,
+.rtl.post-body h5,
+.rtl.post-body h6,
+.rtl.post-body li,
+.rtl.post-body ul,
+.rtl.post-body ol {
+  direction: rtl;
+  font-family: UKIJ Ekran;
+}
+.rtl.post-title {
+  font-family: UKIJ Ekran;
+}
+.post-tags {
+  margin-top: 40px;
+  text-align: center;
+}
+.post-tags a {
+  display: inline-block;
+  font-size: 0.8125em;
+}
+.post-tags a:not(:last-child) {
+  margin-right: 10px;
+}
+.post-widgets {
+  border-top: 1px solid #eee;
+  margin-top: 15px;
+  text-align: center;
+}
+.wp_rating {
+  height: 20px;
+  line-height: 20px;
+  margin-top: 10px;
+  padding-top: 6px;
+  text-align: center;
+}
+.social-like {
+  display: flex;
+  font-size: 0.875em;
+  justify-content: center;
+  text-align: center;
+}
+.reward-container {
+  margin: 20px auto;
+  padding: 10px 0;
+  text-align: center;
+  width: 90%;
+}
+.reward-container button {
+  background: #ff2a2a;
+  border: 0;
+  border-radius: 5px;
+  color: #fff;
+  cursor: pointer;
+  line-height: 2;
+  outline: 0;
+  padding: 0 15px;
+  vertical-align: text-top;
+}
+.reward-container button:hover {
+  background: #f55;
+}
+#qr {
+  padding-top: 20px;
+}
+#qr a {
+  border: 0;
+}
+#qr img {
+  display: inline-block;
+  margin: 0.8em 2em 0 2em;
+  max-width: 100%;
+  width: 180px;
+}
+#qr p {
+  text-align: center;
+}
+.post-copyright {
+  background: #f5f5f5;
+  border-left: 3px solid #ff2a2a;
+  list-style: none;
+  margin: 2em 0 0;
+  padding: 0.5em 1em;
+}
+.category-all-page .category-all-title {
+  text-align: center;
+}
+.category-all-page .category-all {
+  margin-top: 20px;
+}
+.category-all-page .category-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.category-all-page .category-list-item {
+  margin: 5px 10px;
+}
+.category-all-page .category-list-count {
+  color: #bbb;
+}
+.category-all-page .category-list-count::before {
+  content: ' (';
+  display: inline;
+}
+.category-all-page .category-list-count::after {
+  content: ') ';
+  display: inline;
+}
+.category-all-page .category-list-child {
+  padding-left: 10px;
+}
+.event-list {
+  padding: 0;
+}
+.event-list hr {
+  background: #222;
+  margin: 20px 0 45px 0;
+}
+.event-list hr::after {
+  background: #222;
+  color: #fff;
+  content: 'NOW';
+  display: inline-block;
+  font-weight: bold;
+  padding: 0 5px;
+  text-align: right;
+}
+.event-list .event {
+  background: #222;
+  margin: 20px 0;
+  min-height: 40px;
+  padding: 15px 0 15px 10px;
+}
+.event-list .event .event-summary {
+  color: #fff;
+  margin: 0;
+  padding-bottom: 3px;
+}
+.event-list .event .event-summary::before {
+  animation: dot-flash 1s alternate infinite ease-in-out;
+  color: #fff;
+  content: '\f111';
+  display: inline-block;
+  font-family: 'FontAwesome';
+  font-size: 10px;
+  margin-right: 25px;
+  vertical-align: middle;
+}
+.event-list .event .event-relative-time {
+  color: #bbb;
+  display: inline-block;
+  font-size: 12px;
+  font-weight: 400;
+  padding-left: 12px;
+}
+.event-list .event .event-details {
+  color: #fff;
+  display: block;
+  line-height: 18px;
+  margin-left: 56px;
+  padding-bottom: 6px;
+  padding-top: 3px;
+  text-indent: -24px;
+}
+.event-list .event .event-details::before {
+  color: #fff;
+  display: inline-block;
+  font-family: 'FontAwesome';
+  margin-right: 9px;
+  text-align: center;
+  text-indent: 0;
+  width: 14px;
+}
+.event-list .event .event-details.event-location::before {
+  content: '\f041';
+}
+.event-list .event .event-details.event-duration::before {
+  content: '\f017';
+}
+.event-list .event-past {
+  background: #f5f5f5;
+}
+.event-list .event-past .event-summary,
+.event-list .event-past .event-details {
+  color: #bbb;
+  opacity: 0.9;
+}
+.event-list .event-past .event-summary::before,
+.event-list .event-past .event-details::before {
+  animation: none;
+  color: #bbb;
+}
+@-moz-keyframes dot-flash {
+  from {
+    opacity: 1;
+    transform: scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: scale(0.8);
+  }
+}
+@-webkit-keyframes dot-flash {
+  from {
+    opacity: 1;
+    transform: scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: scale(0.8);
+  }
+}
+@-o-keyframes dot-flash {
+  from {
+    opacity: 1;
+    transform: scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: scale(0.8);
+  }
+}
+@keyframes dot-flash {
+  from {
+    opacity: 1;
+    transform: scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: scale(0.8);
+  }
+}
+ul.breadcrumb {
+  font-size: 0.75em;
+  list-style: none;
+  margin: 1em 0;
+  padding: 0 2em;
+  text-align: center;
+}
+ul.breadcrumb li {
+  display: inline;
+}
+ul.breadcrumb li + li::before {
+  content: '/\00a0';
+  font-weight: normal;
+  padding: 0.5em;
+}
+ul.breadcrumb li + li:last-child {
+  font-weight: bold;
+}
+.tag-cloud {
+  text-align: center;
+}
+.tag-cloud a {
+  display: inline-block;
+  margin: 10px;
+}
+.tag-cloud a:hover {
+  color: #222 !important;
+}
+.gt-header a,
+.gt-comments a,
+.gt-popup a {
+  border-bottom: none;
+}
+.gt-container .gt-popup .gt-action.is--active::before {
+  top: 0.7em;
+}
+.search-pop-overlay {
+  background: rgba(0,0,0,0.3);
+  display: none;
+  height: 100%;
+  left: 0;
+  overflow: hidden;
+  position: fixed;
+  top: 0;
+  width: 100%;
+  z-index: 1400;
+}
+.search-popup {
+  background: #fff;
+  border-radius: 5px;
+  color: #333;
+  display: none;
+  height: 80%;
+  left: 50%;
+  margin-left: -350px;
+  padding: 0;
+  position: fixed;
+  top: 10%;
+  width: 700px;
+  z-index: 1500;
+}
+@media (max-width: 767px) {
+  .search-popup {
+    border-radius: 0;
+    height: 100%;
+    left: 0;
+    margin: 0;
+    padding: 0;
+    top: 0;
+    width: 100%;
+  }
+}
+.search-popup .search-icon,
+.search-popup .popup-btn-close {
+  color: #999;
+  display: inline-block;
+  font-size: 18px;
+  height: 36px;
+  padding-left: 10px;
+  padding-right: 10px;
+  width: 18px;
+}
+.search-popup .popup-btn-close {
+  border-left: 1px solid #eee;
+  cursor: pointer;
+  float: right;
+}
+.search-popup .popup-btn-close:hover .fa {
+  color: #222;
+}
+.search-popup .search-header {
+  background: #f5f5f5;
+  border-top-left-radius: 5px;
+  border-top-right-radius: 5px;
+  padding: 5px;
+}
+.search-input {
+  display: inline-block;
+  width: calc(90% - 30px);
+}
+.search-input input {
+  background: transparent;
+  border: 0;
+  outline: 0;
+  padding: 5px 0;
+  width: 100%;
+}
+.search-input .ais-search-box--magnifier svg,
+.search-input .ais-search-box--reset svg {
+  display: none;
+}
+.algolia-powered {
+  float: right;
+}
+.algolia-powered img {
+  display: inline-block;
+  height: 18px;
+  vertical-align: middle;
+}
+.algolia-results {
+  height: calc(100% - 55px);
+  overflow: auto;
+  padding: 5px 30px;
+  position: relative;
+}
+.algolia-results hr {
+  margin: 10px 0;
+}
+.algolia-results .highlight {
+  color: #f00;
+  font-size: inherit;
+  font-style: normal;
+  margin: 0;
+  padding: 0 2px;
+}
+.algolia-hits {
+  margin-top: 20px;
+}
+.algolia-hit-item {
+  margin: 15px 0;
+}
+.algolia-hit-item-link {
+  border-bottom: 1px dashed #ccc;
+  display: block;
+  transition-delay: 0s;
+  transition-duration: 0.2s;
+  transition-timing-function: ease-in-out;
+}
+.algolia-pagination .pagination {
+  border-top: none;
+  margin: 40px 0;
+  opacity: 1;
+  padding: 0;
+}
+.algolia-pagination .pagination-item {
+  display: inline-block;
+}
+.algolia-pagination .page-number {
+  border-top: none;
+}
+.algolia-pagination .page-number:hover {
+  border-bottom: 1px solid #222;
+}
+.algolia-pagination .disabled-item {
+  visibility: hidden;
+}
+.header {
+  margin: 0 auto;
+  position: relative;
+  width: calc(100% - 20px);
+}
+@media (min-width: 1200px) {
+  .header {
+    width: 1160px;
+  }
+}
+@media (min-width: 1600px) {
+  .header {
+    width: 73%;
+  }
+}
+@media (max-width: 991px) {
+  .header {
+    width: auto;
+  }
+}
+.header-inner {
+  background: #fff;
+  border-radius: initial;
+  box-shadow: 0 2px 2px 0 rgba(0,0,0,0.12), 0 3px 1px -2px rgba(0,0,0,0.06), 0 1px 5px 0 rgba(0,0,0,0.12);
+  overflow: hidden;
+  padding: 0;
+  position: absolute;
+  top: 0;
+  width: 240px;
+}
+@media (min-width: 1200px) {
+  .header-inner {
+    width: 240px;
+  }
+}
+@media (max-width: 991px) {
+  .header-inner {
+    border-radius: initial;
+    position: relative;
+    width: auto;
+  }
+}
+.main::before,
+.main::after {
+  content: ' ';
+  display: table;
+}
+.main::after {
+  clear: both;
+}
+@media (max-width: 991px) {
+  .main-inner {
+    width: auto;
+  }
+}
+.content-wrap {
+  background: #fff;
+  border-radius: initial;
+  box-shadow: 0 2px 2px 0 rgba(0,0,0,0.12), 0 3px 1px -2px rgba(0,0,0,0.06), 0 1px 5px 0 rgba(0,0,0,0.12);
+  box-sizing: border-box;
+  float: right;
+  padding: 40px;
+  width: calc(100% - 252px);
+}
+@media (max-width: 991px) {
+  .content-wrap {
+    border-radius: initial;
+    padding: 20px;
+    width: 100%;
+  }
+}
+.sidebar {
+  background: #eee;
+  box-shadow: none;
+  float: left;
+  position: static;
+  width: 240px;
+}
+@media (max-width: 991px) {
+  .sidebar {
+    display: none;
+  }
+}
+.sidebar-toggle {
+  display: none;
+}
+.footer-inner {
+  padding-left: 260px;
+}
+.back-to-top {
+  left: auto;
+  right: 30px;
+}
+@media (max-width: 991px) {
+  .back-to-top {
+    right: 20px;
+  }
+}
+@media (max-width: 991px) {
+  .footer-inner {
+    padding-left: 0;
+    padding-right: 0;
+    width: auto;
+  }
+}
+.site-brand-container {
+  position: relative;
+}
+.site-meta {
+  background: #222;
+  color: #fff;
+  padding: 20px 0;
+}
+@media (max-width: 991px) {
+  .site-meta {
+    box-shadow: 0 0 16px rgba(0,0,0,0.5);
+  }
+}
+.brand {
+  background: none;
+  padding: 0;
+}
+.brand:hover {
+  color: #fff;
+}
+.site-subtitle {
+  font-weight: initial;
+  margin: 10px 10px 0;
+}
+.custom-logo-image {
+  margin-top: 20px;
+}
+@media (max-width: 991px) {
+  .custom-logo-image {
+    display: none;
+  }
+}
+.site-nav-toggle {
+  left: 20px;
+  top: 50%;
+  transform: translateY(-50%);
+}
+@media (min-width: 768px) and (max-width: 991px) {
+  .site-nav-toggle {
+    display: block;
+  }
+}
+.site-nav-toggle .toggle .toggle-line {
+  background: #fff;
+}
+.site-nav {
+  border-top: none;
+}
+@media (min-width: 768px) and (max-width: 991px) {
+  .site-nav {
+    display: none;
+  }
+}
+.menu-item-active a,
+.menu .menu-item a:hover,
+.menu .menu-item span.exturl:hover {
+  background: #f5f5f5;
+}
+.menu-item-active a::after,
+.menu .menu-item a:hover::after,
+.menu .menu-item span.exturl:hover::after {
+  background: #bbb;
+  border-radius: 50%;
+  content: ' ';
+  height: 6px;
+  margin-top: -3px;
+  position: absolute;
+  right: 15px;
+  top: 50%;
+  width: 6px;
+}
+.menu .menu-item {
+  display: block;
+  margin: 0;
+}
+.menu .menu-item a,
+.menu .menu-item span.exturl {
+  padding: 5px 20px;
+  position: relative;
+  text-align: left;
+  transition-property: background-color;
+}
+.menu .menu-item .badge {
+  background: #ccc;
+  border-radius: 10px;
+  color: #fff;
+  float: right;
+  padding: 2px 5px;
+  text-shadow: 1px 1px 0 rgba(0,0,0,0.1);
+  vertical-align: middle;
+}
+.sub-menu {
+  background: #fff;
+  border-bottom: 1px solid #ddd;
+  margin: 0;
+  padding: 6px 0;
+}
+.sub-menu .menu-item {
+  display: inline-block;
+}
+.sub-menu .menu-item a,
+.sub-menu .menu-item span.exturl {
+  margin: 5px 10px;
+  padding: initial;
+}
+.sub-menu .menu-item a:hover,
+.sub-menu .menu-item span.exturl:hover {
+  background: initial;
+  color: #fc6423;
+}
+.sub-menu .menu-item a::after,
+.sub-menu .menu-item span.exturl::after {
+  content: initial !important;
+}
+.sub-menu .menu-item-active a {
+  background: #fff;
+  border-bottom-color: #fc6423;
+  color: #fc6423;
+}
+.sub-menu .menu-item-active a:hover {
+  background: #fff;
+  border-bottom-color: #fc6423;
+}
+.sidebar {
+  bottom: auto;
+  right: auto;
+}
+.sidebar a,
+.sidebar span.exturl {
+  color: #555;
+}
+.sidebar a:hover,
+.sidebar span.exturl:hover {
+  border-bottom-color: #222;
+  color: #222;
+}
+.sidebar-inner {
+  background: #fff;
+  border-radius: initial;
+  box-shadow: 0 2px 2px 0 rgba(0,0,0,0.12), 0 3px 1px -2px rgba(0,0,0,0.06), 0 1px 5px 0 rgba(0,0,0,0.12), 0 -1px 0.5px 0 rgba(0,0,0,0.09);
+  box-sizing: border-box;
+  color: #555;
+  width: 240px;
+  opacity: 0;
+}
+.sidebar-inner.affix {
+  position: fixed;
+  top: 12px;
+}
+.sidebar-inner.affix-bottom {
+  position: absolute;
+}
+.site-state-item {
+  padding: 0 10px;
+}
+.feed-link,
+.chat {
+  border-bottom: 1px dotted #ccc;
+  border-top: 1px dotted #ccc;
+  margin-top: 10px;
+  text-align: center;
+}
+.feed-link a,
+.chat a {
+  border: 0;
+  color: #fc6423;
+  display: block;
+}
+.feed-link a:hover,
+.chat a:hover {
+  background: none;
+  border: 0;
+  color: #e34603;
+}
+.feed-link a:hover .fa,
+.chat a:hover .fa {
+  color: #e34603;
+}
+.links-of-author {
+  display: flex;
+  flex-wrap: wrap;
+  margin-top: 10px;
+  justify-content: center;
+}
+.links-of-author-item {
+  margin: 5px 0 0;
+}
+.links-of-author-item a,
+.links-of-author-item span.exturl {
+  box-sizing: border-box;
+  display: inline-block;
+  margin-bottom: 0;
+  margin-right: 0;
+  max-width: 216px;
+  overflow: hidden;
+  padding: 0 5px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.links-of-author-item a,
+.links-of-author-item span.exturl {
+  border-bottom: none;
+  display: block;
+  text-decoration: none;
+}
+.links-of-author-item a::before,
+.links-of-author-item span.exturl::before {
+  display: none;
+}
+.links-of-author-item a:hover,
+.links-of-author-item span.exturl:hover {
+  background: #eee;
+  border-radius: 4px;
+}
+.links-of-author-item .fa {
+  margin-right: 2px;
+}
+.links-of-blogroll-item {
+  padding: 0;
+}
+.content-wrap {
+  background: initial;
+  box-shadow: initial;
+  padding: initial;
+}
+.post-block {
+  background: #fff;
+  border-radius: initial;
+  box-shadow: 0 2px 2px 0 rgba(0,0,0,0.12), 0 3px 1px -2px rgba(0,0,0,0.06), 0 1px 5px 0 rgba(0,0,0,0.12);
+  padding: 40px;
+}
+.post-block + .post-block {
+  border-radius: initial;
+  box-shadow: 0 2px 2px 0 rgba(0,0,0,0.12), 0 3px 1px -2px rgba(0,0,0,0.06), 0 1px 5px 0 rgba(0,0,0,0.12), 0 -1px 0.5px 0 rgba(0,0,0,0.09);
+  margin-top: 12px;
+}
+.comments {
+  background: #fff;
+  border-radius: initial;
+  box-shadow: 0 2px 2px 0 rgba(0,0,0,0.12), 0 3px 1px -2px rgba(0,0,0,0.06), 0 1px 5px 0 rgba(0,0,0,0.12), 0 -1px 0.5px 0 rgba(0,0,0,0.09);
+  margin: auto;
+  margin-top: 12px;
+  padding: 40px;
+}
+.tabs-comment {
+  margin-top: 1em;
+}
+.posts-expand {
+  padding-top: initial;
+}
+.post-nav-divider {
+  width: 4%;
+}
+.post-nav-item {
+  width: 48%;
+}
+.post-eof {
+  display: none;
+}
+.pagination {
+  background: #fff;
+  border-radius: initial;
+  border-top: initial;
+  box-shadow: 0 2px 2px 0 rgba(0,0,0,0.12), 0 3px 1px -2px rgba(0,0,0,0.06), 0 1px 5px 0 rgba(0,0,0,0.12), 0 -1px 0.5px 0 rgba(0,0,0,0.09);
+  margin: 12px 0 0;
+  padding: 10px 0 10px;
+}
+.pagination .prev,
+.pagination .next,
+.pagination .page-number {
+  margin-bottom: initial;
+  top: initial;
+}
+.main {
+  padding-bottom: initial;
+}
+.footer {
+  bottom: auto;
+}
+.sub-menu {
+  border-bottom: initial;
+  box-shadow: 0 2px 2px 0 rgba(0,0,0,0.12), 0 3px 1px -2px rgba(0,0,0,0.06), 0 1px 5px 0 rgba(0,0,0,0.12);
+}
+.sub-menu + .content .post-block {
+  box-shadow: 0 2px 2px 0 rgba(0,0,0,0.12), 0 3px 1px -2px rgba(0,0,0,0.06), 0 1px 5px 0 rgba(0,0,0,0.12), 0 -1px 0.5px 0 rgba(0,0,0,0.09);
+  margin-top: 12px;
+}
+@media (min-width: 768px) and (max-width: 991px) {
+  .sub-menu + .content .post-block {
+    margin-top: 10px;
+  }
+}
+@media (max-width: 767px) {
+  .sub-menu + .content .post-block {
+    margin-top: 8px;
+  }
+}
+.post-body h1,
+.post-body h2 {
+  border-bottom: 1px solid #eee;
+}
+.post-body h3 {
+  border-bottom: 1px solid #eee;
+}
+.post-body h4 {
+  border-bottom: 1px dotted #eee;
+}
+@media (min-width: 768px) and (max-width: 991px) {
+  .content-wrap {
+    padding: 10px;
+  }
+  .posts-expand {
+    margin: initial;
+  }
+  .posts-expand .post-button {
+    margin-top: 20px;
+  }
+  .post-block {
+    border-radius: initial;
+    box-shadow: 0 2px 2px 0 rgba(0,0,0,0.12), 0 3px 1px -2px rgba(0,0,0,0.06), 0 1px 5px 0 rgba(0,0,0,0.12), 0 -1px 0.5px 0 rgba(0,0,0,0.09);
+    padding: 20px;
+  }
+  .post-block + .post-block {
+    margin-top: 10px;
+  }
+  .comments {
+    margin-top: 10px;
+    padding: 10px 20px;
+  }
+  .pagination {
+    margin: 10px 0 0;
+  }
+}
+@media (max-width: 767px) {
+  .content-wrap {
+    padding: 8px;
+  }
+  .posts-expand {
+    margin: initial;
+  }
+  .posts-expand .post-button {
+    margin: 12px 0;
+  }
+  .post-block {
+    border-radius: initial;
+    box-shadow: 0 2px 2px 0 rgba(0,0,0,0.12), 0 3px 1px -2px rgba(0,0,0,0.06), 0 1px 5px 0 rgba(0,0,0,0.12), 0 -1px 0.5px 0 rgba(0,0,0,0.09);
+    min-height: auto;
+    padding: 12px;
+  }
+  .post-block + .post-block {
+    margin-top: 8px;
+  }
+  .comments {
+    margin-top: 8px;
+    padding: 10px 12px;
+  }
+  .pagination {
+    margin: 8px 0 0;
+  }
+}</style><noscript>
+  <style>
+  .use-motion .brand,
+  .use-motion .menu-item,
+  .sidebar-inner,
+  .use-motion .post-block,
+  .use-motion .pagination,
+  .use-motion .comments,
+  .use-motion .post-header,
+  .use-motion .post-body,
+  .use-motion .collection-header { opacity: initial; }
+
+  .use-motion .site-title,
+  .use-motion .site-subtitle {
+    opacity: initial;
+    top: initial;
+  }
+
+  .use-motion .logo-line-before i { left: initial; }
+  .use-motion .logo-line-after i { right: initial; }
+  </style>
+</noscript>
+
+<script>function loadCss(l){var d=document,h=d.head,s=d.createElement('link');s.rel='stylesheet';s.href=l;!function e(f){if (d.body)return f();setTimeout(function(){e(f)})}(function(){h.appendChild(s);});}loadCss('/style.css');loadCss('//fonts.googleapis.com/css?family=Monda:300,300italic,400,400italic,700,700italic|Roboto Slab:300,300italic,400,400italic,700,700italic|PT Mono:300,300italic,400,400italic,700,700italic&display=swap&subset=latin,latin-ext');loadCss('//cdn.jsdelivr.net/npm/instantsearch.js@2/dist/instantsearch.min.css');loadCss('//cdn.jsdelivr.net/npm/gitalk@1/dist/gitalk.min.css');</script><noscript><link rel="stylesheet" href="/style.css"><link rel="stylesheet" href="//fonts.googleapis.com/css?family=Monda:300,300italic,400,400italic,700,700italic|Roboto Slab:300,300italic,400,400italic,700,700italic|PT Mono:300,300italic,400,400italic,700,700italic&amp;display=swap&amp;subset=latin,latin-ext"><link rel="stylesheet" href="//cdn.jsdelivr.net/npm/instantsearch.js@2/dist/instantsearch.min.css"><link rel="stylesheet" href="//cdn.jsdelivr.net/npm/gitalk@1/dist/gitalk.min.css"></noscript></head>
+
+<body itemscope="" itemtype="http://schema.org/WebPage">
+  <div class="container use-motion">
+    <div class="headband"></div>
+
+    <header class="header" itemscope="" itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-container">
+  <div class="site-meta">
+
+    <div>
+      <a href="/" class="brand" rel="start">
+        <span class="logo-line-before"><i></i></span>
+        <span class="site-title">贝克街的流浪猫</span>
+        <span class="logo-line-after"><i></i></span>
+      </a>
+    </div>
+        <h1 class="site-subtitle" itemprop="description">技术博客</h1>
+      
+  </div>
+
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="切换导航栏">
+      <span class="toggle-line toggle-line-first"></span>
+      <span class="toggle-line toggle-line-middle"></span>
+      <span class="toggle-line toggle-line-last"></span>
+    </div>
+  </div>
+</div>
+
+
+<nav class="site-nav">
+  
+  <ul id="menu" class="menu">
+        <li class="menu-item menu-item-home">
+
+    <a href="/" rel="section"><i class="fa fa-fw fa-home"></i>首页</a>
+
+  </li>
+        <li class="menu-item menu-item-tags">
+
+    <a href="/tags/" rel="section"><i class="fa fa-fw fa-tags"></i>标签</a>
+
+  </li>
+        <li class="menu-item menu-item-categories">
+
+    <a href="/categories/" rel="section"><i class="fa fa-fw fa-th"></i>分类</a>
+
+  </li>
+        <li class="menu-item menu-item-archives">
+
+    <a href="/archives/" rel="section"><i class="fa fa-fw fa-archive"></i>归档</a>
+
+  </li>
+        <li class="menu-item menu-item-about">
+
+    <a href="/about/" rel="section"><i class="fa fa-fw fa-user"></i>关于</a>
+
+  </li>
+      <li class="menu-item menu-item-search">
+        <a role="button" class="popup-trigger"><i class="fa fa-search fa-fw"></i>搜索
+        </a>
+      </li>
+  </ul>
+
+</nav>
+  <div class="site-search">
+    <div class="popup search-popup">
+    <div class="search-header">
+  <span class="search-icon">
+    <i class="fa fa-search"></i>
+  </span>
+  <div class="search-input" id="search-input"></div>
+  <span class="popup-btn-close">
+    <i class="fa fa-times-circle"></i>
+  </span>
+</div>
+<div class="algolia-results">
+  <div id="algolia-stats"></div>
+  <div id="algolia-hits"></div>
+  <div id="algolia-pagination" class="algolia-pagination"></div>
+</div>
+
+  
+</div>
+<div class="search-pop-overlay"></div>
+
+  </div>
+</div>
+    </header>
+
+    
+
+  <span class="exturl github-corner" data-url="aHR0cHM6Ly9naXRodWIuY29tL0JlaUtlSmllRGVMaXVMYW5nTWFv" title="欢迎关注我的 GitHub" aria-label="欢迎关注我的 GitHub"><svg width="80" height="80" viewBox="0 0 250 250" aria-hidden="true"><path d="M0,0 L115,115 L130,115 L142,142 L250,250 L250,0 Z"></path><path d="M128.3,109.0 C113.8,99.7 119.0,89.6 119.0,89.6 C122.0,82.7 120.5,78.6 120.5,78.6 C119.2,72.0 123.4,76.3 123.4,76.3 C127.3,80.9 125.5,87.3 125.5,87.3 C122.9,97.6 130.6,101.9 134.4,103.2" fill="currentColor" style="transform-origin: 130px 106px;" class="octo-arm"></path><path d="M115.0,115.0 C114.9,115.1 118.7,116.5 119.8,115.4 L133.7,101.6 C136.9,99.2 139.9,98.4 142.2,98.6 C133.8,88.0 127.5,74.4 143.8,58.0 C148.5,53.4 154.0,51.2 159.7,51.0 C160.3,49.4 163.2,43.6 171.4,40.1 C171.4,40.1 176.1,42.5 178.8,56.2 C183.1,58.6 187.2,61.8 190.9,65.4 C194.5,69.0 197.7,73.2 200.1,77.6 C213.8,80.2 216.3,84.9 216.3,84.9 C212.7,93.1 206.9,96.0 205.4,96.6 C205.1,102.4 203.0,107.8 198.3,112.5 C181.9,128.9 168.3,122.5 157.7,114.1 C157.9,116.9 156.7,120.9 152.7,124.9 L141.0,136.5 C139.8,137.7 141.6,141.9 141.8,141.8 Z" fill="currentColor" class="octo-body"></path></svg></span>
+
+
+    <main class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          
+
+          <div class="content">
+            
+
+  <div class="posts-expand">
+      
+  
+  
+  <article itemscope="" itemtype="http://schema.org/Article" class="post-block " lang="zh-CN">
+    <link itemprop="mainEntityOfPage" href="https://www.beikejiedeliulangmao.top/java/jvm/gc/">
+
+    <span hidden="" itemprop="author" itemscope="" itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.jpg">
+      <meta itemprop="name" content="贝克街的流浪猫">
+      <meta itemprop="description" content="贝贝猫">
+    </span>
+
+    <span hidden="" itemprop="publisher" itemscope="" itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="贝克街的流浪猫">
+    </span>
+      <header class="post-header">
+        <h2 class="post-title" itemprop="name headline">
+          JVM GC
+        </h2>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="fa fa-calendar-o"></i>
+              </span>
+              <span class="post-meta-item-text">发表于</span>
+
+              <time title="创建时间：2019-12-16 15:39:20" itemprop="dateCreated datePublished" datetime="2019-12-16T15:39:20+08:00">2019-12-16</time>
+            </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="fa fa-folder-o"></i>
+              </span>
+              <span class="post-meta-item-text">分类于</span>
+                <span itemprop="about" itemscope="" itemtype="http://schema.org/Thing">
+                  <a href="/categories/Java/" itemprop="url" rel="index">
+                    <span itemprop="name">Java</span>
+                  </a>
+                </span>
+                  ，
+                <span itemprop="about" itemscope="" itemtype="http://schema.org/Thing">
+                  <a href="/categories/Java/JVM/" itemprop="url" rel="index">
+                    <span itemprop="name">JVM</span>
+                  </a>
+                </span>
+            </span>
+
+          
+            <span id="/java/jvm/gc/" class="post-meta-item leancloud_visitors" data-flag-title="JVM GC" title="阅读次数">
+              <span class="post-meta-item-icon">
+                <i class="fa fa-eye"></i>
+              </span>
+              <span class="post-meta-item-text">阅读次数：</span>
+              <span class="leancloud-visitors-count"></span>
+            </span><br>
+            <span class="post-meta-item" title="本文字数">
+              <span class="post-meta-item-icon">
+                <i class="fa fa-file-word-o"></i>
+              </span>
+                <span class="post-meta-item-text">本文字数：</span>
+              <span>23k</span>
+            </span>
+            <span class="post-meta-item" title="阅读时长">
+              <span class="post-meta-item-icon">
+                <i class="fa fa-clock-o"></i>
+              </span>
+                <span class="post-meta-item-text">阅读时长 ≈</span>
+              <span>21 分钟</span>
+            </span>
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+        <h2 id="引言"><a href="#引言" class="headerlink" title="引言"></a>引言</h2><p>前面我们已经在整体上简单地介绍了一下 JVM 组成部分，本文着重介绍其中 GC 相关的内容，更多关于 JVM 的文章均收录于<a href="https://www.beikejiedeliulangmao.top/categories/Java/JVM">&lt;JVM系列文章&gt;</a>。</p>
+<a id="more"></a>
+<h2 id="垃圾回收"><a href="#垃圾回收" class="headerlink" title="垃圾回收"></a>垃圾回收</h2><p>相信在前面的 JVM 基本结构中，大家已经认识到了 JVM 中内存的结构，即方法区，堆，Java 栈，本地方法栈，PC 计数器，这些是由 JVM 维护的供 Java 程序使用的内存，我们称之为运行时数据区。除此之外，还有 JVM 自身要使用的内存，如执行引擎和本地库接口使用的内存，这些是在运行时数据区之外的。<br><img src="/images/loading-cat.gif" data-original="https://bbm-hexo.oss-accelerate.aliyuncs.com/images/jvm/jvm-memory.png" alt="jvm-memory"><br>而我们接下来要谈论的垃圾回收，主要的回收目标就是堆空间。而这里所说的垃圾，特指内存中不会再被使用的对象，将这些对象所用的内存回收后，就会有空闲的区域腾出来，这样其他地方才能使用到这些内容。如果不及时堆内存中的垃圾进行清理，那么这些垃圾对象所占用的内存会一直保存到应用结束，被保留的内存无法被其他对象使用。如果大量不会被使用的对象一直占着内存不放，需要内存空间时，就有可能导致内存溢出。</p>
+<p>在早期的 C/C++ 时代，内存回收的工作基本上是手动进行的，开发人员使用 new 创建一个对象后，就担负着通过 delete 释放这块内存的责任。这种显示的释放内存的方案虽然可以灵活地控制内存释放的时间，但是会给开发人员带来很大的管理负担。如果有一处内存区域由于程序员疏忽忘记被回收，就会产生内存泄漏，垃圾对象永远无法被清除，随着系统运行不断地增长，直到内存溢出。</p>
+<p>为了将程序员从繁重的内存管理任务中解放出来，可以更加专注于业务开发，就需要一个垃圾回收机制来帮助开发人员在合适的时候进行垃圾对象的释放，这时候，开发人员只需要关注内存的申请，而内存的释放可以由系统自动识别和完成。</p>
+<h3 id="垃圾回收算法"><a href="#垃圾回收算法" class="headerlink" title="垃圾回收算法"></a>垃圾回收算法</h3><p>那么有什么好的方案能够完成垃圾回收的工作呢？这里会涉及到几个常见的回收理论，它们分别是：引用计数法，标记压缩法，标记清除法，复制算法和分代分区思想。</p>
+<h4 id="引用计数法"><a href="#引用计数法" class="headerlink" title="引用计数法"></a>引用计数法</h4><p>引用计数法是最经典也是最古老的垃圾收集方法，它的实现很简单，每个对象 A 都有一个对应的引用计数器，当有任意一个对象 B 引用了对象 A，则引用计数器加一，当引用取消时，引用计数器减一，如果对象 A 的引用计数器的值为 0，则说明对象 A 不再被其他对象使用，换句话说，我们此时可以释放对象 A。</p>
+<p>但是，引用计数法有两个严重的问题：</p>
+<ol>
+<li>无法处理循环引用的情况。</li>
+<li>引用计数器每次引用产生和消除的时候，都要伴随一次加法或者减法运算，所以对系统性能有一定的影响。</li>
+</ol>
+<p><img src="/images/loading-cat.gif" data-original="https://bbm-hexo.oss-accelerate.aliyuncs.com/images/jvm/loop-reference.png" alt="loop-reference"><br>上图展示的就是循环引用的例子，图中左半部分是正常的对象引用关系，在后续的程序执行中这些正常引用的对象很可能会被再次使用。而右侧的两个对象之间，互相引用，它们都不会在后续的程序执行过程中被使用，但是因为它们的引用计数器都不为 0 ，也就是说，这两个对象会一直得不到回收。</p>
+<h4 id="标记清除法"><a href="#标记清除法" class="headerlink" title="标记清除法"></a>标记清除法</h4><p>标记清除算法是现代垃圾回收算法的思想基础。标记清除算法将垃圾回收分为两个阶段: 标记阶段和清除阶段。在标记阶段, 首先通过根节点, 标记所有从根节点开始的可达对象。因此, 未被标记的对象就是未被引用的垃圾对象。然后, 在清除阶段, 清除所有未被标记的对象。标记清除算法可能产生的最大问题是空间碎片。<br><img src="/images/loading-cat.gif" data-original="https://bbm-hexo.oss-accelerate.aliyuncs.com/images/jvm/mark-clean.png" alt="mark-clean"><br>如上的例子中，我们使用了一标记清除算法进行垃圾回收，从根节点开始（可能是当前栈空间的对象引用，或类静态属性等）扫描，所有的有引用关系的对象均被标记为存活，而那些不可达的对象则是垃圾对象，在标记操作结束后，系统回收那些垃圾对象。回收后的空间是不连续的，所以之后在进行大对象的内存分配时，在不连续的内存空间中分配的效率要低于连续的空间。因此，这是该算法最大的缺点。</p>
+<h4 id="标记复制算法"><a href="#标记复制算法" class="headerlink" title="标记复制算法"></a>标记复制算法</h4><p>复制算法则主要是为了解决标记清除算法中内存回收后不连续的问题而衍生出来的。它将内存空间分为两块，每次只使用其中一块，这里假设正在使用 A，在垃圾回收时，先从根节点开始，标记处所有正在使用的对象，然后将正在使用的内存 A 中的存活对象复制到未使用的内存 B 中，之后清除正在使用的内存块 A 中的所有对象，然后程序转而使用那块原来未使用的内存区域 B。<br><img src="/images/loading-cat.gif" data-original="https://bbm-hexo.oss-accelerate.aliyuncs.com/images/jvm/mark-copy.png" alt="mark-copy"><br>如果系统中垃圾对象很多，复制算法需要复制的对象就会相对较少，因此，在使用该算法时，效率还是很高的。而且，以复制的方式进行垃圾回收海能保证回收后剩余可用内存是连续的，没有内存碎片。虽然，有以上两大优点，但是复制算法会导致内存折半，只能使用一半内存，而且如果存活对象较多时，要复制大量对象，对效率也有影响。</p>
+<p>在 JVM 很多垃圾回收器中都是用到了标记复制的思想，为了解决经典标记复制算法中内存折半的问题，JVM 将内存划分为 3 个区，eden 区，from 区和 to 区。其中 from 和 to 可以视为用于复制的两块大小相同，地位相等，且可以进行角色互换的区域。from 和 to 也被称为 survivor 空间，即幸存者空间，用于存放未被回收的对象。</p>
+<p>以下图为例，当发生垃圾回收时，会从根节点出发，标记 eden 区和 from 区的所有存活对象，然后将这些对象复制到 to 区。而下次进行垃圾回收时，to 和 from 区角色互换，届时会将 to 区 和 eden 区的幸存对象复制到 from 区。通过这种方法，就解决了标记复制算法中内存折半导致的内存使用率过低的问题，这里我们可以通过调整 eden 区，from 区和 to 区的比例，来控制内存的利用率。<br><img src="/images/loading-cat.gif" data-original="https://bbm-hexo.oss-accelerate.aliyuncs.com/images/jvm/eden-from-to-old.png" alt="eden-from-to-old"></p>
+<blockquote>
+<p>新生代: 存放年轻对象的堆空间。年轻对象指刚刚创建的, 或者经历垃圾回收次数不多的对象。<br>  老年代: 存放老年对象的堆空间。老年对象指经历过多次垃圾回收依然存活的对象。</p>
+</blockquote>
+<p>但是，缩小了 from 和 to 区的大小势必会引发另一个问题：如果要复制的对象过多，大于 from 和 to 的内存大小时，就会无法使用。所以，在上图中你会看到 JVM 不仅将内存分为 eden 和 survivor，还划分出一个老年代对象区。对于那些较大的对象，或者在前面的标记复制算法过程中复制次数过多的对象（年龄较大）会被移动到老年代对象区中，这样就能减少复制的对象规模，让标记复制算法工作在一个最适合的场景中。</p>
+<h4 id="标记压缩算法"><a href="#标记压缩算法" class="headerlink" title="标记压缩算法"></a>标记压缩算法</h4><p>复制算法的高效性是建立在存活对象少、垃圾对象多的前提下的。这种情况在新生代经常发生, 但是在老年代, 更常见的情況是大部分对象都是存活对象。如果依然使用复制算法, 由于存活对象较多, 复制的成本也将很高。因此, 基于老年代垃圾回收的特性, 需要使用其他的算法。标记压缩算法是一种老年代的回收算法。它在标记清除算法的基础上做了一些优化。和标记清除算法一样, 标记压缩算法也首先需要从根节点开始, 对所有可达对象做一次标记。但之后, 它并不只是简单地清理未标记的对象, 而是将所有的存活对象压缩到内存的一端。之后, 清理边界外所有的空间。这种方法既避免了碎片的产生, 又不需要两块相同的内存空间, 因此, 其性价比较高。如下图所示, 在通过根节点标记出所有可达对象后, 沿虚线进行对象移动, 将所有的可达对象都移动到一端, 并保持它们之间的引用关系, 最后, 清理边界外的空间, 即可完成回收工作。<br><img src="/images/loading-cat.gif" data-original="https://bbm-hexo.oss-accelerate.aliyuncs.com/images/jvm/mark-compact.png" alt="mark-compact"><br>这里简单地看，标记压缩算法应该完爆标记复制算法啊，因为标记压缩算法复制的对象数少，而且还不需要额外的内存区域保存存活的对象。实际上，在进行压缩的过程中也要进行计算，才能规划好压缩方案，而对于那些存活比率较低的新生代对象来说，规划压缩方案的消耗可能还没有直接复制来得快，所以标记复制算法和标记压缩算法分别代表了空间换时间和时间换空间思想，并分别活跃在各自擅长的场景中。</p>
+<h4 id="分代算法"><a href="#分代算法" class="headerlink" title="分代算法"></a>分代算法</h4><p>在前面对标记复制算法进行分代改造的过程中，我们就谈到了新生代，老年代这些概念，实际上这就是分代算法的体现。分代算法将内存根据对象的特点分成了几块，根据每块内存的区间对象特点，使用不同的回收算法，来提高回收的效率。</p>
+<p>一般来说, Java 虚拟机会将所有的新建对象都放入称为新生代的内存区域, 新生代的特点是对象朝生夕灭, 大约 90% 的新建对象会被很快回收, 因此, 新生代比较适合使用复制算法。当一个对象经过几次回收后依然存活, 对象就会被放入称为老年代的内存空间，此外当 survivor 区内存紧张时，也会将一些对象“破格”提升到老年代。在老年代中, 几乎所有的对象都是经过几次垃圾回收后依然得以存活的。因此, 可以认为这些对象在一段时期内, 甚至在应用程序的整个生命周期中, 将是常驻内存的。在极端情况下, 老年代对象的存活率可以达到 100%。如果依然使用复制算法回收老年代, 将需要复制大量对象。再加上老年代的回收性价比也要低于新生代, 因此这种做法是不可取的。根据分代的思想, 可以对老年代的回收使用与新生代不同的标记压缩或标记清除算法, 以提高垃圾回收效率。如下图所示, 就显示了这种分代回收的思想。<br><img src="/images/loading-cat.gif" data-original="https://bbm-hexo.oss-accelerate.aliyuncs.com/images/jvm/generational-collection.png" alt="generational-collection"><br>对于新生代和老年代来说, 通常, 新生代回收的频率很高, 但是每次回收的耗时都很短, 而老年代回收的频率比较低, 但是会消耗更多的时间。为了支持高颊率的新生代回收, 虚拟机可能使用一种叫作卡表(Card Table)的数据结构。卡表为一个比特位集合, 每一个比特位可以用来表示老年代的某一区域中的所有对象是否持有新生代对象的引用。这样在新生代 GC 时, 可以不用花大量时间扫描所有老年代对象, 来确定每一个对象的引用关系, 而可以先扫描卡表, 只有当卡表的标记位为 1 时, 才需要扫描给定区域的老年代对象, 而卡表位为 0 的所在区域的老年代对象, 一定不含有新生代对象的引用。如下图所示, 卡表中每一位表示老年代 4KB 的空间, 卡表记录为 0 的老年代区域没有任何对象指向新生代, 只有卡表位为 1 的区域才有对象包含新生代引用, 因此在新生代 GC 时, 只需要扫描卡表位为 1 所在的老年代空间。使用这种方式, 可以大大加快新生代的回收速度，并且在具有分代特性的回收器中广泛使用。<br><img src="/images/loading-cat.gif" data-original="https://bbm-hexo.oss-accelerate.aliyuncs.com/images/jvm/card-table.png" alt="card-table"></p>
+<h4 id="分区算法"><a href="#分区算法" class="headerlink" title="分区算法"></a>分区算法</h4><p>一般来说, 在相同条件下, 堆空间越大, 一次 GC 时所需要的时间就越长, 从而产生的停顿也越长。对于交互式应用或者对吞吐量有要求的后端服务程序来说，为了更好地控制 GC 产生的停顿时间, 将一块大的内存区域分割成多个小块, 根据目标的停顿时间, 每次合理地回收若干个小区间, 而不是整个堆空间, 从而减少一次 GC 所产生的停顿。<br><img src="/images/loading-cat.gif" data-original="https://bbm-hexo.oss-accelerate.aliyuncs.com/images/jvm/region-collection.png" alt="region-collection"></p>
+<h3 id="识别存活对象"><a href="#识别存活对象" class="headerlink" title="识别存活对象"></a>识别存活对象</h3><p>前面，我们着重介绍了各种垃圾回收算法，它们是 JVM 垃圾回收器的理论基础，但是我们还没有详细介绍怎么判断一个对象是存活的，这一节我们就着重介绍一下这部分的内容。</p>
+<p>我们知道，在 JVM 中是通过一些 GC Root 作为基础，遍历出所有存活的对象的，那么这些 GC Root 主要都包括什么呢？</p>
+<ol>
+<li>活着的线程和虚拟机栈(栈桢中的本地变量表)中的引用的对象</li>
+<li>方法区中的类静态属性引用的对象</li>
+<li>方法区中的常量引用的对象</li>
+<li>本地方法栈中 JNI 的引用的对象</li>
+<li>所有 synchronized 锁住的对象引用，即用于同步的监控对象</li>
+<li>finalize 执行队列中的对象</li>
+</ol>
+<p>上述的这几个 GC Root 是最主要的情况，JVM 从这些 Root 出发找到所有可触及的对象，并将它们标记为存活。而对于那些已经死掉的对象，还有可能在某一条件下 “复活” 自己。</p>
+<h4 id="对象的复活"><a href="#对象的复活" class="headerlink" title="对象的复活"></a>对象的复活</h4><p>当一个对象第一次被标记为死亡时，并不会立即被销毁，而是会将其放置在一个 finalize 队列中，JVM 会使用一个优先级较低的线程执行这些对象的 finalize 函数，如果一个对象在 finalize 函数的执行过程中将自身的应用挂载到了任意 GC Root 可以访问到的地方，那么就不会销毁该对象，这个过程，我们称之为对象的“复活”。不过通过 finalize 复活的这套机制只能使用一次，下次该对象再次被标记为死亡时，就不会再执行 finalize 函数了。</p>
+<figure class="highlight java"><table><tbody><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">public</span> <span class="class"><span class="keyword">class</span> <span class="title">Finalize</span> </span>{</span><br><span class="line"></span><br><span class="line">    <span class="keyword">public</span> <span class="keyword">static</span> Finalize obj;</span><br><span class="line"></span><br><span class="line">    <span class="meta">@Override</span></span><br><span class="line">    <span class="function"><span class="keyword">protected</span> <span class="keyword">void</span> <span class="title">finalize</span><span class="params">()</span> </span>{</span><br><span class="line">        System.out.println(<span class="string">"in finalize"</span>);</span><br><span class="line">        obj = <span class="keyword">this</span>;</span><br><span class="line">    }</span><br><span class="line"></span><br><span class="line">    <span class="function"><span class="keyword">public</span> <span class="keyword">static</span> <span class="keyword">void</span> <span class="title">main</span><span class="params">(String[] args)</span> <span class="keyword">throws</span> InterruptedException </span>{</span><br><span class="line">        Finalize o = <span class="keyword">new</span> Finalize();</span><br><span class="line">        o = <span class="keyword">null</span>;</span><br><span class="line">        System.gc();</span><br><span class="line">        Thread.sleep(<span class="number">1000</span>);</span><br><span class="line">        <span class="keyword">if</span> (obj != <span class="keyword">null</span>) {</span><br><span class="line">            System.out.println(<span class="string">"object alive"</span>);</span><br><span class="line">        }</span><br><span class="line">        obj = <span class="keyword">null</span>;</span><br><span class="line">        System.gc();</span><br><span class="line">        Thread.sleep(<span class="number">1000</span>);</span><br><span class="line">        <span class="keyword">if</span> (obj == <span class="keyword">null</span>) {</span><br><span class="line">            System.out.println(<span class="string">"finalize only invoke once"</span>);</span><br><span class="line">        }</span><br><span class="line">    }</span><br><span class="line">}</span><br></pre></td></tr></tbody></table></figure>
+
+<p>上例中展示的就是如何在 finalize 中“复活”一个对象，从下面的执行结果中我们也能看出 finalize 只会执行一次。</p>
+<figure class="highlight plain"><table><tbody><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">in finalize</span><br><span class="line">object alive</span><br><span class="line">finalize only invoke once</span><br></pre></td></tr></tbody></table></figure>
+
+<p>如果一个对象的 finalize 函数被调用后，并没有复活自己，或者 finalize 函数已经执行过一次，那么该对象就是真正的要被回收的对象了。</p>
+<blockquote>
+<p>finalize 函数是一个非常糟糕的模式, 不推荐使用 finalize 函数释放资源。因为 finalize 函数有可能发生引用外泄, 在无意中复活对象;而且 finalize 是被系统调用的, 调用时间是不明确的, 因此不是一个好的资源释放方案, 推荐在 try-catch-finally 语句中进行资源的释放。</p>
+</blockquote>
+<h4 id="引用的强度"><a href="#引用的强度" class="headerlink" title="引用的强度"></a>引用的强度</h4><p>在 Java 中对象引用还进行了更进一步的划分以满足不同的需求，它们包括：强引用，软引用，弱引用和虚引用。强引用就是程序中一般使用的引用类型, 强引用的对象是可触及的, 不会被回收。相对的, 软引用、弱引用和虚引用的对象在一定条件下, 都是可以被回收的。</p>
+<h5 id="强引用"><a href="#强引用" class="headerlink" title="强引用"></a>强引用</h5><figure class="highlight java"><table><tbody><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">Object strongRef = <span class="keyword">new</span> Object();</span><br></pre></td></tr></tbody></table></figure>
+
+<p>如上所示的例子中，使用到的就是强引用，通过它可以直接访问引用的对象，强引用所指向的对象在任何时候都不会被系统回收, 虚拟机宁愿抛出 OOM 异常, 也不会回收强引用所指向对象。所以，如果强引用使用不当，可能导致内存泄漏问题。</p>
+<h5 id="软引用"><a href="#软引用" class="headerlink" title="软引用"></a>软引用</h5><p>软引用是比强引用弱一点的引用类型，一个对象如果只被软引用，那么只有当堆空间不足时，才会被回收。</p>
+<figure class="highlight java"><table><tbody><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">public</span> <span class="class"><span class="keyword">class</span> <span class="title">SoftRef</span> </span>{</span><br><span class="line"></span><br><span class="line">    <span class="keyword">private</span> <span class="keyword">byte</span>[] data = <span class="keyword">new</span> <span class="keyword">byte</span>[<span class="number">5</span> * <span class="number">1024</span> * <span class="number">1024</span>];</span><br><span class="line">    <span class="function"><span class="keyword">public</span> <span class="keyword">static</span> <span class="keyword">void</span> <span class="title">main</span><span class="params">(String[] args)</span> <span class="keyword">throws</span> InterruptedException </span>{</span><br><span class="line">        SoftRef softRef = <span class="keyword">new</span> SoftRef();</span><br><span class="line">        ReferenceQueue referenceQueue = <span class="keyword">new</span> ReferenceQueue&lt;SoftRef&gt;();</span><br><span class="line">        SoftReference&lt;SoftRef&gt; softReference = <span class="keyword">new</span> SoftReference&lt;SoftRef&gt;(softRef, referenceQueue);</span><br><span class="line">        softRef = <span class="keyword">null</span>;</span><br><span class="line">        <span class="keyword">if</span> (referenceQueue.poll() == <span class="keyword">null</span>) {</span><br><span class="line">            System.out.println(<span class="string">"current reference queue is empty"</span>);</span><br><span class="line">        }</span><br><span class="line">        <span class="keyword">if</span> (softReference.get() != <span class="keyword">null</span>) {</span><br><span class="line">            System.out.println(<span class="string">"could get ref"</span>);</span><br><span class="line">        }</span><br><span class="line">        System.gc();</span><br><span class="line">        <span class="keyword">if</span> (softReference.get() != <span class="keyword">null</span>) {</span><br><span class="line">            System.out.println(<span class="string">"still could get ref"</span>);</span><br><span class="line">        }</span><br><span class="line">        <span class="keyword">byte</span>[] b = <span class="keyword">new</span> <span class="keyword">byte</span>[<span class="number">1024</span> * <span class="number">1024</span> * <span class="number">6</span>];</span><br><span class="line">        <span class="keyword">if</span> (softReference.get() == <span class="keyword">null</span>) {</span><br><span class="line">            System.out.println(<span class="string">"couldn't get ref"</span>);</span><br><span class="line">        }</span><br><span class="line">        <span class="keyword">if</span> (referenceQueue.poll() == softReference) {</span><br><span class="line">            System.out.println(<span class="string">"reference queue work"</span>);</span><br><span class="line">        }</span><br><span class="line">    }</span><br><span class="line">}</span><br></pre></td></tr></tbody></table></figure>
+
+<p>在上例中，我们通过 <code>-Xmx10m</code> 设定堆最大为 10m，然后先创建了软引用并进行垃圾回收，会发现软引用的对象并未被回收，而当我们再次申请一个大对象时，因为当前剩余内存大小不足以应对新的内存请求，所以对之前的软引用对象进行了回收。</p>
+<figure class="highlight plain"><table><tbody><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">current reference queue is empty</span><br><span class="line">could get ref</span><br><span class="line">still could get ref</span><br><span class="line">couldn't get ref</span><br><span class="line">reference queue work</span><br></pre></td></tr></tbody></table></figure>
+
+<p>除此之外，我们还可以在创建软引用的时候将该软引用注册在一个引用队列中，这样在该软引用对应的对象被回收时，JVM 会将该软引用推入队列中来作为对象回收的一个通知。注意：如果一个对象通过 finalize 复活了自己的话，那么该对象的引用就不会被推入引用队列。只有一个对象真正的被回收时，才会被加入到引用队列。</p>
+<h5 id="弱引用"><a href="#弱引用" class="headerlink" title="弱引用"></a>弱引用</h5><p>弱引用是一个比软引用更弱的引用类型，和软引用不同的是，弱引用只要发生了 GC 就会被清除，而不关心当前内存是否严重不足。由于垃圾回收器线程通常优先级较低，因此并不一定能很快地发现弱引用对象。在这种情况下，弱引用对象能存活很长一段时间。和软引用一样，弱引用也可以注册到一个引用队列中，当进行对象回收时，JVM 会将弱引用推入该队列。</p>
+<figure class="highlight java"><table><tbody><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">public</span> <span class="class"><span class="keyword">class</span> <span class="title">WeakRef</span> </span>{</span><br><span class="line">    <span class="function"><span class="keyword">public</span> <span class="keyword">static</span> <span class="keyword">void</span> <span class="title">main</span><span class="params">(String[] args)</span> <span class="keyword">throws</span> InterruptedException </span>{</span><br><span class="line">        WeakRef WeakRef = <span class="keyword">new</span> WeakRef();</span><br><span class="line">        ReferenceQueue&lt;WeakRef&gt; referenceQueue = <span class="keyword">new</span> ReferenceQueue&lt;WeakRef&gt;();</span><br><span class="line">        WeakReference&lt;WeakRef&gt; ref = <span class="keyword">new</span> WeakReference&lt;WeakRef&gt;(WeakRef, referenceQueue);</span><br><span class="line">        WeakRef = <span class="keyword">null</span>;</span><br><span class="line">        <span class="keyword">if</span> (ref.get() != <span class="keyword">null</span>) {</span><br><span class="line">            System.out.println(<span class="string">"weak reference alive"</span>);</span><br><span class="line">        }</span><br><span class="line">        <span class="keyword">if</span> (referenceQueue.poll() == <span class="keyword">null</span>) {</span><br><span class="line">            System.out.println(<span class="string">"reference queue is empty"</span>);</span><br><span class="line">        }</span><br><span class="line">        System.gc();</span><br><span class="line">        Thread.sleep(<span class="number">1000</span>);</span><br><span class="line">        <span class="keyword">if</span> (ref.get() == <span class="keyword">null</span>) {</span><br><span class="line">            System.out.println(<span class="string">"weak reference cleaned"</span>);</span><br><span class="line">        }</span><br><span class="line">        <span class="keyword">if</span> (referenceQueue.poll() == ref) {</span><br><span class="line">            System.out.println(<span class="string">"reference queue work"</span>);</span><br><span class="line">        }</span><br><span class="line">    }</span><br><span class="line">}</span><br></pre></td></tr></tbody></table></figure>
+
+<p>上例的输出结果如下：</p>
+<figure class="highlight plain"><table><tbody><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">weak reference alive</span><br><span class="line">reference queue is empty</span><br><span class="line">weak reference cleaned</span><br><span class="line">reference queue work</span><br></pre></td></tr></tbody></table></figure>
+
+<p>软引用、弱引用都非常适合来保存那些可有可无的缓存数据。如果这么做, 当系统内存不足时, 这些缓存数据会被回收, 不会导致内存溢出。而当内存资源充足时, 这些缓存数据又可以存在相当长的时间, 从而起到加速系统的作用。</p>
+<h5 id="虚引用"><a href="#虚引用" class="headerlink" title="虚引用"></a>虚引用</h5><p>虚引用是所有引用类型中最弱的一个。一个持有虚引用的对象, 和没有引用几乎是一样的, 随时都可能被垃圾回收器回收。当试图通过虚引用的 get 方法取得引用对象时, 总是会失败。并且, 虛引用必须和引用队列一起使用, 它的作用在于跟踪垃圾回收过程。当垃圾回收器准备回收一个对象时, 如果发现它还有虚引用, 就会在回收对象后, 将这个虚引用加入引用队列, 以通知应用程序对象的回收情况。</p>
+<figure class="highlight java"><table><tbody><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">public</span> <span class="class"><span class="keyword">class</span> <span class="title">PhantomReference</span>&lt;<span class="title">T</span>&gt; <span class="keyword">extends</span> <span class="title">Reference</span>&lt;<span class="title">T</span>&gt; </span>{</span><br><span class="line"></span><br><span class="line">    <span class="comment">/**</span></span><br><span class="line"><span class="comment">     * Returns this reference object's referent.  Because the referent of a</span></span><br><span class="line"><span class="comment">     * phantom reference is always inaccessible, this method always returns</span></span><br><span class="line"><span class="comment">     * &lt;code&gt;null&lt;/code&gt;.</span></span><br><span class="line"><span class="comment">     *</span></span><br><span class="line"><span class="comment">     * <span class="doctag">@return</span>  &lt;code&gt;null&lt;/code&gt;</span></span><br><span class="line"><span class="comment">     */</span></span><br><span class="line">    <span class="function"><span class="keyword">public</span> T <span class="title">get</span><span class="params">()</span> </span>{</span><br><span class="line">        <span class="keyword">return</span> <span class="keyword">null</span>;</span><br><span class="line">    }</span><br><span class="line"></span><br><span class="line">    <span class="comment">/**</span></span><br><span class="line"><span class="comment">     * Creates a new phantom reference that refers to the given object and</span></span><br><span class="line"><span class="comment">     * is registered with the given queue.</span></span><br><span class="line"><span class="comment">     *</span></span><br><span class="line"><span class="comment">     * &lt;p&gt; It is possible to create a phantom reference with a &lt;tt&gt;null&lt;/tt&gt;</span></span><br><span class="line"><span class="comment">     * queue, but such a reference is completely useless: Its &lt;tt&gt;get&lt;/tt&gt;</span></span><br><span class="line"><span class="comment">     * method will always return null and, since it does not have a queue, it</span></span><br><span class="line"><span class="comment">     * will never be enqueued.</span></span><br><span class="line"><span class="comment">     *</span></span><br><span class="line"><span class="comment">     * <span class="doctag">@param</span> referent the object the new phantom reference will refer to</span></span><br><span class="line"><span class="comment">     * <span class="doctag">@param</span> q the queue with which the reference is to be registered,</span></span><br><span class="line"><span class="comment">     *          or &lt;tt&gt;null&lt;/tt&gt; if registration is not required</span></span><br><span class="line"><span class="comment">     */</span></span><br><span class="line">    <span class="function"><span class="keyword">public</span> <span class="title">PhantomReference</span><span class="params">(T referent, ReferenceQueue&lt;? <span class="keyword">super</span> T&gt; q)</span> </span>{</span><br><span class="line">        <span class="keyword">super</span>(referent, q);</span><br><span class="line">    }</span><br><span class="line"></span><br><span class="line">}</span><br></pre></td></tr></tbody></table></figure>
+
+<h3 id="垃圾回收器"><a href="#垃圾回收器" class="headerlink" title="垃圾回收器"></a>垃圾回收器</h3><p>在 Java 虚拟机中, 垃圾回收器可不仅仅只有一种, 什么情况下要使用哪一种, 对性能又有什么样的影响, 这都是我们必须要了解的。接下来我们将具体介绍虚拟机中的垃圾回收器类型, 以及它们的特点和使用方法, 并进一步探讨有关对象在内存中的分配和回收的问题。</p>
+<h4 id="串行垃圾回收器"><a href="#串行垃圾回收器" class="headerlink" title="串行垃圾回收器"></a>串行垃圾回收器</h4><p>串行垃圾回收器时最古老的垃圾回收器，它主要具有两个特点：</p>
+<ol>
+<li>使用单一线程进行垃圾回收，对于并行能力较弱的计算机来说，这种方案往往具有很高的性能表现，而对于并发能力较强的计算机来说，显然会造成资源的浪费</li>
+<li>它是独占式的垃圾回收，在进行垃圾回收的工程中，所有应用程序线程都会暂停，这种所有应用程序线程都暂停的情况我们称之为 Stop-The-World，它会造成非常糟糕的用户体验</li>
+</ol>
+<p><img src="/images/loading-cat.gif" data-original="https://bbm-hexo.oss-accelerate.aliyuncs.com/images/jvm/serial-collector.png" alt="serial-collector"><br>串行垃圾回收器是一个既可以工作在新生代又可以老年代的回收器。面对不同的对象特点时，它会选用不同的垃圾回收算法：</p>
+<ul>
+<li>工作在新生代时：使用标记复制算法</li>
+<li>工作在老年代时：使用标记压缩算法</li>
+</ul>
+<p>要想让 JVM 使用串行垃圾回收器，可以通过如下参数：</p>
+<ul>
+<li>-XX:+UseSerialGC: 新生代和老年代都使用串行垃圾回收器</li>
+<li>-XX:+UseParNewGC: 新生代使用 ParNew 回收器，老年代使用串行垃圾回收器</li>
+<li>-XX:+UseParallelGC: 新生代使用 ParallelGC 回收器，老年代使用串行垃圾回收器</li>
+</ul>
+<h4 id="并行垃圾回收器"><a href="#并行垃圾回收器" class="headerlink" title="并行垃圾回收器"></a>并行垃圾回收器</h4><p>并行回收器在串行回收器的基础上做了改进, 它使用多个线程同时进行垃圾回收。对于并行能力强的计算机, 可以有效缩短垃圾回收所需的实际时间。</p>
+<h5 id="新生代-ParNew"><a href="#新生代-ParNew" class="headerlink" title="新生代 ParNew"></a>新生代 ParNew</h5><p>ParNew 回收器是一个工作在新生代的垃圾收集器。它只是简单地将串行回收器多线程化, 它的回收策略、算法以及参数和新生代串行回收器一样（标记复制）。ParNew 回收器的工作示意图如下图所示。ParNew 回收器也是独占式的回收器, 在收集过程中, 应用程序会全部暂停。但由于并行回收器使用多线程进行垃圾回收, 因此, 在并发能力比较强的 CPU 上, 它产生的停顿时间要短于串行回收器, 而在单 CPU 或者并发能力较弱的系统中, 并行回收器的效果不会比串行回收器好, 由于多线程的压力, 它的实际表现很可能比串行回收器差。<br><img src="/images/loading-cat.gif" data-original="https://bbm-hexo.oss-accelerate.aliyuncs.com/images/jvm/parNew.png" alt="parNew"><br>注意：ParNew 回收器只工作在新生代对象中，而如下两个参数可以在新生代对象中启用该回收器：</p>
+<ul>
+<li>-XX:+UseParNewGC: 新生代使用 ParNew 回收器，老年代使用串行垃圾回收器</li>
+<li>-XX:+UseConcMarkSweepGC: 新生代使用 ParNew 回收器，老年代使用 CMS</li>
+</ul>
+<p>ParNew 回收器工作时的线程数量可以使用 -XX:ParallelGCThreads 参数指定。一般, 最好与 CPU 数量相当, 避免过多的线程数, 影响垃圾收集性能。</p>
+<h5 id="新生代-ParallelGC"><a href="#新生代-ParallelGC" class="headerlink" title="新生代 ParallelGC"></a>新生代 ParallelGC</h5><p>新生代 ParallelGC 回收器也是使用标记复制算法的收集器。从表面上看, 它和 ParNew 回收器一样, 都是多线程、独占式的收集器。但是, ParallelGC 回收器有一个重要的特点: 它非常关注系统的吞吐量。</p>
+<p>新生代 ParallelGC 回收器可以使用以下参数启用。</p>
+<ul>
+<li>-XX:+UseParallelGC: 新生代使用 ParallelGC 回收器，老年代使用串行垃圾回收器</li>
+<li>-XX:+UseParallelOldGC: 新生代使用 ParallelGC 回收器，老年代使用 ParallelOld 回收器</li>
+</ul>
+<p>ParallelGC 回收器提供了两个重要的参数用于控制系统的吞吐量。</p>
+<ul>
+<li>-XX:MaxGCPauseMillis: 设置最大垃圾收集停顿时间。它的值是一个大于 0 的整数。ParallelGC 在工作时, 会调整 Java 堆大小或者其他一些参数, 尽可能地把停顿时间控制在 MaxGCPauseMillis 以内。如果希望减少停顿时间, 而把这个值设得很小, 为了达到预期的停顿时间, 虚拟机可能会使用一个较小的堆(一个小堆比一个大堆回收快), 而这将导致垃圾回收变得很频繁, 从而增加了垃圾回收总时间, 降低了吞吐量。</li>
+<li>-XX:GCTimeRatio: 设置呑吐量大小。它的值是一个 0 到 100 之间的整数。假设GCTimeRatio 的值为 n, 那么系统将花费不超过 1/(1+n) 的时间用于垃圾收集。比如 GCTimeRatio 等于19, 则系统用于垃圾收集的时间不超过 <code>1/(1+19)=5%</code>。默认情况下, 它的取值是99, 即不超过 <code>1/(1+99)=1%</code> 的时间用于垃圾收集。</li>
+</ul>
+<p>除此以外, ParallelGC 回收器与 ParNew 回收器另一个不同之处在于它还支持一种自适应的 GC 调节策略。使用 -XX:+UseAdaptiveSizePolicy 可以打开自适应 GC 策略。在这种模式下, 新生代的大小、eden 和 survivor 的比例、晋升老年代的对象年龄等参数会被自动调整, 以达到在堆大小、吞吐量和停顿时间之间的平衡点。在手工调优比较困难的场合, 可以直接使用这种自适应的方式, 仅指定虚拟机的最大堆、目标吞吐量(GCTimeRatio)和停顿时间(MaxGCPauseMillis), 让虚拟机自己完成调优工作。</p>
+<p>ParallelGC 回收器关注系统吞吐量。可以通过 -XX:MaxGCPauseMillis 和 -XX:GCTimeRatio 设置期望的停顿时间和吞吐量大小。但是鱼和熊掌不可兼得, 这两个参数是相互矛盾的, 通常如果减少一次收集的最大停顿时间, 就会同时减少系统吞吐量, 增加系统吞吐量又可能会同时增加一次垃圾回收的最大停顿。</p>
+<h5 id="老年代-ParallelOldGC"><a href="#老年代-ParallelOldGC" class="headerlink" title="老年代 ParallelOldGC"></a>老年代 ParallelOldGC</h5><p>老年代 ParallelOldGC 回收器也是一种多线程并发的收集器。和新生代 ParallelGC 回收器一样, 它也是一种关注吞吐量的收集器。从名字上看, 它在 ParallelGC 中间插入了 Old, 表示这是一个应用于老年代的回收器, 并且和 ParallelGC 新生代回收器搭配使用。</p>
+<p>ParallelOldGC 回收器使用标记压缩算法, 下图显示了老年代 ParallelOldGC 回收器的工作模式。<br><img src="/images/loading-cat.gif" data-original="https://bbm-hexo.oss-accelerate.aliyuncs.com/images/jvm/parNew.png" alt="parNew"><br>使用 -XX:+UseParallelOldGC 可以在新生代使用 ParallelGC 回收器, 老年代使用ParallelOldGC 回收器。这是一对非常关注吞吐量的垃圾回收器组合。在对吞吐量敏感的系统中, 可以考虑使用。参数 -XX:ParallelGCThreads 也可以用于设置垃圾回收时的线程数量。</p>
+<h4 id="CMS-回收器"><a href="#CMS-回收器" class="headerlink" title="CMS 回收器"></a>CMS 回收器</h4><p>CMS 是 Concurrent Mark Sweep 的缩写，意为并发标记清除，它是一款使用标记清除算法的并行回收器。与 ParallelGC 和 ParallelOldGC 不同，它主要关注与系统的停顿时间。CMS 是只针对老年代的回收器所以通常和 ParNew 配合使用，也就是前面所说的 <code>-XX:+UseConcMarkSweepGC</code> 参数。</p>
+<p>CMS 与之前介绍的各种垃圾回收器之间最大的区别是，CMS 能让（部分）垃圾回收过程和应用程序并发执行。它尽可能的将一些花费时间较长的引用扫描工作隔离出来，让这部分工作和应用程序并发执行，然后在一个关键的时间点将应用程序暂停，检查引用扫描结果的正确性并进行校正，在垃圾回收线程确保所有需要保留的对象都记录在案没有漏下的时候，再放行应用程序，之后的清理工作也可以使用并发的方式进行，因为 CMS 使用的是标记清除算法，清除过程中不会影响到现存对象的使用。之所以选用标记清除法，主要是因为 CMS 面向的是老年代对象，一般来说能存活很久。</p>
+<h5 id="工作流程"><a href="#工作流程" class="headerlink" title="工作流程"></a>工作流程</h5><p><img src="/images/loading-cat.gif" data-original="https://bbm-hexo.oss-accelerate.aliyuncs.com/images/jvm/cms.png" alt="cms"><br>CMS 工作时, 主要步骤有:</p>
+<p><strong>初始标记</strong><br>初始标记阶段是第一个 STW 的阶段，这个阶段的目标是从 GC Root 出发，查找到所有由 GC Root 和年轻代存活对象直接引用的老年代对象。注意，这里我们只是扫描直接引用的老年代对象，而不进行更深入的老年代扫描，所以这个过程是很迅速的。扫描结束后，我们将这些被扫描到的对象打上标记（Marked obj），如下图所示。之后的扫描过程会以这些对象作为出发点进行。<br><img src="/images/loading-cat.gif" data-original="https://bbm-hexo.oss-accelerate.aliyuncs.com/images/jvm/initial-mark.png" alt="initial-mark"></p>
+<p><strong>并发标记</strong><br>根据初始标记的对象，标记出所有存活的老年代对象，在这个阶段垃圾回收器和应用程序是可以并发执行的，也就是说这里扫描的结果并不一定是完全正确的，就如下图所示的 current obj 可能引用关系发生了改变，而我们在并发标记阶段中可能并不能感知到这种变化。<br><img src="/images/loading-cat.gif" data-original="https://bbm-hexo.oss-accelerate.aliyuncs.com/images/jvm/concurrent-mark.png" alt="concurrent-mark"></p>
+<p><strong>预清理(清理前的准备工作)</strong><br>就像前面所说的，在进行并发标记时可能对象的引用关系已经发生了改变，很显然我们要重新检查这些对象的最新引用关系，但是重新扫描又很浪费资源。所以，JVM 将老年代的内存划分为了多个区域（我们称之为 Card），每当一个区域中的对象发生了引用关系改变时，就将该区域标记为“脏”，这个机制是通过写屏障（write barrier）实现的，这里大家可以把它理解成一个切面，在进行赋值 <code>A.field = B</code> 之前, 标记目标对象 A 所处的内存区为“脏”。<br><img src="/images/loading-cat.gif" data-original="https://bbm-hexo.oss-accelerate.aliyuncs.com/images/jvm/preclean.png" alt="preclean"><br>这样，我们只需要重新扫描所有的“脏”区域，就能修正存活对象的标记了，此外预清理阶段还会做一些别的准备工作。<br><img src="/images/loading-cat.gif" data-original="https://bbm-hexo.oss-accelerate.aliyuncs.com/images/jvm/preclean-2.png" alt="preclean-2"><br>但是，这并没有真正的解决问题，因为预清理阶段和应用程序仍然是并发执行的，所以这一步并不能保证当前所有存活的对象都被标记了，也就是说我们之后无论如何都需要将应用程序暂停，然后进行最后的存活对象标记，才能保证不遗漏任何一个存活对象。而预清理这一步的意义就是，尽可能的让之后的 STW 重新标记阶段快速完成，因为我们引入了老年代脏区域机制，所以通常来说，只要预清理处理的足够迅速（大于引用关系的变化速度），脏区域应该会越来越少，这样最终的 STW 重新标记阶段就会更快的完成。</p>
+<p>基于这样的思想，预清理进行得越彻底后续的 STW 重新标记过程就会越快完成，这样应用程序停顿的时间就越小。但是预清理这一步毕竟也要要有个头啊，有很多因素可以导致预处理阶段的结束，比如重复执行的次数，工作量的多少，持续的时间等等，当达到某一确定的阈值时，预处理阶段就会结束。</p>
+<p><strong>重新标记</strong><br>重新标记阶段是另一个 STW 阶段。因为我们在前面的几个阶段的扫描工作都是基于初始标记的老年代可直接访达的对象，而之后的并发环节中可能 GC Root 又引入了新的老年代对象，这些是我们没有进行扫描的，而且就像前面所说的还会有一些引用关系变动而出现的“脏区域“，所以我们要重新进行一次标记的修正，这个过程和初始标记一样从 GC Root 出发，扫描整个新生代内存，进而找出所有存活新生代对象和 GC Root 关联到的老年代对象。细心的同学会发现，之前我们只记录了老年代的“脏”内存区，并没有记录新生代的脏内存区，这主要是因为新生代对象关系变化比较大，很可能大部分对象所处的内存区都是脏的，所以 CMS 索性直接扫描新生代的全部对象关系。</p>
+<p>因为前面我们已经进行过一部分扫描工作了，所以在这次扫描时如果一个老年代对象在前几步中已经扫描过并且该对象并不处于“脏”内存区，那么就不需要继续扫描了，因而这一步的 STW 过程通常来说会比前面几个垃圾回收器具有更短的停顿时间。而且，在 STW 的阶段校正存活对象就能保证结果的正确性了。注意：这里的正确性只是保证了不漏下任何一个存活对象，而对于原来标记为存活，但是在真正回收时已经没有被任何地方引用的对象，CMS 是不会进行检查的，这也是为了最小化停顿时间考虑，对于这类漏网之鱼，我们称之为浮动垃圾。</p>
+<p>因为重新标记过程本质上也是基于 GC Root 扫描所有存活对象（只不过可以跳过部分扫描），所以 CMS 回收器还是希望在进行重新扫描时，年轻代的对象数量越小越好（GC Root 直接连接的对象就少，扫描就快），这样 STW 阶段的时间也会更短。所以 JVM 提供了一个 <code>-XX:+CMSScavengeBeforeRemark</code> 参数来让重新标记之前主动进行一次新生代回收，然后再开始重新标记过程，这时候新生代大小理论上应该是最小的。</p>
+<p>但是，在预清理阶段实际上会做一件和 <code>-XX:+CMSScavengeBeforeRemark</code> 参数背道而驰的事，它除了进行正常的清理准备和检查以外，可能会尝试控制一次停顿时间，让重新标记阶段尽量避开年轻代回收，这是为什么呢？因为 CMS 回收器是以减少停顿时间作为目标的，如果刚进行完一次年轻代 GC 又紧接着进行 STW 的重新标记过程，可能会造成应用程序停顿太长时间。为了避免这种情况, 预处理时, 会刻意等待一次新生代 GC 的发生, 然后根据历史性能数据预测下一次新生代 GC 可能发生的时间, 然后在当前时间和预测时间的中间时刻, 进行重新标记。这样, 从最大程度上避免新生代 GC 和重新标记重合, 尽可能减少应用程序停顿时间。</p>
+<p>无论是年轻代 GC 和重新标记背靠背发生，还是年轻代对象过多导致的扫描时间过长，都与 CMS 的设计初衷（最小化停顿时间）相违背。所以，如何选择还是要从实际的情况出发，做好这两种情况的权衡，才能让 CMS 工作的更加高效。<br><strong>并发清除</strong><br>经过重新标记之后，我们就能开始移除未使用的对象并回收相应的内存空间了，这个过程可以和应用程序并发进行。<br><img src="/images/loading-cat.gif" data-original="https://bbm-hexo.oss-accelerate.aliyuncs.com/images/jvm/concurrent-sweep.png" alt="concurrent-sweep"><br><strong>并发重置</strong><br>最后一个阶段，我们需要重置 CMS 算法使用到的内部数据，然后准备下一次垃圾回收过程。</p>
+<p>上述步骤中初始标记和重新标记是独占系统资源的, 而预清理、并发标记、并发清除和并发重置是可以和用户线程一起执行的。因此, 从整体上说, CSM 收集不是独占式的, 它可以在应用程序运行过程中进行垃圾回收。<br><img src="/images/loading-cat.gif" data-original="https://bbm-hexo.oss-accelerate.aliyuncs.com/images/jvm/cms-2.png" alt="cms-2"></p>
+<h5 id="CMS-参数"><a href="#CMS-参数" class="headerlink" title="CMS 参数"></a>CMS 参数</h5><p>启用 CMS 回收器的参数是 -XX:+UseConcMarkSweepGC。CMS 是多线程回收器, 设置合理的工作线程数量也对系统性能有重要的影响。CMS 默认启动的并发线程数是 <code>(ParallelGCThreads + 3)/4)</code>，ParallelGCThreads 表示 GC 并行时使用的线程数量, 如果新生代使用 ParNew, 那么 ParallelGCThreads 也就是新生代 GC 的线程数量。这意味着有 4 个 ParallelGCThreads 时, 才会有 1 个 CMS 并发线程。</p>
+<p>并发线程数量也可以通过 -XX:ConcGCThreads 或者 -XX:ParallelCMSThreads 参数直接设定。当 CPU 资源比较紧张时, 受到 CMS 回收器线程的影响, 应用系统的性能在垃圾回收阶段可能会非常糟糕。</p>
+<blockquote>
+<p>并发是指收集器和应用线程交替执行, 并行是指同时由多个线程一起执行 GC。因此并行回收器不一定是并发的。因为并行回收器执行时, 应用程序完全挂起, 不存在交替执行的步骤。</p>
+</blockquote>
+<p>由于 CMS 回收器不是独占式的回收器, 在 CMS 回收过程中, 应用程序仍然在不停地工作。在应用程序工作过程中, 又会不断地产生垃圾。这些新生成的垃圾在当前 CMS 回收过程中是无法清除的。同时, 因为应用程序没有中断, 所以在 CMS 回收过程中, 还应该确保应用程序有足够的内存可用。因此, CMS 回收器不会等待堆内存饱和时才进行垃圾回收, 而是当堆内存使用率达到某一阀值时便开始进行回收, 以确保应用程序在 CMS 工作过程中, 依然有足够的空间支持应用程序运行。</p>
+<p>这个回收阈值可以使用 <code>-XX:CMSInitiatingOccupancyFraction</code> 来指定, 默认是 68。即当老年代的空间使用率达到 68% 时, 会执行一次 CMS 回收。如果应用程序的内存使用率增长很快, 在 CMS 的执行过程中, 已经出现了内存不足的情况, 此时, CMS 回收就会失败, <strong>虚拟机将启动老年代串行回收器进行垃圾回收</strong>。在这种时候，应用程序将完全中断，直到垃圾回收完成，这时，应用程序的停顿时间可能会很长。</p>
+<p>因此, 根据应用程序的特点, 可以对 <code>-XX:CMSInitiatingOccupancyFraction</code> 进行调优。如果内存增长缓慢, 则可以设置一个稍大的值, 大的阈值可以有效降低 CMS 的触发频率, 减少老年代回收的次数可以较为明显地改善应用程序性能。反之, 如果应用程序内存使用率增长很快, 则应该降低这个阈值, 以避免频繁触发老年代串行收集器。</p>
+<p>CMS 是一个基于标记清除算法的回收器。而标记清除算法将会造成大量内存碎片, 离散的可用空间无法分配较大的对象。就如下图所示。为了解决这个问题，CMS 回收器提供了几个用于内存压缩整理的参数。<code>-XX:+UseCMSCompactAtFullCollection</code> 开关可以使 CMS 在域圾收集完成后, 进行一次内存碎片整理, 内存碎片的整理不是并发进行的。<code>-XX:CMSFullGCsBeforeCompaction</code> 参数可以用于设定进行多少次 CMS 回收后, 进行一次内存压缩。<br><img src="/images/loading-cat.gif" data-original="https://bbm-hexo.oss-accelerate.aliyuncs.com/images/jvm/after-cms.png" alt="after-cms"></p>
+<h5 id="Log"><a href="#Log" class="headerlink" title="Log"></a>Log</h5><p>下列的 Log 中描述的就是一次完整的 CMS 垃圾回收过程，可以看到，CMS 的整个工作过程包括了初始化标记、并发标记、预清理、重新标记、并发清理和重置等几个重要阶段。</p>
+<figure class="highlight plain"><table><tbody><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br></pre></td><td class="code"><pre><span class="line"># 初始标记，当前老年代内存 10812086K，最大老年代内存 11901376K，当前使用的堆内存 10887844K，总计堆内存 12514816K，后面是停顿时间</span><br><span class="line">64.425: [GC (CMS Initial Mark) [1 CMS-initial-mark: 10812086K(11901376K)] 10887844K(12514816K), 0.0001997 secs] [Times: user=0.00 sys=0.00, real=0.00 secs]</span><br><span class="line"># 并发标记，后面是花费的时间</span><br><span class="line">64.425: [CMS-concurrent-mark-start]</span><br><span class="line">64.460: [CMS-concurrent-mark: 0.035/0.035 secs] [Times: user=0.07 sys=0.00, real=0.03 secs]</span><br><span class="line"># 并发预清理，后面是花费的时间</span><br><span class="line">64.460: [CMS-concurrent-preclean-start]</span><br><span class="line">64.476: [CMS-concurrent-preclean: 0.016/0.016 secs] [Times: user=0.02 sys=0.00, real=0.02 secs]</span><br><span class="line"># 并发预清理的后半段，循环扫描所有脏内存区，并适时结束预清理阶段，后面是花费的时间</span><br><span class="line">64.476: [CMS-concurrent-abortable-preclean-start]</span><br><span class="line">65.550: [CMS-concurrent-abortable-preclean: 0.167/1.074 secs] [Times: user=0.20 sys=0.00, real=1.07 secs]</span><br><span class="line"># 重新标记，当前年轻代内存使用 387920K，年轻代的总大小 613440 K，启动多个 GC 线程线程并发（parallel）重新扫描的过程耗时 0.0085125 秒，随后是三个子阶段的耗时（弱引用扫描，类卸载，清除无用的符号表），最后是老年代内存，堆内存和耗时</span><br><span class="line">65.550: [GC (CMS Final Remark) [YG occupancy: 387920 K (613440 K)]65.550: [Rescan (parallel) , 0.0085125 secs]65.559: [weak refs processing, 0.0000243 secs]65.559: [class unloading, 0.0013120 secs]65.560: [scrub symbol table, 0.0008345 secs]65.561: [scrub string table, 0.0001759 secs][1 CMS-remark: 10812086K(11901376K)] 11200006K(12514816K), 0.0110730 secs] [Times: user=0.06 sys=0.00, real=0.01 secs]</span><br><span class="line"># 并发清理，花费的时间</span><br><span class="line">65.561: [CMS-concurrent-sweep-start]</span><br><span class="line">65.588: [CMS-concurrent-sweep: 0.027/0.027 secs] [Times: user=0.03 sys=0.00, real=0.03 secs]</span><br><span class="line"># 并发重置，花费的时间</span><br><span class="line">65.589: [CMS-concurrent-reset-start]</span><br><span class="line">65.601: [CMS-concurrent-reset: 0.012/0.012 secs] [Times: user=0.01 sys=0.00, real=0.01 secs]</span><br></pre></td></tr></tbody></table></figure>
+
+<h4 id="G1-回收器"><a href="#G1-回收器" class="headerlink" title="G1 回收器"></a>G1 回收器</h4><p>G1 回收器(Garbage-First)是在 JDK 1.7 中正式使用的全新的垃圾回收器, 官方希望它能取代 CMS 回收器。G1 回收器拥有独特的垃圾回收策略, 这和之前提到的回收器截然不同。从分代上看, G1 依然属于分代垃圾回收器, 它会区分年轻代和老年代, 依然有 eden 区和 survivor 区, 但从堆的结构上看, 它并不要求整个 eden 区、年轻代或者老年代都连续。它使用了分区算法。它的设计思想和 CMS 回收器非常类似，只不过将分区思想融合其中，其特点如下。</p>
+<ul>
+<li>并行性: G1 在回收期间, 可以由多个 GC 线程同时工作, 有效利用多核计算能力。</li>
+<li>并发性: G1 拥有与应用程序交替执行的能力, 部分工作可以和应用程序同时执行, 因此一般来说, 不会在整个回收期间完全阻塞应用程序。</li>
+<li>分代 GC: G1 依然是一个分代收集器, 但是和之前回收器不同, 它同时兼顾年轻代和老年代的回收工作。而对比其他回收器, 它们或者工作在年轻代, 或者工作在老年代。因此, 这里是一个很大的不同。</li>
+<li>空间整理: G1 在回收过程中, 会进行适当的对象移动, 不像 CMS, 只是简单地标记清理对象, 在若干次 GC 后, CMS 必须进行一次碎片整理。而 G1 不同, 它每次回收都会有效地复制对象, 减少空间碎片。</li>
+<li>可预见性: 由于分区的原因, G1 可以只选取部分区域进行内存回收, 这样缩小了回收的范围, 因此对于全局停顿也能得到较好的控制。</li>
+</ul>
+<p>G1 回收器将堆空间分成多个小区域，每次回收时，只回收其中几个区域，通过这种方式来控制 GC 导致的停顿时间。它的回收过程分为 3 个阶段。<br><img src="/images/loading-cat.gif" data-original="https://bbm-hexo.oss-accelerate.aliyuncs.com/images/jvm/g1-3-phase.png" alt="g1-3-phase"><br>从上图中我们可以看到，G1 回收器的工作流程起始于一次年轻代 GC，然后开始并发标记，标记结束后进行混合 GC，这个阶段不仅会回收全部年轻代内存，而且还会回收部分老年代对象。混合 GC 结束后，会重新回到起点，再开始下一次 GC 循环。</p>
+<h5 id="新生代-GC"><a href="#新生代-GC" class="headerlink" title="新生代 GC"></a>新生代 GC</h5><p>和之前的思路一样，新生代 GC 过程主要回收 eden 区和 survivor 区，一旦 eden 区占满，新生代 GC 就会启动，eden 区和 survivor 区的一部分数据被回收，一部分对象保存到新的 survivor 区中，而一部分晋升到老年代。所以，GC 结束后，应该至少存在一个 survivor 区，并且老年代的区域会增多。<br><img src="/images/loading-cat.gif" data-original="https://bbm-hexo.oss-accelerate.aliyuncs.com/images/jvm/g1-ygc.png" alt="g1-ygc"><br>G1 的新生代 GC 和其他垃圾回收器的做法基本相同，都是标记复制算法，只不过这里引入了分区思想。</p>
+<h5 id="并发标记周期"><a href="#并发标记周期" class="headerlink" title="并发标记周期"></a>并发标记周期</h5><p>G1 的并发标记阶段和 CMS 有些类似，它们都是为了降低停顿时间，而将可以和应用程序并发的部分单独提取出来执行。并发标记周期可以分为以下几步：</p>
+<ol>
+<li>初始标记：标记从根节点直接可达的对象，因为之前的新生代 GC 也要进行类似的工作，所以这里的初始标记是和新生代 GC 共用同一个 STW 时间，也就是说初始标记和新生代 GC 是伴随在一起进行的。</li>
+<li>根区域扫描：由于初始阶段和新生代 GC 是一同进行的，所以初始标记后（新生代 GC 结束），eden 被清空，并且存活目标被移入 survivor 区。所以，在根扫描阶段，将扫描 survivor 区直接可达的老年代区域，并标记这些直接可达的对象。这个过程和 CMS 十分类似，它们都可以和应用程序并发执行。但是根扫描阶段不能和下一次新生代 GC 一同进行（因为根扫描阶段会使用到 survivor 区的数据，而下一次新生代 GC 会修改 survivor 区的内容），因此如果在根扫描阶段新生代 GC 被触发（eden 空间不足），这次新生代 GC 会等到根扫描阶段结束后才进行，当这种情况发生时，新生代 GC 的停顿时间会比较长。</li>
+<li>并发标记：和 CMS 类似，根据根扫描的结果（老年代中可以被 GC Root 或存活新的生代对象直接引用的对象）扫描整个堆，并做好标记，这个过程可以和应用程序并发执行。该阶段处理期间可能会发生多次新生代 GC。</li>
+<li>重新标记：和 CMS 一样，并发标记并不能保证最终对象存活性标记的正确性，所以需要一个 STW 阶段来保证正确性。因此，这一步主要是对标记结果进行修正，只不过这里 G1 回收器在修正标记时用到了全新的方案，不需要重新扫描整个 GC Root，我们后面详细介绍。</li>
+<li>独占清理：独占清理是需要 STW 的，这一阶段的目标是计算各个区域的存活对象和 GC 对象的比例并进行排序，识别出可供混合回收的区域，实际的内存复制过程是在混合回收中进行。这个阶段还会更新记忆集（Remembered Set）, 这个我们后面介绍。</li>
+<li>并发清除：因为 G1 回收器将内存划分成了很多个小区域，所以在重新标记阶段后，很可能会出现某些区域完全都是垃圾对象，对于这些对象，我们可以并发的清除，不需要引起应用程序的停顿。</li>
+</ol>
+<p>下图展示了并发标记周期前后堆的可能的情况。由于并发标记周期包含一次新生代 GC, 故新生代会被整理, 但由于并发标记周期执行时, 应用程序依然在运行, 因此, 并发标记周期结束后, 又会有新的 eden 空间被使用。并发标记周期执行前后最大的不同是在该阶段后, 系统增加了一些标记为 G 的区域。这些区域被标记, 是因为它们内部的垃圾比例较高, 因此希望在后续的混合 GC 中进行收集(注意在并发标记周期中并未正式收集这些区域)。这些将要被回收的区域会被 G1 记录在一个称为 Collection Sets(回收集)的集合中。<br><img src="/images/loading-cat.gif" data-original="https://bbm-hexo.oss-accelerate.aliyuncs.com/images/jvm/g1-after-concurrent-mark.png" alt="g1-after-concurrent-mark"><br>并发回收阶段的整体工作流程如下，其中初始标记、重新标记和独占清理外，其他几个阶段都是可以和应用程序并发执行的。<br><img src="/images/loading-cat.gif" data-original="https://bbm-hexo.oss-accelerate.aliyuncs.com/images/jvm/g1-concurrent-mark.png" alt="g1-concurrent-mark"><br>在 G1 回收器中，并没有是使用 CMS 的那种 Card Table 设置为 dirty 表明对象发生改变并在后续重新扫描 dirty card 的方案。在介绍 G1 的方案之前我们需要先了解一些概念。</p>
+<p>无论是在 CMS 中，还是在 G1 中都涉及存活对象的并发标记过程，因为该过程和应用程序是并发进行的，所以应用程序可能会修改引用关系，进而出现漏标和错标。错标不会影响程序的正确性，只是会造成前面所说的浮动垃圾。但漏标则会将存活的对象当做垃圾清理掉，之后的程序运行就有可能出错。</p>
+<p>为了分析这个漏标的问题，可以用 3 种颜色来区分一个对象被扫描的进度（三色标记法）：</p>
+<ul>
+<li>白色：本对象未被标记为存活，标记阶段结束后，会被当做垃圾回收</li>
+<li>灰色：对象被标记为存活，但是它的 field 还没有被扫描</li>
+<li>黑色：对象被标记为存活，并且它的 field 都被扫描完了，之后不会在扫描</li>
+</ul>
+<p>基于三色标记法，我们可以总结一下什么情况下会出现漏标，一个 white 对象（存活对象，但是还没被扫描到）在并发标记阶段被漏标的一种情况是：</p>
+<ol>
+<li>应用程序将这个 white 对象赋值到一个 black 对象的 field 上</li>
+<li>应用程序删除了这个 white 对象的所有在 gray 对象上的直接或间接引用</li>
+</ol>
+<p>因此，要避免这类对象的漏标，只需要打破上述两个条件中的一个即可。CMS 的方案中打破的是第一条，该方案也被称为增量更新（Incremental update），当 <code>ObjectA.field1 = ObjectB</code> 时，CMS 将 ObjectA 所处的内存区标记为 dirty，之后会重新扫描所有 dirty 内存区的对象，这实际上可以等价于当我要将一个 white 对象赋值到一个 black 对象的 field 上时，会将该 black 对象的颜色改成 gray，这意味着它的所有 field 会被重新扫描。</p>
+<p>而 G1 的思路是打破第二条条件，当进行 <code>ObjectC.field = ObjectA.field1 then ObjectA.field1 = null</code> 赋值操作时，G1 不会重新扫描 ObjectC 的所有 field，而是将 ObjectA.field1 提前标记为 gray（本质上是将该对象放入扫描栈，栈中的对象会在并发标记阶段和重新标记阶段被扫描），然后再进行赋值。你可以理解为条件 2 中的 gray 对象的对应 field 被提前扫描了，变成了 gray。</p>
+<p>G1 回收器的上述操作也是通过 write barrier 实现的，相关的代码如下：</p>
+<figure class="highlight cpp"><table><tbody><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">//  share/vm/gc_implementation/g1/g1SATBCardTableModRefBS.hpp</span></span><br><span class="line"><span class="comment">// This notes that we don't need to access any BarrierSet data</span></span><br><span class="line"><span class="comment">// structures, so this can be called from a static context.</span></span><br><span class="line"><span class="keyword">template</span> &lt;<span class="class"><span class="keyword">class</span> <span class="title">T</span>&gt; <span class="title">static</span> <span class="title">void</span> <span class="title">write_ref_field_pre_static</span>(<span class="title">T</span>* <span class="title">field</span>, <span class="title">oop</span> <span class="title">newVal</span>) {</span></span><br><span class="line">  T heap_oop = oopDesc::load_heap_oop(field);</span><br><span class="line">  <span class="comment">// 如果字段的原始值不为空就放进队列，但是如果现在不一定处于垃圾回收阶段的话呢？我们往下看。</span></span><br><span class="line">  <span class="keyword">if</span> (!oopDesc::is_null(heap_oop)) {</span><br><span class="line">    enqueue(oopDesc::decode_heap_oop(heap_oop));</span><br><span class="line">  }</span><br><span class="line">}</span><br><span class="line"><span class="comment">// share/vm/gc_implementation/g1/g1SATBCardTableModRefBS.cpp</span></span><br><span class="line"><span class="function"><span class="keyword">void</span> <span class="title">G1SATBCardTableModRefBS::enqueue</span><span class="params">(oop pre_val)</span> </span>{</span><br><span class="line">  <span class="comment">// Nulls should have been already filtered.</span></span><br><span class="line">  assert(pre_val-&gt;is_oop(<span class="literal">true</span>), <span class="string">"Error"</span>);</span><br><span class="line">  <span class="comment">// 在这一步会检查当前是不是处于并发标记阶段</span></span><br><span class="line">  <span class="keyword">if</span> (!JavaThread::satb_mark_queue_set().is_active()) <span class="keyword">return</span>;</span><br><span class="line">  Thread* thr = Thread::current();</span><br><span class="line">  <span class="keyword">if</span> (thr-&gt;is_Java_thread()) {</span><br><span class="line">    JavaThread* jt = (JavaThread*)thr;</span><br><span class="line">    jt-&gt;satb_mark_queue().enqueue(pre_val);</span><br><span class="line">  } <span class="keyword">else</span> {</span><br><span class="line">    MutexLockerEx x(Shared_SATB_Q_lock, Mutex::_no_safepoint_check_flag);</span><br><span class="line">    JavaThread::satb_mark_queue_set().shared_satb_queue()-&gt;enqueue(pre_val);</span><br><span class="line">  }</span><br><span class="line">}</span><br></pre></td></tr></tbody></table></figure>
+
+<p>为了尽量减少 write barrier 对应用程序性能的影响，G1 将一部分原本要在 barrier 里做的事情挪到别的线程上并发执行。实现这种分离的方式是通过 logging 形式的 write barrier 实现的：应用程序只在 barrier 里把要做的事情的信息记（log）到一个队列里，然后另外的线程从队列里取出信息批量完成剩余的动作。每个 Java 线程有一个独立的、定长的 SATB Mark Queue，应用程序在 barrier 里只把 old_value 压入该队列中。一个队列满了之后，它就会被加到全局的 SATB 队列集合 SATB Mark Queue Set 里等待处理，然后给对应的 Java 线程换一个新的、干净的队列继续执行下去。并发标记（concurrent marker）会定期检查全局 SATB 队列集合的大小。当全局集合中队列数量超过一定阈值后，concurrent marker 就会处理集合里的所有队列：把队列里记录的每个对象都标记上，并将其引用字段压到标记栈（marking stack）上等后面做进一步标记。</p>
+<p>除此之外，还有一种漏标的可能：从 GC Root 新引入的 white 对象，因为 CMS 会在重新标记阶段从 GC Root 出发扫描出所有的漏标对象，所以解决了这一问题。</p>
+<p>而 G1 不需要重新扫描 GC Root，G1 的做法是，在并发标记阶段，如果有新 new 出来的的对象被引用，那么这类对象就直接被破格提升为 black，为什么这类对象不是标记为 gray 并重新扫描呢？这是因为如果这些 GC 开始之后 new 的新对象如果引用了 GC 开始之前就存在的老对象的话，也会被前面的 write barrier 处理方案 cover 住。很显然这里的方案也会造成浮动垃圾。G1 是如何实现这一方案的呢？在 GC 开始时，给每个内存区（Region）当前内存使用的水位线打上标记（TAMS，top-at-mark-start），这也就意味着如果一个对象在 GC 开始之后被 new 出来，那么它的内存地址应该大于 TAMS。</p>
+<p>G1 所使用的整个这套算法被称为 SATB（Snapshot-At-The-Beginning），在 GC 开始时(初始标记阶段) G1 收集器会对内存做一个逻辑快照，这个快照包括当前所有存活对象，即便之后某一对象在真正进行回收时已经从存活对象变成垃圾对象，也会被保留不进行回收，并且在建立这个快照之后新 new 的对象都会被认为是存活对象，换句话说 G1 回收器也和 CMS 一样存在浮动垃圾。仔细想想它为什么被命名为 SATB，在进行赋值时 <code>ObjectA.field1 = ObjectB</code>，G1 会将 field1 认定为存活对象，因为至少在垃圾回收开始的那一刻（快照时间点），它确实是存活的（这里我们不考虑 field1 被修改了很多次的情况）。</p>
+<h5 id="混合收集"><a href="#混合收集" class="headerlink" title="混合收集"></a>混合收集</h5><p>在并发标记周期中，虽然有些内存已经被回收（整个 Region 都为垃圾的情况），但是这毕竟是少数，因为并发阶段已经知道了那些区域包含的垃圾对象比较多，所以在混合回收阶段，我们就优先回收那些垃圾比例较高的区域。除此之外，混合回收不仅会回收那些老年代区域，还会回收年轻代区域，也就是说每次混合回收过程会挑选所有年轻代区域，并且挑选几个最具回收价值的老年代区域进行回收。这也就是为什么这个阶段被叫做混合回收阶段。</p>
+<h5 id="Full-GC"><a href="#Full-GC" class="headerlink" title="Full GC"></a>Full GC</h5><p>和 CMS 类似, 并发收集由于让应用程序和 GC 线程交替工作, 因此不能完全避免在特别繁忙的场合会出现在回收过程中内存不充足的情况。当遇到这种情况时, G1 也会转入一个 Full GC 进行回收，就会使用 serial old GC 来收集整个 GC heap。</p>
+<h2 id="参考内容"><a href="#参考内容" class="headerlink" title="参考内容"></a>参考内容</h2><p>[1]《实战 Java 虚拟机》<br>[2]《深入理解 Java 虚拟机》<br>[3] <span class="exturl" data-url="aHR0cHM6Ly9obGx2bS1ncm91cC5pdGV5ZS5jb20vZ3JvdXAvdG9waWMvMjg1OTQ=" title="https://hllvm-group.iteye.com/group/topic/28594">GC复制算法和标记-压缩算法的疑问<i class="fa fa-external-link"></i></span><br>[4] <span class="exturl" data-url="aHR0cHM6Ly93d3cuemhpaHUuY29tL3F1ZXN0aW9uLzUwMzgxNDM5" title="https://www.zhihu.com/question/50381439">Java中什么样的对象才能作为gc root，gc roots有哪些呢？<i class="fa fa-external-link"></i></span><br>[5] <span class="exturl" data-url="aHR0cHM6Ly9wbHVtYnIuaW8vaGFuZGJvb2svZ2FyYmFnZS1jb2xsZWN0aW9uLWFsZ29yaXRobXMtaW1wbGVtZW50YXRpb25zL2NvbmN1cnJlbnQtbWFyay1hbmQtc3dlZXA=" title="https://plumbr.io/handbook/garbage-collection-algorithms-implementations/concurrent-mark-and-sweep">concurrent-mark-and-sweep<i class="fa fa-external-link"></i></span><br>[6] <span class="exturl" data-url="aHR0cHM6Ly93d3cuemhpaHUuY29tL3F1ZXN0aW9uLzYxMDkwOTc1" title="https://www.zhihu.com/question/61090975">关于 -XX:+CMSScavengeBeforeRemark，是否违背cms的设计初衷？<i class="fa fa-external-link"></i></span><br>[7] <span class="exturl" data-url="aHR0cHM6Ly90ZWNoLm1laXR1YW4uY29tLzIwMTYvMDkvMjMvZzEuaHRtbA==" title="https://tech.meituan.com/2016/09/23/g1.html">Java Hotspot G1 GC的一些关键技术<i class="fa fa-external-link"></i></span><br>[8] <span class="exturl" data-url="aHR0cHM6Ly9saXVqaWFjYWkubmV0L2Jsb2cvMjAxOS8wMS8wOS9qYXZhLWdjLWRlZmluaXRpdmUtZ3VpZGUv" title="https://liujiacai.net/blog/2019/01/09/java-gc-definitive-guide/">Java 垃圾回收权威指北<i class="fa fa-external-link"></i></span><br>[9] <span class="exturl" data-url="aHR0cHM6Ly9obGx2bS1ncm91cC5pdGV5ZS5jb20vZ3JvdXAvdG9waWMvNDQzODE=" title="https://hllvm-group.iteye.com/group/topic/44381">[HotSpot VM] 请教G1算法的原理<i class="fa fa-external-link"></i></span><br>[10] <span class="exturl" data-url="aHR0cHM6Ly9obGx2bS1ncm91cC5pdGV5ZS5jb20vZ3JvdXAvdG9waWMvNDQ1Mjk=" title="https://hllvm-group.iteye.com/group/topic/44529">[HotSpot VM] 关于incremental update与SATB的一点理解<i class="fa fa-external-link"></i></span><br>[11] <span class="exturl" data-url="aHR0cHM6Ly9ibG9nLmNzZG4ubmV0L3BhbmdlMTk5MS9hcnRpY2xlL2RldGFpbHMvNTM4NjA2NTE=" title="https://blog.csdn.net/pange1991/article/details/53860651">Java线程的6种状态及切换<i class="fa fa-external-link"></i></span><br>[12] <span class="exturl" data-url="aHR0cHM6Ly9ibG9nLmNzZG4ubmV0L3JhaW50dW5nbGkvYXJ0aWNsZS9kZXRhaWxzLzU0OTEwMTUy" title="https://blog.csdn.net/raintungli/article/details/54910152">Java 8 动态类型语言Lambda表达式实现原理分析<i class="fa fa-external-link"></i></span><br>[13] <span class="exturl" data-url="aHR0cHM6Ly9jb2xvYnUuY29tLzIwMTQvMTEvMDYvc2VjcmV0cy1vZi1qYXZhLTgtbGFtYmRhLw==" title="https://colobu.com/2014/11/06/secrets-of-java-8-lambda/">Java 8 Lambda 揭秘<i class="fa fa-external-link"></i></span><br>[14] <span class="exturl" data-url="aHR0cHM6Ly90ZWNoLm1laXR1YW4uY29tLzIwMTkvMDkvMDUvamF2YS1ieXRlY29kZS1lbmhhbmNlbWVudC5odG1s" title="https://tech.meituan.com/2019/09/05/java-bytecode-enhancement.html">字节码增强技术探索<i class="fa fa-external-link"></i></span><br>[15] <span class="exturl" data-url="aHR0cHM6Ly90ZWNoLm1laXR1YW4uY29tLzIwMTgvMTEvMTUvamF2YS1sb2NrLmh0bWw=" title="https://tech.meituan.com/2018/11/15/java-lock.html">不可不说的Java“锁”事<i class="fa fa-external-link"></i></span><br>[16] <span class="exturl" data-url="aHR0cHM6Ly9naXRodWIuY29tL2Zhcm1lcmpvaG5naXQvbXlibG9nL2lzc3Vlcy8xMg==" title="https://github.com/farmerjohngit/myblog/issues/12">死磕Synchronized底层实现–概论<i class="fa fa-external-link"></i></span><br>[17] <span class="exturl" data-url="aHR0cHM6Ly9naXRodWIuY29tL2Zhcm1lcmpvaG5naXQvbXlibG9nL2lzc3Vlcy8xMw==" title="https://github.com/farmerjohngit/myblog/issues/13">死磕Synchronized底层实现–偏向锁<i class="fa fa-external-link"></i></span><br>[18] <span class="exturl" data-url="aHR0cHM6Ly9naXRodWIuY29tL2Zhcm1lcmpvaG5naXQvbXlibG9nL2lzc3Vlcy8xNA==" title="https://github.com/farmerjohngit/myblog/issues/14">死磕Synchronized底层实现–轻量级锁<i class="fa fa-external-link"></i></span><br>[19] <span class="exturl" data-url="aHR0cHM6Ly9naXRodWIuY29tL2Zhcm1lcmpvaG5naXQvbXlibG9nL2lzc3Vlcy8xNQ==" title="https://github.com/farmerjohngit/myblog/issues/15">死磕Synchronized底层实现–重量级锁<i class="fa fa-external-link"></i></span></p>
+
+    </div>
+
+    
+    
+    
+
+      
+        <div id="wechat_subscriber" style="display: block; padding: 10px 0; margin: 20px auto; width: 100%; text-align: center">
+  <img id="wechat_subscriber_qcode" src="/images/qrcode_for_wechat.jpg" alt="贝克街的流浪猫 wechat" style="width: 400px; max-width: 100%;">
+  <div></div>
+</div>
+
+      
+        <div class="reward-container">
+  <div>您的打赏将鼓励我继续分享!</div>
+  <button disable="enable" onclick="var qr = document.getElementById(&quot;qr&quot;); qr.style.display = (qr.style.display === 'none') ? 'block' : 'none';">
+    打赏
+  </button>
+  <div id="qr" style="display: none;">
+      
+      <div style="display: inline-block;">
+        <img src="/images/wechat.jpg" alt="贝克街的流浪猫 微信支付">
+        <p>微信支付</p>
+      </div>
+      
+      <div style="display: inline-block;">
+        <img src="/images/alipay.jpg" alt="贝克街的流浪猫 支付宝">
+        <p>支付宝</p>
+      </div>
+
+  </div>
+</div>
+
+        
+
+<div>
+<ul class="post-copyright">
+  <li class="post-copyright-author">
+    <strong>本文作者： </strong>贝克街的流浪猫
+  </li>
+  <li class="post-copyright-link">
+    <strong>本文链接：</strong>
+    <a href="https://www.beikejiedeliulangmao.top/java/jvm/gc/" title="JVM GC">https://www.beikejiedeliulangmao.top/java/jvm/gc/</a>
+  </li>
+  <li class="post-copyright-license">
+    <strong>版权声明： </strong>本博客所有文章除特别声明外，均采用 <span class="exturl" data-url="aHR0cHM6Ly9jcmVhdGl2ZWNvbW1vbnMub3JnL2xpY2Vuc2VzL2J5LW5jLXNhLzQuMC9udWxs"><i class="fa fa-fw fa-creative-commons"></i>BY-NC-SA</span> 许可协议，转载请注明出处！
+  </li>
+  <li class="post-copyright-license">
+    <strong>创作声明： </strong>本文基于上述所有参考内容进行创作，其中可能涉及复制、修改或者转换，图片均来自网络，如有侵权请联系我，我会第一时间进行删除。
+  </li>
+</ul>
+</div>
+
+
+      <footer class="post-footer">
+          <div class="post-tags">
+              <a href="/tags/Java/" rel="tag"># Java</a>
+              <a href="/tags/JVM/" rel="tag"># JVM</a>
+              <a href="/tags/HotSpot/" rel="tag"># HotSpot</a>
+              <a href="/tags/GC/" rel="tag"># GC</a>
+          </div>
+
+        
+
+          <div class="post-nav">
+            <div class="post-nav-next post-nav-item">
+                <a href="/java/jvm/thread-model/" rel="next" title="JVM 线程模型">
+                  <i class="fa fa-chevron-left"></i> JVM 线程模型
+                </a>
+            </div>
+
+            <span class="post-nav-divider"></span>
+
+            <div class="post-nav-prev post-nav-item">
+                <a href="/java/jvm/introduction/" rel="prev" title="JVM 简介">
+                  JVM 简介 <i class="fa fa-chevron-right"></i>
+                </a>
+            </div>
+          </div>
+      </footer>
+    
+  </article>
+  
+  
+  
+
+  </div>
+
+
+          </div>
+          
+    <div class="comments" id="gitalk-container"></div>
+
+        </div>
+          
+  
+  <div class="toggle sidebar-toggle">
+    <span class="toggle-line toggle-line-first"></span>
+    <span class="toggle-line toggle-line-middle"></span>
+    <span class="toggle-line toggle-line-last"></span>
+  </div>
+
+  <aside class="sidebar">
+    <div class="sidebar-inner">
+
+      <ul class="sidebar-nav motion-element">
+        <li class="sidebar-nav-toc">
+          文章目录
+        </li>
+        <li class="sidebar-nav-overview">
+          站点概览
+        </li>
+      </ul>
+
+      <!--noindex-->
+      <div class="post-toc-wrap sidebar-panel">
+          <div class="post-toc motion-element"><ol class="nav"><li class="nav-item nav-level-2"><a class="nav-link" href="#%E5%BC%95%E8%A8%80"><span class="nav-number">1.</span> <span class="nav-text">引言</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E5%9E%83%E5%9C%BE%E5%9B%9E%E6%94%B6"><span class="nav-number">2.</span> <span class="nav-text">垃圾回收</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#%E5%9E%83%E5%9C%BE%E5%9B%9E%E6%94%B6%E7%AE%97%E6%B3%95"><span class="nav-number">2.1.</span> <span class="nav-text">垃圾回收算法</span></a><ol class="nav-child"><li class="nav-item nav-level-4"><a class="nav-link" href="#%E5%BC%95%E7%94%A8%E8%AE%A1%E6%95%B0%E6%B3%95"><span class="nav-number">2.1.1.</span> <span class="nav-text">引用计数法</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#%E6%A0%87%E8%AE%B0%E6%B8%85%E9%99%A4%E6%B3%95"><span class="nav-number">2.1.2.</span> <span class="nav-text">标记清除法</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#%E6%A0%87%E8%AE%B0%E5%A4%8D%E5%88%B6%E7%AE%97%E6%B3%95"><span class="nav-number">2.1.3.</span> <span class="nav-text">标记复制算法</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#%E6%A0%87%E8%AE%B0%E5%8E%8B%E7%BC%A9%E7%AE%97%E6%B3%95"><span class="nav-number">2.1.4.</span> <span class="nav-text">标记压缩算法</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#%E5%88%86%E4%BB%A3%E7%AE%97%E6%B3%95"><span class="nav-number">2.1.5.</span> <span class="nav-text">分代算法</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#%E5%88%86%E5%8C%BA%E7%AE%97%E6%B3%95"><span class="nav-number">2.1.6.</span> <span class="nav-text">分区算法</span></a></li></ol></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E8%AF%86%E5%88%AB%E5%AD%98%E6%B4%BB%E5%AF%B9%E8%B1%A1"><span class="nav-number">2.2.</span> <span class="nav-text">识别存活对象</span></a><ol class="nav-child"><li class="nav-item nav-level-4"><a class="nav-link" href="#%E5%AF%B9%E8%B1%A1%E7%9A%84%E5%A4%8D%E6%B4%BB"><span class="nav-number">2.2.1.</span> <span class="nav-text">对象的复活</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#%E5%BC%95%E7%94%A8%E7%9A%84%E5%BC%BA%E5%BA%A6"><span class="nav-number">2.2.2.</span> <span class="nav-text">引用的强度</span></a><ol class="nav-child"><li class="nav-item nav-level-5"><a class="nav-link" href="#%E5%BC%BA%E5%BC%95%E7%94%A8"><span class="nav-number">2.2.2.1.</span> <span class="nav-text">强引用</span></a></li><li class="nav-item nav-level-5"><a class="nav-link" href="#%E8%BD%AF%E5%BC%95%E7%94%A8"><span class="nav-number">2.2.2.2.</span> <span class="nav-text">软引用</span></a></li><li class="nav-item nav-level-5"><a class="nav-link" href="#%E5%BC%B1%E5%BC%95%E7%94%A8"><span class="nav-number">2.2.2.3.</span> <span class="nav-text">弱引用</span></a></li><li class="nav-item nav-level-5"><a class="nav-link" href="#%E8%99%9A%E5%BC%95%E7%94%A8"><span class="nav-number">2.2.2.4.</span> <span class="nav-text">虚引用</span></a></li></ol></li></ol></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E5%9E%83%E5%9C%BE%E5%9B%9E%E6%94%B6%E5%99%A8"><span class="nav-number">2.3.</span> <span class="nav-text">垃圾回收器</span></a><ol class="nav-child"><li class="nav-item nav-level-4"><a class="nav-link" href="#%E4%B8%B2%E8%A1%8C%E5%9E%83%E5%9C%BE%E5%9B%9E%E6%94%B6%E5%99%A8"><span class="nav-number">2.3.1.</span> <span class="nav-text">串行垃圾回收器</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#%E5%B9%B6%E8%A1%8C%E5%9E%83%E5%9C%BE%E5%9B%9E%E6%94%B6%E5%99%A8"><span class="nav-number">2.3.2.</span> <span class="nav-text">并行垃圾回收器</span></a><ol class="nav-child"><li class="nav-item nav-level-5"><a class="nav-link" href="#%E6%96%B0%E7%94%9F%E4%BB%A3-ParNew"><span class="nav-number">2.3.2.1.</span> <span class="nav-text">新生代 ParNew</span></a></li><li class="nav-item nav-level-5"><a class="nav-link" href="#%E6%96%B0%E7%94%9F%E4%BB%A3-ParallelGC"><span class="nav-number">2.3.2.2.</span> <span class="nav-text">新生代 ParallelGC</span></a></li><li class="nav-item nav-level-5"><a class="nav-link" href="#%E8%80%81%E5%B9%B4%E4%BB%A3-ParallelOldGC"><span class="nav-number">2.3.2.3.</span> <span class="nav-text">老年代 ParallelOldGC</span></a></li></ol></li><li class="nav-item nav-level-4"><a class="nav-link" href="#CMS-%E5%9B%9E%E6%94%B6%E5%99%A8"><span class="nav-number">2.3.3.</span> <span class="nav-text">CMS 回收器</span></a><ol class="nav-child"><li class="nav-item nav-level-5"><a class="nav-link" href="#%E5%B7%A5%E4%BD%9C%E6%B5%81%E7%A8%8B"><span class="nav-number">2.3.3.1.</span> <span class="nav-text">工作流程</span></a></li><li class="nav-item nav-level-5"><a class="nav-link" href="#CMS-%E5%8F%82%E6%95%B0"><span class="nav-number">2.3.3.2.</span> <span class="nav-text">CMS 参数</span></a></li><li class="nav-item nav-level-5"><a class="nav-link" href="#Log"><span class="nav-number">2.3.3.3.</span> <span class="nav-text">Log</span></a></li></ol></li><li class="nav-item nav-level-4"><a class="nav-link" href="#G1-%E5%9B%9E%E6%94%B6%E5%99%A8"><span class="nav-number">2.3.4.</span> <span class="nav-text">G1 回收器</span></a><ol class="nav-child"><li class="nav-item nav-level-5"><a class="nav-link" href="#%E6%96%B0%E7%94%9F%E4%BB%A3-GC"><span class="nav-number">2.3.4.1.</span> <span class="nav-text">新生代 GC</span></a></li><li class="nav-item nav-level-5"><a class="nav-link" href="#%E5%B9%B6%E5%8F%91%E6%A0%87%E8%AE%B0%E5%91%A8%E6%9C%9F"><span class="nav-number">2.3.4.2.</span> <span class="nav-text">并发标记周期</span></a></li><li class="nav-item nav-level-5"><a class="nav-link" href="#%E6%B7%B7%E5%90%88%E6%94%B6%E9%9B%86"><span class="nav-number">2.3.4.3.</span> <span class="nav-text">混合收集</span></a></li><li class="nav-item nav-level-5"><a class="nav-link" href="#Full-GC"><span class="nav-number">2.3.4.4.</span> <span class="nav-text">Full GC</span></a></li></ol></li></ol></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E5%8F%82%E8%80%83%E5%86%85%E5%AE%B9"><span class="nav-number">3.</span> <span class="nav-text">参考内容</span></a></li></ol></div>
+      </div>
+      <!--/noindex-->
+
+      <div class="site-overview-wrap sidebar-panel">
+        <div class="site-author motion-element" itemprop="author" itemscope="" itemtype="http://schema.org/Person">
+    <img class="site-author-image" itemprop="image" alt="贝克街的流浪猫" src="/images/avatar.jpg">
+  <p class="site-author-name" itemprop="name">贝克街的流浪猫</p>
+  <div class="site-description" itemprop="description">贝贝猫</div>
+</div>
+<div class="site-state-wrap motion-element">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+          <a href="/archives/">
+        
+          <span class="site-state-item-count">120</span>
+          <span class="site-state-item-name">日志</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-categories">
+            <a href="/categories/">
+          
+        <span class="site-state-item-count">24</span>
+        <span class="site-state-item-name">分类</span></a>
+      </div>
+      <div class="site-state-item site-state-tags">
+            <a href="/tags/">
+          
+        <span class="site-state-item-count">158</span>
+        <span class="site-state-item-name">标签</span></a>
+      </div>
+  </nav>
+</div>
+  <div class="feed-link motion-element">
+    <a href="/atom.xml" rel="alternate">
+      <i class="fa fa-rss"></i>RSS
+    </a>
+  </div>
+  <div class="links-of-author motion-element">
+      <span class="links-of-author-item">
+        <span class="exturl" data-url="aHR0cHM6Ly9naXRodWIuY29tL0JlaUtlSmllRGVMaXVMYW5nTWFv" title="GitHub → https://github.com/BeiKeJieDeLiuLangMao"><i class="fa fa-fw fa-github"></i></span>
+      </span>
+      <span class="links-of-author-item">
+        <span class="exturl" data-url="aHR0cHM6Ly96aHVhbmxhbi56aGlodS5jb20vY18xMTY3NDI5NTg4NzExMzM3OTg1" title="知乎 → https://zhuanlan.zhihu.com/c_1167429588711337985"><i class="fa fa-fw fa-book"></i></span>
+      </span>
+      <span class="links-of-author-item">
+        <span class="exturl" data-url="bWFpbHRvOjUxNzM3NTY4NUBxcS5jb20=" title="E-Mail → mailto:517375685@qq.com"><i class="fa fa-fw fa-envelope"></i></span>
+      </span>
+      <span class="links-of-author-item">
+        <span class="exturl" data-url="aHR0cHM6Ly9zdGFja292ZXJmbG93LmNvbS91c2Vycy84NzgyOTY0L3lhbmctY2hlbj90YWI9cHJvZmlsZQ==" title="StackOverflow → https://stackoverflow.com/users/8782964/yang-chen?tab=profile"><i class="fa fa-fw fa-stack-overflow"></i></span>
+      </span>
+  </div>
+
+
+
+      </div>
+        <div class="back-to-top motion-element">
+          <i class="fa fa-arrow-up"></i>
+          <span>0%</span>
+        </div>
+
+    </div>
+  </aside>
+  <div id="sidebar-dimmer"></div>
+
+
+      </div>
+    </main>
+
+    <footer class="footer">
+      <div class="footer-inner">
+        
+  <div class="beian"><span class="exturl" data-url="aHR0cDovL3d3dy5iZWlhbi5taWl0Lmdvdi5jbg==">辽ICP备19017854号 </span>
+  </div>
+
+<div class="copyright">
+  
+  © 2019 – 
+  <span itemprop="copyrightYear">2021</span>
+  <span class="with-love">
+    <i class="fa fa-heart"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">贝克街的流浪猫</span>
+    <span class="post-meta-divider">|</span>
+    <span class="post-meta-item-icon">
+      <i class="fa fa-area-chart"></i>
+    </span>
+      <span class="post-meta-item-text">站点总字数：</span>
+    <span title="站点总字数">1.5m</span>
+    <span class="post-meta-divider">|</span>
+    <span class="post-meta-item-icon">
+      <i class="fa fa-coffee"></i>
+    </span>
+      <span class="post-meta-item-text">站点阅读时长 ≈</span>
+    <span title="站点阅读时长">22:36</span>
+</div>
+
+        
+<div class="busuanzi-count">
+  <script async="" src="https://busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js"></script>
+    <span class="post-meta-item" id="busuanzi_container_site_uv" style="display: none;">
+      <span class="post-meta-item-icon">
+        <i class="fa fa-user"></i>
+      </span>
+      <span class="site-uv" title="总访客量">
+        贝贝猫有
+        <span id="busuanzi_value_site_uv"></span>
+        位同学
+      </span>
+    </span>
+    <span class="post-meta-divider">|</span>
+    <span class="post-meta-item" id="busuanzi_container_site_pv" style="display: none;">
+      <span class="post-meta-item-icon">
+        <i class="fa fa-eye"></i>
+      </span>
+      <span class="site-pv" title="总访问量">
+        笔记被翻阅
+        <span id="busuanzi_value_site_pv"></span>
+        次
+      </span>
+    </span>
+</div>
+
+
+
+
+
+
+  
+
+
+
+
+
+
+        
+      </div>
+    </footer>
+  </div>
+
+  
+  
+  <script src="//cdn.jsdelivr.net/npm/medium-zoom@1/dist/medium-zoom.min.js"></script>
+  <script src="//cdn.jsdelivr.net/npm/pangu@4/dist/browser/pangu.min.js"></script>
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+
+
+
+
+  
+
+<script src="//cdn.jsdelivr.net/npm/instantsearch.js@2/dist/instantsearch.min.js"></script>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+  
+  <script src="//cdn.jsdelivr.net/npm/quicklink@1/dist/quicklink.umd.js"></script>
+  
+
+
+
+
+
+
+
+<script type="text/javascript" src="/bundle.js"></script><script type="text/javascript">function leancloudSelector(url) {
+    return document.getElementById(url).querySelector('.leancloud-visitors-count');
+  }
+  if (CONFIG.page.isPost) {
+    function addCount(Counter) {
+      var visitors = document.querySelector('.leancloud_visitors');
+      var url = visitors.getAttribute('id').trim();
+      var title = visitors.getAttribute('data-flag-title').trim();
+
+      Counter('get', `/classes/Counter?where=${JSON.stringify({ url })}`)
+        .then(response => response.json())
+        .then(({ results }) => {
+          if (results.length > 0) {
+            var counter = results[0];
+              leancloudSelector(url).innerText = counter.time + 1;
+            Counter('put', '/classes/Counter/' + counter.objectId, { time: { '__op': 'Increment', 'amount': 1 } })
+              .then(response => response.json())
+              .catch(error => {
+                console.log('Failed to save visitor count', error);
+              })
+          } else {
+              leancloudSelector(url).innerText = 'Counter not initialized! More info at console err msg.';
+              console.error('ATTENTION! LeanCloud counter has security bug, see how to solve it here: https://github.com/theme-next/hexo-leancloud-counter-security. \n However, you can still use LeanCloud without security, by setting `security` option to `false`.');
+            
+          }
+        })
+        .catch(error => {
+          console.log('LeanCloud Counter Error', error);
+        });
+    }
+  } else {
+    function showTime(Counter) {
+      var visitors = document.querySelectorAll('.leancloud_visitors');
+      var entries = [...visitors].map(element => {
+        return element.getAttribute('id').trim();
+      });
+
+      Counter('get', `/classes/Counter?where=${JSON.stringify({ url: { '$in': entries } })}`)
+        .then(response => response.json())
+        .then(({ results }) => {
+          if (results.length === 0) {
+            document.querySelectorAll('.leancloud_visitors .leancloud-visitors-count').forEach(element => {
+              element.innerText = 0;
+            });
+            return;
+          }
+          for (var i = 0; i < results.length; i++) {
+            var item = results[i];
+            var url = item.url;
+            var time = item.time;
+            leancloudSelector(url).innerText = time;
+          }
+          for (var i = 0; i < entries.length; i++) {
+            var url = entries[i];
+            var element = leancloudSelector(url);
+            if (element.innerText == '') {
+              element.innerText = 0;
+            }
+          }
+        })
+        .catch(error => {
+          console.log('LeanCloud Counter Error', error);
+        });
+    }
+  }
+
+  fetch('https://app-router.leancloud.cn/2/route?appId=gmT3IkYtHVMymcwAjbwHhtiv-gzGzoHsz')
+    .then(response => response.json())
+    .then(({ api_server }) => {
+      var Counter = (method, url, data) => {
+        return fetch(`https://${api_server}/1.1${url}`, {
+          method: method,
+          headers: {
+            'X-LC-Id': 'gmT3IkYtHVMymcwAjbwHhtiv-gzGzoHsz',
+            'X-LC-Key': 'co6tpmcyS9za2D1uqQyMFtnN',
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(data)
+        });
+      };
+      if (CONFIG.page.isPost) {
+        const localhost = /http:\/\/(localhost|127.0.0.1|0.0.0.0)/;
+        if (localhost.test(document.URL)) return;
+        addCount(Counter);
+      } else if (document.querySelectorAll('.post-title-link').length >= 1) {
+        showTime(Counter);
+      }
+    });;(function(){
+      var bp = document.createElement('script');
+      var curProtocol = window.location.protocol.split(':')[0];
+      bp.src = (curProtocol === 'https') ? 'https://zz.bdstatic.com/linksubmit/push.js' : 'http://push.zhanzhang.baidu.com/push.js';
+      var s = document.getElementsByTagName("script")[0];
+      s.parentNode.insertBefore(bp, s);
+    })();;if (document.querySelectorAll('pre.mermaid').length) {
+  NexT.utils.getScript('//cdn.jsdelivr.net/npm/mermaid@8/dist/mermaid.min.js', () => {
+    mermaid.initialize({
+      theme: 'forest',
+      logLevel: 3,
+      flowchart: { curve: 'linear' },
+      gantt: { axisFormat: '%m/%d/%Y' },
+      sequence: { actorMargin: 50 }
+    });
+  }, window.mermaid);
+};window.addEventListener('load', () => {
+      quicklink({
+        timeout: 3000,
+        priority: true,
+        ignores: [uri => uri.includes('#'),uri => uri == 'https://www.beikejiedeliulangmao.top/java/jvm/gc/',]
+      });
+      });;NexT.utils.getScript('//cdn.jsdelivr.net/npm/gitalk@1/dist/gitalk.min.js', () => {
+    var gitalk = new Gitalk({
+      clientID: '6201d1cc2825a93aa161',
+      clientSecret: '71c60f650595a3eedba64b844f811b90acac3798',
+      repo: 'HexoBlogComment',
+      owner: 'BeiKeJieDeLiuLangMao',
+      admin: ['BeiKeJieDeLiuLangMao'],
+      id: 'aa51e4f973efc4cd81ea2916fa4d2b75',
+        language: 'zh-CN',
+      distractionFreeMode: 'true'
+    });
+    gitalk.render('gitalk-container');
+  }, window.Gitalk);;window.imageLazyLoadSetting = {
+                isSPA: false,
+                processImages: null,
+            };;window.addEventListener("load",function(){var t=/\.(gif|jpg|jpeg|tiff|png)$/i,r=/^data:image\/[a-z]+;base64,/;Array.prototype.slice.call(document.querySelectorAll("img[data-original]")).forEach(function(a){var e=a.parentNode;"A"===e.tagName&&(e.href.match(t)||e.href.match(r))&&(e.href=a.dataset.original)})});;!function(n){n.imageLazyLoadSetting.processImages=o;var i=n.imageLazyLoadSetting.isSPA,l=Array.prototype.slice.call(document.querySelectorAll("img[data-original]"));function o(){i&&(l=Array.prototype.slice.call(document.querySelectorAll("img[data-original]")));for(var r=0;r<l.length;r++)t=l[r],void 0,0<=(e=t.getBoundingClientRect()).bottom&&0<=e.left&&e.top<=(n.innerHeight||document.documentElement.clientHeight)&&function(t){var e,n,i,o,a=l[r];e=a,n=function(){l=l.filter(function(t){return a!==t})},i=new Image,o=e.getAttribute("data-original"),i.onload=function(){e.src=o,n&&n()},i.src=o}();var t,e}o(),n.addEventListener("scroll",function(){var t,e;t=o,e=n,clearTimeout(t.tId),t.tId=setTimeout(function(){t.call(e)},500)})}(this);</script></body></html>

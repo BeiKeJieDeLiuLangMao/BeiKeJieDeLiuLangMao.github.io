@@ -1,0 +1,3757 @@
+<!DOCTYPE html><html lang="zh-CN"><head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 5.1.1">
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/avatar.jpg">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/avatar.jpg">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/avatar.jpg">
+  <link rel="mask-icon" href="/images/avatar.jpg" color="#222">
+  <link rel="alternate" href="/atom.xml" title="贝克街的流浪猫" type="application/atom+xml">
+  <meta http-equiv="Cache-Control" content="no-transform">
+  <meta http-equiv="Cache-Control" content="no-siteapp">
+  <meta name="google-site-verification" content="PB8pKbwvyCztAdFAxM1AdLMfqXY7wDk6xWZIy3BYn0M">
+  <meta name="baidu-site-verification" content="lHxDkbImj8">
+
+
+
+
+
+  
+  
+
+
+<script id="hexo-configurations">
+  var NexT = window.NexT || {};
+  var CONFIG = {
+    root: '/',
+    scheme: 'Gemini',
+    version: '7.5.0',
+    exturl: true,
+    sidebar: {"position":"left","display":"post","offset":12,"onmobile":false},
+    copycode: {"enable":true,"show_result":true,"style":null},
+    back2top: {"enable":true,"sidebar":true,"scrollpercent":true},
+    bookmark: {"enable":false,"color":"#222","save":"auto"},
+    fancybox: false,
+    mediumzoom: true,
+    lazyload: false,
+    pangu: true,
+    algolia: {
+      appID: 'XKULKGLQCN',
+      apiKey: '59d463bff59108a7719f93aa31f249f3',
+      indexName: 'Hexo Blog',
+      hits: {"per_page":10},
+      labels: {"input_placeholder":"文章查询","hits_empty":"很抱歉，贝贝猫没有发表关于 \"${query}\" 的文章","hits_stats":"找到了 ${hits} 篇文章，耗时 ${time} 毫秒"}
+    },
+    localsearch: {"enable":false,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false},
+    path: '',
+    motion: {"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},
+    sidebarPadding: 40
+  };
+</script>
+
+  <meta name="description" content="引言大学时代有次去面试一个校内俱乐部，被问了这个问题，一直感觉当时回答的不够好，难以释怀。所以总结本文，其中尽可能详细地剖析了一次HTTP请求都经历什么。">
+<meta property="og:type" content="article">
+<meta property="og:title" content="一次 HTTP 请求">
+<meta property="og:url" content="https://www.beikejiedeliulangmao.top/protocol/http/a-http-request/index.html">
+<meta property="og:site_name" content="贝克街的流浪猫">
+<meta property="og:description" content="引言大学时代有次去面试一个校内俱乐部，被问了这个问题，一直感觉当时回答的不够好，难以释怀。所以总结本文，其中尽可能详细地剖析了一次HTTP请求都经历什么。">
+<meta property="og:locale" content="zh_CN">
+<meta property="og:image" content="https://www.beikejiedeliulangmao.top/images/loading-cat.gif">
+<meta property="og:image" content="https://www.beikejiedeliulangmao.top/images/loading-cat.gif">
+<meta property="og:image" content="https://www.beikejiedeliulangmao.top/images/loading-cat.gif">
+<meta property="og:image" content="https://www.beikejiedeliulangmao.top/images/loading-cat.gif">
+<meta property="og:image" content="https://www.beikejiedeliulangmao.top/images/loading-cat.gif">
+<meta property="og:image" content="https://www.beikejiedeliulangmao.top/images/loading-cat.gif">
+<meta property="og:image" content="https://www.beikejiedeliulangmao.top/images/loading-cat.gif">
+<meta property="og:image" content="https://www.beikejiedeliulangmao.top/images/loading-cat.gif">
+<meta property="og:image" content="https://www.beikejiedeliulangmao.top/images/loading-cat.gif">
+<meta property="og:image" content="https://www.beikejiedeliulangmao.top/images/loading-cat.gif">
+<meta property="og:image" content="https://www.beikejiedeliulangmao.top/images/loading-cat.gif">
+<meta property="article:published_time" content="2019-07-10T08:50:18.000Z">
+<meta property="article:modified_time" content="2021-01-17T04:25:40.566Z">
+<meta property="article:author" content="贝克街的流浪猫">
+<meta property="article:tag" content="Web">
+<meta property="article:tag" content="HTTP">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="https://www.beikejiedeliulangmao.top/images/loading-cat.gif">
+
+<link rel="canonical" href="https://www.beikejiedeliulangmao.top/protocol/http/a-http-request/">
+
+
+<script id="page-configurations">
+  // https://hexo.io/docs/variables.html
+  CONFIG.page = {
+    sidebar: "",
+    isHome: false,
+    isPost: true,
+    isPage: false,
+    isArchive: false
+  };
+</script>
+
+  <title>一次 HTTP 请求 | 贝克街的流浪猫</title>
+  
+    <script>
+      function sendPageView() {
+        var host = window.location.hostname;
+        if (host == "localhost" && true) return;
+        var uid = localStorage.getItem('uid') || (Math.random() + '.' + Math.random());
+        localStorage.setItem('uid', uid);
+        navigator.sendBeacon('https://www.google-analytics.com/collect', new URLSearchParams({
+          v  : 1,
+          tid: 'UA-146830566-1',
+          cid: uid,
+          t  : 'pageview',
+          dp : encodeURIComponent(location.pathname)
+        }));
+      }
+      document.addEventListener('pjax:complete', sendPageView);
+      sendPageView();
+    </script>
+
+
+  <script>
+    var _hmt = _hmt || [];
+    (function() {
+      var hm = document.createElement("script");
+      hm.src = "https://hm.baidu.com/hm.js?818a8e6061ff2bd0b5531a739f216601";
+      var s = document.getElementsByTagName("script")[0];
+      s.parentNode.insertBefore(hm, s);
+    })();
+  </script>
+
+
+
+
+  <style>body {
+  background-image: url("https://www.beikejiedeliulangmao.top/images/background.jpeg") !important;
+  background-attachment: fixed !important;
+  background-repeat: no-repeat !important;
+  background-size: 100% 100% !important;
+}
+.bg_content {
+  position: fixed;
+  top: 0;
+  z-index: -1;
+  width: 100%;
+  height: 100%;
+}
+.copyright {
+  color: #000;
+}
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+  background-color: #fff;
+}
+::-webkit-scrollbar-button {
+  width: 0;
+  height: 0;
+}
+::-webkit-scrollbar-button:start:increment,
+::-webkit-scrollbar-button:end:decrement {
+  display: none;
+}
+::-webkit-scrollbar-corner {
+  display: block;
+}
+::-webkit-scrollbar-thumb {
+  border-radius: 6px;
+  background-color: rgba(0,0,0,0.4);
+}
+::-webkit-scrollbar-thumb:hover {
+  border-radius: 6px;
+  background-color: rgba(0,0,0,0.6);
+}
+::-webkit-scrollbar-track,
+::-webkit-scrollbar-thumb {
+  border-right: 1px solid transparent;
+  border-left: 1px solid transparent;
+}
+::-webkit-scrollbar-button:start {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-button:end {
+  width: 6px;
+  height: 6px;
+}
+html {
+  line-height: 1.15; 
+  -webkit-text-size-adjust: 100%; 
+}
+body {
+  margin: 0;
+}
+main {
+  display: block;
+}
+h1 {
+  font-size: 2em;
+  margin: 0.67em 0;
+}
+hr {
+  box-sizing: content-box; 
+  height: 0; 
+  overflow: visible; 
+}
+pre {
+  font-family: monospace, monospace; 
+  font-size: 1em; 
+}
+a {
+  background: transparent;
+}
+abbr[title] {
+  border-bottom: none; 
+  text-decoration: underline; 
+  text-decoration: underline dotted; 
+}
+b,
+strong {
+  font-weight: bolder;
+}
+code,
+kbd,
+samp {
+  font-family: monospace, monospace; 
+  font-size: 1em; 
+}
+small {
+  font-size: 80%;
+}
+sub,
+sup {
+  font-size: 75%;
+  line-height: 0;
+  position: relative;
+  vertical-align: baseline;
+}
+sub {
+  bottom: -0.25em;
+}
+sup {
+  top: -0.5em;
+}
+img {
+  border-style: none;
+}
+button,
+input,
+optgroup,
+select,
+textarea {
+  font-family: inherit; 
+  font-size: 100%; 
+  line-height: 1.15; 
+  margin: 0; 
+}
+button,
+input {
+
+  overflow: visible;
+}
+button,
+select {
+
+  text-transform: none;
+}
+button,
+[type='button'],
+[type='reset'],
+[type='submit'] {
+  -webkit-appearance: button;
+}
+button::-moz-focus-inner,
+[type='button']::-moz-focus-inner,
+[type='reset']::-moz-focus-inner,
+[type='submit']::-moz-focus-inner {
+  border-style: none;
+  padding: 0;
+}
+button:-moz-focusring,
+[type='button']:-moz-focusring,
+[type='reset']:-moz-focusring,
+[type='submit']:-moz-focusring {
+  outline: 1px dotted ButtonText;
+}
+fieldset {
+  padding: 0.35em 0.75em 0.625em;
+}
+legend {
+  box-sizing: border-box; 
+  color: inherit; 
+  display: table; 
+  max-width: 100%; 
+  padding: 0; 
+  white-space: normal; 
+}
+progress {
+  vertical-align: baseline;
+}
+textarea {
+  overflow: auto;
+}
+[type='checkbox'],
+[type='radio'] {
+  box-sizing: border-box; 
+  padding: 0; 
+}
+[type='number']::-webkit-inner-spin-button,
+[type='number']::-webkit-outer-spin-button {
+  height: auto;
+}
+[type='search'] {
+  outline-offset: -2px; 
+  -webkit-appearance: textfield; 
+}
+[type='search']::-webkit-search-decoration {
+  -webkit-appearance: none;
+}
+::-webkit-file-upload-button {
+  font: inherit; 
+  -webkit-appearance: button; 
+}
+details {
+  display: block;
+}
+summary {
+  display: list-item;
+}
+template {
+  display: none;
+}
+[hidden] {
+  display: none;
+}
+::selection {
+  background: #262a30;
+  color: #fff;
+}
+html,
+body {
+  height: 100%;
+}
+body {
+  background: #eee;
+  color: #555;
+  font-family: 'Monda', "PingFang SC", "Microsoft YaHei", sans-serif;
+  font-size: 1em;
+  line-height: 2;
+}
+@media (max-width: 991px) {
+  body {
+    padding-left: 0 !important;
+    padding-right: 0 !important;
+  }
+}
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+  font-family: 'Roboto Slab', 'Monda', "PingFang SC", "Microsoft YaHei", sans-serif;
+  font-weight: bold;
+  line-height: 1.5;
+  margin: 20px 0 15px;
+  padding: 0;
+}
+h1 {
+  font-size: 1.5em;
+}
+h2 {
+  font-size: 1.375em;
+}
+h3 {
+  font-size: 1.25em;
+}
+h4 {
+  font-size: 1.125em;
+}
+h5 {
+  font-size: 1em;
+}
+h6 {
+  font-size: 0.875em;
+}
+p {
+  margin: 0 0 20px 0;
+}
+a,
+span.exturl {
+  border-bottom: 1px solid #999;
+  color: #555;
+  outline: 0;
+  text-decoration: none;
+  overflow-wrap: break-word;
+  word-wrap: break-word;
+  cursor: pointer;
+}
+a:hover,
+span.exturl:hover {
+  border-bottom-color: #222;
+  color: #222;
+}
+iframe,
+img,
+video {
+  display: block;
+  margin-left: auto;
+  margin-right: auto;
+  max-width: 100%;
+}
+hr {
+  background-color: #ddd;
+  background-image: repeating-linear-gradient(-45deg, #fff, #fff 4px, transparent 4px, transparent 8px);
+  border: 0;
+  height: 3px;
+  margin: 40px 0;
+}
+blockquote {
+  border-left: 4px solid #ddd;
+  color: #666;
+  margin: 0;
+  padding: 0 15px;
+}
+blockquote cite::before {
+  content: '-';
+  padding: 0 5px;
+}
+dt {
+  font-weight: 700;
+}
+dd {
+  margin: 0;
+  padding: 0;
+}
+kbd {
+  background-color: #f5f5f5;
+  background-image: linear-gradient(#eee, #fff, #eee);
+  border: 1px solid #ccc;
+  border-radius: 0.2em;
+  box-shadow: 0.1em 0.1em 0.2em rgba(0,0,0,0.1);
+  font-family: inherit;
+  padding: 0.1em 0.3em;
+  white-space: nowrap;
+}
+.table-container {
+  -webkit-overflow-scrolling: touch;
+  overflow: auto;
+}
+table {
+  border-collapse: collapse;
+  border-spacing: 0;
+  font-size: 0.875em;
+  margin: 0 0 20px 0;
+  width: 100%;
+}
+tbody tr:nth-of-type(odd) {
+  background: #f9f9f9;
+}
+tbody tr:hover {
+  background: #f5f5f5;
+}
+caption,
+th,
+td {
+  font-weight: normal;
+  padding: 8px;
+  text-align: left;
+  vertical-align: middle;
+}
+th,
+td {
+  border: 1px solid #ddd;
+  border-bottom: 3px solid #ddd;
+}
+th {
+  font-weight: 700;
+  padding-bottom: 10px;
+}
+td {
+  border-bottom-width: 1px;
+}
+.btn {
+  background: #fff;
+  border: 2px solid #555;
+  border-radius: 2px;
+  color: #555;
+  display: inline-block;
+  font-size: 0.875em;
+  line-height: 2;
+  padding: 0 20px;
+  text-decoration: none;
+  transition-property: background-color;
+  transition-delay: 0s;
+  transition-duration: 0.2s;
+  transition-timing-function: ease-in-out;
+}
+.btn:hover {
+  background: #222;
+  border-color: #222;
+  color: #fff;
+}
+.btn + .btn {
+  margin: 0 0 8px 8px;
+}
+.btn .fa-fw {
+  text-align: left;
+  width: 1.285714285714286em;
+}
+.toggle {
+  line-height: 0;
+}
+.toggle .toggle-line {
+  background: #fff;
+  display: inline-block;
+  height: 2px;
+  left: 0;
+  position: relative;
+  top: 0;
+  transition: all 0.4s;
+  vertical-align: top;
+  width: 100%;
+}
+.toggle .toggle-line:not(:first-child) {
+  margin-top: 3px;
+}
+.toggle.toggle-arrow .toggle-line-first {
+  left: 50%;
+  top: 2px;
+  transform: rotate(45deg);
+  width: 50%;
+}
+.toggle.toggle-arrow .toggle-line-middle {
+  left: 2px;
+  width: 90%;
+}
+.toggle.toggle-arrow .toggle-line-last {
+  left: 50%;
+  top: -2px;
+  transform: rotate(-45deg);
+  width: 50%;
+}
+.toggle.toggle-close .toggle-line-first {
+  transform: rotate(-45deg);
+  top: 5px;
+}
+.toggle.toggle-close .toggle-line-middle {
+  opacity: 0;
+}
+.toggle.toggle-close .toggle-line-last {
+  transform: rotate(45deg);
+  top: -5px;
+}
+.highlight-container {
+  position: relative;
+}
+.highlight-container:hover .copy-btn,
+.highlight-container .copy-btn:focus {
+  opacity: 1;
+}
+.copy-btn {
+  color: #333;
+  cursor: pointer;
+  display: inline-block;
+  font-weight: 700;
+  line-height: 1.6;
+  opacity: 0;
+  outline: 0;
+  padding: 2px 6px;
+  position: absolute;
+  transition: opacity 0.3s ease-in-out;
+  vertical-align: middle;
+  white-space: nowrap;
+  -moz-user-select: none;
+  -ms-user-select: none;
+  -webkit-user-select: none;
+  user-select: none;
+  background-color: #eee;
+  background-image: linear-gradient(#fcfcfc, #eee);
+  border: 1px solid #d5d5d5;
+  border-radius: 3px;
+  font-size: 0.8125em;
+  right: 4px;
+  top: 8px;
+}
+.highlight,
+pre {
+  background: #f7f7f7;
+  color: #4d4d4c;
+  line-height: 1.6;
+  margin: 0 auto 20px;
+}
+pre,
+code {
+  font-family: 'PT Mono', consolas, Menlo, monospace, "PingFang SC", "Microsoft YaHei";
+}
+code {
+  background: #eee;
+  border-radius: 3px;
+  color: #555;
+  padding: 2px 4px;
+  overflow-wrap: break-word;
+  word-wrap: break-word;
+}
+.highlight *::selection {
+  background: #d6d6d6;
+}
+.highlight pre {
+  border: 0;
+  margin: 0;
+  padding: 0;
+}
+.highlight table {
+  border: 0;
+  margin: 0;
+  width: auto;
+}
+.highlight tr:first-child pre {
+  padding-top: 10px;
+}
+.highlight tr:last-child pre {
+  padding-bottom: 10px;
+}
+.highlight td {
+  border: 0;
+  padding: 0;
+}
+.highlight figcaption {
+  background: #eee;
+  color: #4d4d4c;
+  font-size: 0.875em;
+  line-height: 1.2;
+  padding: 0.5em;
+}
+.highlight figcaption::before,
+.highlight figcaption::after {
+  content: ' ';
+  display: table;
+}
+.highlight figcaption::after {
+  clear: both;
+}
+.highlight figcaption a {
+  color: #4d4d4c;
+  float: right;
+}
+.highlight figcaption a:hover {
+  border-bottom-color: #4d4d4c;
+}
+.highlight .gutter pre {
+  background: #eff2f3;
+  color: #869194;
+  padding-left: 10px;
+  padding-right: 10px;
+  text-align: right;
+  -moz-user-select: none;
+  -ms-user-select: none;
+  -webkit-user-select: none;
+  user-select: none;
+}
+.highlight .code pre {
+  background: #f7f7f7;
+  padding-left: 10px;
+  width: 100%;
+}
+.gist table {
+  width: auto;
+}
+.gist table td {
+  border: 0;
+}
+pre {
+  overflow: auto;
+  padding: 10px;
+}
+pre code {
+  background: none;
+  color: #4d4d4c;
+  font-size: 0.875em;
+  padding: 0;
+  text-shadow: none;
+}
+pre .deletion {
+  background: #fdd;
+}
+pre .addition {
+  background: #dfd;
+}
+pre .meta {
+  color: #eab700;
+  -moz-user-select: none;
+  -ms-user-select: none;
+  -webkit-user-select: none;
+  user-select: none;
+}
+pre .comment {
+  color: #8e908c;
+}
+pre .variable,
+pre .attribute,
+pre .tag,
+pre .name,
+pre .regexp,
+pre .ruby .constant,
+pre .xml .tag .title,
+pre .xml .pi,
+pre .xml .doctype,
+pre .html .doctype,
+pre .css .id,
+pre .css .class,
+pre .css .pseudo {
+  color: #c82829;
+}
+pre .number,
+pre .preprocessor,
+pre .built_in,
+pre .builtin-name,
+pre .literal,
+pre .params,
+pre .constant,
+pre .command {
+  color: #f5871f;
+}
+pre .ruby .class .title,
+pre .css .rules .attribute,
+pre .string,
+pre .symbol,
+pre .value,
+pre .inheritance,
+pre .header,
+pre .ruby .symbol,
+pre .xml .cdata,
+pre .special,
+pre .formula {
+  color: #718c00;
+}
+pre .title,
+pre .css .hexcolor {
+  color: #3e999f;
+}
+pre .function,
+pre .python .decorator,
+pre .python .title,
+pre .ruby .function .title,
+pre .ruby .title .keyword,
+pre .perl .sub,
+pre .javascript .title,
+pre .coffeescript .title {
+  color: #4271ae;
+}
+pre .keyword,
+pre .javascript .function {
+  color: #8959a8;
+}
+.blockquote-center {
+  border-left: none;
+  margin: 40px 0;
+  padding: 0;
+  position: relative;
+  text-align: center;
+}
+.blockquote-center::before,
+.blockquote-center::after {
+  background-repeat: no-repeat;
+  background-size: 22px 22px;
+  content: ' ';
+  display: block;
+  height: 24px;
+  opacity: 0.2;
+  position: absolute;
+  width: 100%;
+}
+.blockquote-center::before {
+  background-image: url("../images/quote-l.svg");
+  background-position: 0 -6px;
+  border-top: 1px solid #ccc;
+  top: -20px;
+}
+.blockquote-center::after {
+  background-image: url("../images/quote-r.svg");
+  background-position: 100% 8px;
+  border-bottom: 1px solid #ccc;
+  bottom: -20px;
+}
+.blockquote-center p,
+.blockquote-center div {
+  text-align: center;
+}
+.post-body .group-picture img {
+  border: 0;
+  margin: 0 auto;
+  padding: 0 3px;
+}
+.group-picture-row {
+  margin-bottom: 6px;
+  overflow: hidden;
+}
+.group-picture-column {
+  float: left;
+  margin-bottom: 10px;
+}
+.post-body .label {
+  display: inline;
+  padding: 0 2px;
+}
+.post-body .label.default {
+  background: #f0f0f0;
+}
+.post-body .label.primary {
+  background: #efe6f7;
+}
+.post-body .label.info {
+  background: #e5f2f8;
+}
+.post-body .label.success {
+  background: #e7f4e9;
+}
+.post-body .label.warning {
+  background: #fcf6e1;
+}
+.post-body .label.danger {
+  background: #fae8eb;
+}
+.post-body .tabs {
+  margin-bottom: 20px;
+}
+.post-body .tabs,
+.tabs-comment {
+  display: block;
+  padding-top: 10px;
+  position: relative;
+}
+.post-body .tabs ul.nav-tabs,
+.tabs-comment ul.nav-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  margin: 0;
+  margin-bottom: -1px;
+  padding: 0;
+}
+@media (max-width: 413px) {
+  .post-body .tabs ul.nav-tabs,
+  .tabs-comment ul.nav-tabs {
+    display: block;
+    margin-bottom: 5px;
+  }
+}
+.post-body .tabs ul.nav-tabs li.tab,
+.tabs-comment ul.nav-tabs li.tab {
+  background: #fff;
+  border-bottom: 1px solid #ddd;
+  border-left: 1px solid transparent;
+  border-right: 1px solid transparent;
+  border-top: 3px solid transparent;
+  flex-grow: 1;
+  list-style-type: none;
+}
+@media (max-width: 413px) {
+  .post-body .tabs ul.nav-tabs li.tab,
+  .tabs-comment ul.nav-tabs li.tab {
+    border-bottom: 1px solid transparent;
+    border-left: 3px solid transparent;
+    border-right: 1px solid transparent;
+    border-top: 1px solid transparent;
+  }
+}
+.post-body .tabs ul.nav-tabs li.tab a,
+.tabs-comment ul.nav-tabs li.tab a {
+  border-bottom: initial;
+  display: block;
+  line-height: 1.8;
+  outline: 0;
+  padding: 0.25em 0.75em;
+  text-align: center;
+  transition-delay: 0s;
+  transition-duration: 0.2s;
+  transition-timing-function: ease-out;
+}
+.post-body .tabs ul.nav-tabs li.tab a i,
+.tabs-comment ul.nav-tabs li.tab a i {
+  width: 1.285714285714286em;
+}
+.post-body .tabs ul.nav-tabs li.tab.active,
+.tabs-comment ul.nav-tabs li.tab.active {
+  border-bottom: 1px solid transparent;
+  border-left: 1px solid #ddd;
+  border-right: 1px solid #ddd;
+  border-top: 3px solid #fc6423;
+}
+@media (max-width: 413px) {
+  .post-body .tabs ul.nav-tabs li.tab.active,
+  .tabs-comment ul.nav-tabs li.tab.active {
+    border-bottom: 1px solid #ddd;
+    border-left: 3px solid #fc6423;
+    border-right: 1px solid #ddd;
+    border-top: 1px solid #ddd;
+  }
+}
+.post-body .tabs ul.nav-tabs li.tab.active a,
+.tabs-comment ul.nav-tabs li.tab.active a {
+  color: #555;
+  cursor: default;
+}
+.post-body .tabs .tab-content .tab-pane,
+.tabs-comment .tab-content .tab-pane {
+  border: 1px solid #ddd;
+  padding: 20px 20px 0 20px;
+}
+.post-body .tabs .tab-content .tab-pane:not(.active),
+.tabs-comment .tab-content .tab-pane:not(.active) {
+  display: none;
+}
+.post-body .tabs .tab-content .tab-pane.active,
+.tabs-comment .tab-content .tab-pane.active {
+  display: block;
+}
+.post-body .note {
+  margin-bottom: 20px;
+  padding: 15px;
+  position: relative;
+  border: 1px solid #eee;
+  border-left-width: 5px;
+  border-radius: 3px;
+}
+.post-body .note h2,
+.post-body .note h3,
+.post-body .note h4,
+.post-body .note h5,
+.post-body .note h6 {
+  margin-top: 0;
+  border-bottom: initial;
+  margin-bottom: 0;
+  padding-top: 0;
+}
+.post-body .note p:first-child,
+.post-body .note ul:first-child,
+.post-body .note ol:first-child,
+.post-body .note table:first-child,
+.post-body .note pre:first-child,
+.post-body .note blockquote:first-child,
+.post-body .note img:first-child {
+  margin-top: 0;
+}
+.post-body .note p:last-child,
+.post-body .note ul:last-child,
+.post-body .note ol:last-child,
+.post-body .note table:last-child,
+.post-body .note pre:last-child,
+.post-body .note blockquote:last-child,
+.post-body .note img:last-child {
+  margin-bottom: 0;
+}
+.post-body .note.default {
+  border-left-color: #777;
+}
+.post-body .note.default h2,
+.post-body .note.default h3,
+.post-body .note.default h4,
+.post-body .note.default h5,
+.post-body .note.default h6 {
+  color: #777;
+}
+.post-body .note.primary {
+  border-left-color: #6f42c1;
+}
+.post-body .note.primary h2,
+.post-body .note.primary h3,
+.post-body .note.primary h4,
+.post-body .note.primary h5,
+.post-body .note.primary h6 {
+  color: #6f42c1;
+}
+.post-body .note.info {
+  border-left-color: #428bca;
+}
+.post-body .note.info h2,
+.post-body .note.info h3,
+.post-body .note.info h4,
+.post-body .note.info h5,
+.post-body .note.info h6 {
+  color: #428bca;
+}
+.post-body .note.success {
+  border-left-color: #5cb85c;
+}
+.post-body .note.success h2,
+.post-body .note.success h3,
+.post-body .note.success h4,
+.post-body .note.success h5,
+.post-body .note.success h6 {
+  color: #5cb85c;
+}
+.post-body .note.warning {
+  border-left-color: #f0ad4e;
+}
+.post-body .note.warning h2,
+.post-body .note.warning h3,
+.post-body .note.warning h4,
+.post-body .note.warning h5,
+.post-body .note.warning h6 {
+  color: #f0ad4e;
+}
+.post-body .note.danger {
+  border-left-color: #d9534f;
+}
+.post-body .note.danger h2,
+.post-body .note.danger h3,
+.post-body .note.danger h4,
+.post-body .note.danger h5,
+.post-body .note.danger h6 {
+  color: #d9534f;
+}
+.pagination .prev,
+.pagination .next,
+.pagination .page-number,
+.pagination .space {
+  display: inline-block;
+  margin: 0 10px;
+  padding: 0 11px;
+  position: relative;
+  top: -1px;
+}
+@media (max-width: 767px) {
+  .pagination .prev,
+  .pagination .next,
+  .pagination .page-number,
+  .pagination .space {
+    margin: 0 5px;
+  }
+}
+.pagination {
+  border-top: 1px solid #eee;
+  margin: 120px 0 0;
+  text-align: center;
+}
+.pagination .prev,
+.pagination .next,
+.pagination .page-number {
+  border-bottom: 0;
+  border-top: 1px solid #eee;
+  transition-property: border-color;
+  transition-delay: 0s;
+  transition-duration: 0.2s;
+  transition-timing-function: ease-in-out;
+}
+.pagination .prev:hover,
+.pagination .next:hover,
+.pagination .page-number:hover {
+  border-top-color: #222;
+}
+.pagination .space {
+  margin: 0;
+  padding: 0;
+}
+.pagination .prev {
+  margin-left: 0;
+}
+.pagination .next {
+  margin-right: 0;
+}
+.pagination .page-number.current,
+.algolia-pagination .current .page-number {
+  background: #ccc;
+  border-top-color: #ccc;
+  color: #fff;
+}
+@media (max-width: 767px) {
+  .pagination {
+    border-top: none;
+  }
+  .pagination .prev,
+  .pagination .next,
+  .pagination .page-number {
+    border-bottom: 1px solid #eee;
+    border-top: 0;
+    margin-bottom: 10px;
+    padding: 0 10px;
+  }
+  .pagination .prev:hover,
+  .pagination .next:hover,
+  .pagination .page-number:hover {
+    border-bottom-color: #222;
+  }
+}
+.comments {
+  margin: 60px 20px 0;
+  overflow: hidden;
+}
+.comment-button-group {
+  display: flex;
+  flex-wrap: wrap-reverse;
+  justify-content: center;
+  margin: 1em 0;
+}
+.comment-button-group .comment-button {
+  margin: 0.1em 0.2em;
+}
+.comment-button-group .comment-button.active {
+  background: #222;
+  border-color: #222;
+  color: #fff;
+}
+.comment-position {
+  display: none;
+}
+.comment-position.active {
+  display: block;
+}
+.tabs-comment {
+  background: #fff;
+  margin-top: 4em;
+  padding-top: 0;
+}
+.tabs-comment .comments {
+  border: 0;
+  box-shadow: none;
+  margin-top: 0;
+  padding-top: 0;
+}
+.container {
+  min-height: 100%;
+  position: relative;
+}
+.main-inner {
+  margin: 0 auto;
+  width: calc(100% - 20px);
+}
+@media (min-width: 1200px) {
+  .main-inner {
+    width: 1160px;
+  }
+}
+@media (min-width: 1600px) {
+  .main-inner {
+    width: 73%;
+  }
+}
+.header {
+  background: transparent;
+}
+.header-inner {
+  margin: 0 auto;
+  position: relative;
+  width: calc(100% - 20px);
+}
+@media (min-width: 1200px) {
+  .header-inner {
+    width: 1160px;
+  }
+}
+@media (min-width: 1600px) {
+  .header-inner {
+    width: 73%;
+  }
+}
+.headband {
+  background: #222;
+  height: 3px;
+}
+.site-meta {
+  margin: 0;
+  text-align: center;
+}
+@media (max-width: 767px) {
+  .site-meta {
+    text-align: center;
+  }
+}
+.brand {
+  background: #222;
+  border-bottom: none;
+  color: #fff;
+  display: inline-block;
+  line-height: 1.375em;
+  padding: 0 40px;
+  position: relative;
+}
+.brand:hover {
+  color: #fff;
+}
+.site-title {
+  display: inline-block;
+  font-family: 'Monda', "PingFang SC", "Microsoft YaHei", sans-serif;
+  font-size: 1.375em;
+  font-weight: normal;
+  line-height: 1.5;
+  vertical-align: top;
+}
+.site-subtitle {
+  color: #ddd;
+  font-size: 0.8125em;
+  margin-top: 10px;
+}
+.use-motion .brand {
+  opacity: 0;
+}
+.use-motion .site-title,
+.use-motion .site-subtitle,
+.use-motion .custom-logo-image {
+  opacity: 0;
+  position: relative;
+  top: -10px;
+}
+.site-nav-toggle {
+  display: none;
+  left: 10px;
+  position: absolute;
+}
+@media (max-width: 767px) {
+  .site-nav-toggle {
+    display: block;
+  }
+}
+.site-nav-toggle .toggle {
+  background: transparent;
+  border: 0;
+  margin-top: 2px;
+  padding: 10px;
+  width: 22px;
+}
+.site-nav-toggle .toggle .toggle-line {
+  background: #555;
+  border-radius: 1px;
+}
+.site-nav {
+  display: block;
+}
+@media (max-width: 767px) {
+  .site-nav {
+    border-top: 1px solid #ddd;
+    clear: both;
+    display: none;
+    margin: 0 -10px;
+    padding: 0 10px;
+  }
+}
+.site-nav.site-nav-on {
+  display: block;
+}
+.menu {
+  margin-top: 20px;
+  padding-left: 0;
+  text-align: center;
+}
+.menu-item {
+  display: inline-block;
+  list-style: none;
+  margin: 0 10px;
+}
+@media (max-width: 767px) {
+  .menu-item {
+    margin-top: 10px;
+  }
+}
+.menu-item a,
+.menu-item span.exturl {
+  border-bottom: 0;
+  display: block;
+  font-size: 0.8125em;
+  transition-property: border-color;
+  transition-delay: 0s;
+  transition-duration: 0.2s;
+  transition-timing-function: ease-in-out;
+}
+@media (hover: none) {
+  .menu-item a:hover,
+  .menu-item span.exturl:hover {
+    border-bottom-color: transparent !important;
+  }
+}
+.menu-item .fa {
+  margin-right: 8px;
+}
+.menu-item .badge {
+  display: inline-block;
+  font-weight: 700;
+  line-height: 1;
+  margin-left: 0.35em;
+  margin-top: 0.35em;
+  text-align: center;
+  white-space: nowrap;
+}
+@media (max-width: 767px) {
+  .menu-item .badge {
+    float: right;
+    margin-left: 0;
+  }
+}
+.use-motion .menu-item {
+  opacity: 0;
+}
+.github-corner :hover .octo-arm {
+  animation: octocat-wave 560ms ease-in-out;
+}
+.github-corner svg {
+  border: 0;
+  color: #fff;
+  fill: #222;
+  position: absolute;
+  right: 0;
+  top: 0;
+  z-index: 1000;
+}
+@media (max-width: 991px) {
+  .github-corner svg {
+    color: #222;
+    fill: #fff;
+  }
+  .github-corner .github-corner:hover .octo-arm {
+    animation: none;
+  }
+  .github-corner .github-corner .octo-arm {
+    animation: octocat-wave 560ms ease-in-out;
+  }
+}
+@-moz-keyframes octocat-wave {
+  0%, 100% {
+    transform: rotate(0);
+  }
+  20%, 60% {
+    transform: rotate(-25deg);
+  }
+  40%, 80% {
+    transform: rotate(10deg);
+  }
+}
+@-webkit-keyframes octocat-wave {
+  0%, 100% {
+    transform: rotate(0);
+  }
+  20%, 60% {
+    transform: rotate(-25deg);
+  }
+  40%, 80% {
+    transform: rotate(10deg);
+  }
+}
+@-o-keyframes octocat-wave {
+  0%, 100% {
+    transform: rotate(0);
+  }
+  20%, 60% {
+    transform: rotate(-25deg);
+  }
+  40%, 80% {
+    transform: rotate(10deg);
+  }
+}
+@keyframes octocat-wave {
+  0%, 100% {
+    transform: rotate(0);
+  }
+  20%, 60% {
+    transform: rotate(-25deg);
+  }
+  40%, 80% {
+    transform: rotate(10deg);
+  }
+}
+.sidebar {
+  background: #222;
+  bottom: 0;
+  box-shadow: inset 0 2px 6px #000;
+  position: fixed;
+  top: 0;
+  z-index: 1200;
+}
+.sidebar a,
+.sidebar span.exturl {
+  border-bottom-color: #555;
+  color: #999;
+}
+.sidebar a:hover,
+.sidebar span.exturl:hover {
+  border-bottom-color: #eee;
+  color: #eee;
+}
+@media (max-width: 991px) {
+  .sidebar {
+    display: none;
+  }
+}
+.sidebar-inner {
+  color: #999;
+  padding: 20px 10px;
+  text-align: center;
+}
+.site-overview-wrap {
+  overflow-x: hidden;
+  overflow-y: auto;
+}
+.cc-license {
+  margin-top: 10px;
+  text-align: center;
+}
+.cc-license .cc-opacity {
+  border-bottom: none;
+  opacity: 0.7;
+}
+.cc-license .cc-opacity:hover {
+  opacity: 0.9;
+}
+.cc-license img {
+  display: inline-block;
+}
+.site-author-image {
+  border: 1px solid #eee;
+  display: block;
+  height: auto;
+  margin: 0 auto;
+  max-width: 120px;
+  padding: 2px;
+  border-radius: 50%;
+}
+.site-author-name {
+  color: #222;
+  font-weight: 600;
+  margin: 0;
+  text-align: center;
+}
+.site-description {
+  color: #999;
+  font-size: 0.8125em;
+  margin-top: 0;
+  text-align: center;
+}
+.links-of-author {
+  margin-top: 15px;
+}
+.links-of-author a,
+.links-of-author span.exturl {
+  border-bottom-color: #555;
+  display: inline-block;
+  font-size: 0.8125em;
+  margin-bottom: 10px;
+  margin-right: 10px;
+  vertical-align: middle;
+  transition-delay: 0s;
+  transition-duration: 0.2s;
+  transition-timing-function: ease-in-out;
+}
+.links-of-author a::before,
+.links-of-author span.exturl::before {
+  background: #0ab5cd;
+  border-radius: 50%;
+  content: ' ';
+  display: inline-block;
+  height: 4px;
+  margin-right: 3px;
+  vertical-align: middle;
+  width: 4px;
+}
+.feed-link,
+.chat {
+  margin-top: 15px;
+}
+.feed-link a,
+.chat a {
+  border: 1px solid #fc6423;
+  border-radius: 4px;
+  color: #fc6423;
+  display: inline-block;
+  padding: 0 15px;
+}
+.feed-link a .fa,
+.chat a .fa {
+  margin-right: 5px;
+}
+.feed-link a:hover,
+.chat a:hover {
+  background: #fc6423;
+  border: 1px solid #fc6423;
+  color: #fff;
+}
+.feed-link a:hover .fa,
+.chat a:hover .fa {
+  color: #fff;
+}
+.links-of-blogroll {
+  font-size: 0.8125em;
+  margin-top: 10px;
+}
+.links-of-blogroll-title {
+  font-size: 0.875em;
+  font-weight: 600;
+  margin-top: 0;
+}
+.links-of-blogroll-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.links-of-blogroll-item {
+  padding: 2px 10px;
+}
+.links-of-blogroll-item a,
+.links-of-blogroll-item span.exturl {
+  box-sizing: border-box;
+  display: inline-block;
+  max-width: 280px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+#sidebar-dimmer {
+  display: none;
+}
+@media (max-width: 767px) {
+  #sidebar-dimmer {
+    background: #000;
+    display: block;
+    height: 100%;
+    left: 100%;
+    opacity: 0;
+    position: fixed;
+    top: 0;
+    width: 100%;
+    z-index: 1100;
+  }
+  .sidebar-active + #sidebar-dimmer {
+    opacity: 0.7;
+    transform: translateX(-100%);
+    transition: opacity 0.5s;
+  }
+}
+.sidebar-nav {
+  margin: 0;
+  padding-bottom: 20px;
+  padding-left: 0;
+}
+.sidebar-nav li {
+  border-bottom: 1px solid transparent;
+  color: #555;
+  cursor: pointer;
+  display: inline-block;
+  font-size: 0.875em;
+}
+.sidebar-nav li.sidebar-nav-overview {
+  margin-left: 10px;
+}
+.sidebar-nav li:hover {
+  color: #fc6423;
+}
+.sidebar-nav .sidebar-nav-active {
+  border-bottom-color: #fc6423;
+  color: #fc6423;
+}
+.sidebar-nav .sidebar-nav-active:hover {
+  color: #fc6423;
+}
+.sidebar-panel {
+  display: none;
+}
+.sidebar-panel-active {
+  display: block;
+}
+.sidebar-toggle {
+  background: #222;
+  bottom: 45px;
+  cursor: pointer;
+  height: 14px;
+  left: 30px;
+  padding: 5px;
+  position: fixed;
+  width: 14px;
+  z-index: 1300;
+}
+@media (max-width: 991px) {
+  .sidebar-toggle {
+    left: 20px;
+    opacity: 0.8;
+    display: none;
+  }
+}
+.sidebar-toggle:hover .toggle-line {
+  background: #fc6423;
+}
+.post-toc-wrap {
+  overflow-x: hidden;
+  overflow-y: auto;
+}
+.post-toc {
+  font-size: 0.875em;
+}
+.post-toc ol {
+  list-style: none;
+  margin: 0;
+  padding: 0 2px 5px 10px;
+  text-align: left;
+}
+.post-toc ol > ol {
+  padding-left: 0;
+}
+.post-toc ol a {
+  border-bottom-color: #ccc;
+  color: #666;
+  transition-property: all;
+  transition-delay: 0s;
+  transition-duration: 0.2s;
+  transition-timing-function: ease-in-out;
+}
+.post-toc ol a:hover {
+  border-bottom-color: #000;
+  color: #000;
+}
+.post-toc .nav-item {
+  line-height: 1.8;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.post-toc .nav .nav-child {
+  display: none;
+}
+.post-toc .nav .active > .nav-child {
+  display: block;
+}
+.post-toc .nav .active-current > .nav-child {
+  display: block;
+}
+.post-toc .nav .active-current > .nav-child > .nav-item {
+  display: block;
+}
+.post-toc .nav .active > a {
+  border-bottom-color: #fc6423;
+  color: #fc6423;
+}
+.post-toc .nav .active-current > a {
+  color: #fc6423;
+}
+.post-toc .nav .active-current > a:hover {
+  color: #fc6423;
+}
+.site-state {
+  display: flex;
+  justify-content: center;
+  line-height: 1.4;
+  margin-top: 10px;
+  overflow: hidden;
+  text-align: center;
+  white-space: nowrap;
+}
+.site-state-item {
+  padding: 0 15px;
+}
+.site-state-item:not(:first-child) {
+  border-left: 1px solid #eee;
+}
+.site-state-item a {
+  border-bottom: none;
+}
+.site-state-item-count {
+  color: inherit;
+  display: block;
+  font-size: 1em;
+  font-weight: 600;
+  text-align: center;
+}
+.site-state-item-name {
+  color: #999;
+  font-size: 0.8125em;
+}
+.footer {
+  color: #999;
+  font-size: 0.875em;
+  padding: 20px 0;
+}
+.footer.footer-fixed {
+  bottom: 0;
+  left: 0;
+  position: absolute;
+  right: 0;
+}
+.footer img {
+  border: 0;
+}
+.footer-inner {
+  box-sizing: border-box;
+  margin: 0 auto;
+  text-align: center;
+  width: calc(100% - 20px);
+}
+@media (min-width: 1200px) {
+  .footer-inner {
+    width: 1160px;
+  }
+}
+@media (min-width: 1600px) {
+  .footer-inner {
+    width: 73%;
+  }
+}
+.with-love {
+  color: red;
+  display: inline-block;
+  margin: 0 5px;
+  animation: iconAnimate 1.33s ease-in-out infinite;
+}
+.powered-by,
+.theme-info {
+  display: inline-block;
+}
+@-moz-keyframes iconAnimate {
+  0%, 100% {
+    transform: scale(1);
+  }
+  10%, 30% {
+    transform: scale(0.9);
+  }
+  20%, 40%, 60%, 80% {
+    transform: scale(1.1);
+  }
+  50%, 70% {
+    transform: scale(1.1);
+  }
+}
+@-webkit-keyframes iconAnimate {
+  0%, 100% {
+    transform: scale(1);
+  }
+  10%, 30% {
+    transform: scale(0.9);
+  }
+  20%, 40%, 60%, 80% {
+    transform: scale(1.1);
+  }
+  50%, 70% {
+    transform: scale(1.1);
+  }
+}
+@-o-keyframes iconAnimate {
+  0%, 100% {
+    transform: scale(1);
+  }
+  10%, 30% {
+    transform: scale(0.9);
+  }
+  20%, 40%, 60%, 80% {
+    transform: scale(1.1);
+  }
+  50%, 70% {
+    transform: scale(1.1);
+  }
+}
+@keyframes iconAnimate {
+  0%, 100% {
+    transform: scale(1);
+  }
+  10%, 30% {
+    transform: scale(0.9);
+  }
+  20%, 40%, 60%, 80% {
+    transform: scale(1.1);
+  }
+  50%, 70% {
+    transform: scale(1.1);
+  }
+}
+.back-to-top {
+  background: #eee;
+  font-size: 12px;
+  margin: 8px -10px -20px;
+  opacity: 0;
+  text-align: center;
+  transition-delay: 0s;
+  transition-duration: 0.2s;
+  transition-timing-function: ease-in-out;
+}
+.back-to-top.back-to-top-on {
+  cursor: pointer;
+  opacity: 0.6;
+}
+.back-to-top.back-to-top-on:hover {
+  opacity: 0.8;
+}
+.post-body {
+  font-family: 'Monda', "PingFang SC", "Microsoft YaHei", sans-serif;
+  overflow-wrap: break-word;
+  word-wrap: break-word;
+}
+@media (min-width: 1200px) {
+  .post-body {
+    font-size: 1.125em;
+  }
+}
+.post-body span.exturl .fa {
+  font-size: 0.875em;
+  margin-left: 4px;
+}
+.post-body .image-caption,
+.post-body .figure .caption {
+  color: #999;
+  font-size: 0.875em;
+  font-weight: bold;
+  line-height: 1;
+  margin: -20px auto 15px;
+  text-align: center;
+}
+.post-sticky-flag {
+  display: inline-block;
+  transform: rotate(30deg);
+}
+.post-button {
+  margin-top: 40px;
+  text-align: center;
+}
+.use-motion .post-block,
+.use-motion .pagination,
+.use-motion .comments {
+  opacity: 0;
+}
+.use-motion .post-header {
+  opacity: 0;
+}
+.use-motion .post-body {
+  opacity: 0;
+}
+.use-motion .collection-header {
+  opacity: 0;
+}
+.posts-collapse {
+  margin-left: 55px;
+  position: relative;
+}
+@media (max-width: 767px) {
+  .posts-collapse {
+    margin-left: 20px;
+    margin-right: 20px;
+  }
+}
+.posts-collapse .collection-title {
+  font-size: 1.125em;
+  position: relative;
+}
+.posts-collapse .collection-title::before {
+  background: #999;
+  border: 1px solid #fff;
+  border-radius: 50%;
+  content: ' ';
+  height: 10px;
+  left: 0;
+  margin-left: -6px;
+  margin-top: -4px;
+  position: absolute;
+  top: 50%;
+  width: 10px;
+}
+.posts-collapse .collection-year {
+  margin: 60px 0;
+  position: relative;
+}
+.posts-collapse .collection-year::before {
+  background: #bbb;
+  border-radius: 50%;
+  content: ' ';
+  height: 8px;
+  left: 0;
+  margin-left: -4px;
+  margin-top: -4px;
+  position: absolute;
+  top: 50%;
+  width: 8px;
+}
+.posts-collapse .collection-header {
+  display: inline-block;
+  margin: 0 0 0 20px;
+}
+.posts-collapse .collection-header small {
+  color: #bbb;
+  margin-left: 5px;
+}
+.posts-collapse .post-header {
+  border-bottom: 1px dashed #ccc;
+  margin: 30px 0;
+  padding-left: 15px;
+  position: relative;
+  transition-property: border;
+  transition-delay: 0s;
+  transition-duration: 0.2s;
+  transition-timing-function: ease-in-out;
+}
+.posts-collapse .post-header::before {
+  background: #bbb;
+  border: 1px solid #fff;
+  border-radius: 50%;
+  content: ' ';
+  height: 6px;
+  left: 0;
+  margin-left: -4px;
+  position: absolute;
+  top: 0.75em;
+  transition-property: background;
+  width: 6px;
+  transition-delay: 0s;
+  transition-duration: 0.2s;
+  transition-timing-function: ease-in-out;
+}
+.posts-collapse .post-header:hover {
+  border-bottom-color: #666;
+}
+.posts-collapse .post-header:hover::before {
+  background: #222;
+}
+.posts-collapse .post-meta {
+  display: inline;
+  font-size: 0.75em;
+  margin-right: 10px;
+}
+.posts-collapse .post-title {
+  display: inline;
+  font-size: 1em;
+  font-weight: normal;
+  margin-bottom: 0;
+  margin-top: 0;
+}
+.posts-collapse .post-title a,
+.posts-collapse .post-title span.exturl {
+  border-bottom: none;
+  color: #666;
+}
+.posts-collapse::before {
+  background: #f5f5f5;
+  content: ' ';
+  height: 100%;
+  left: 0;
+  margin-left: -2px;
+  position: absolute;
+  top: 1.25em;
+  width: 4px;
+}
+.posts-collapse .fa-external-link {
+  font-size: 0.875em;
+  margin-left: 5px;
+}
+.post-eof {
+  background: #ccc;
+  height: 1px;
+  margin: 80px auto 60px;
+  text-align: center;
+  width: 8%;
+}
+.post-block:last-child .post-eof {
+  display: none;
+}
+.posts-expand {
+  padding-top: 40px;
+}
+@media (max-width: 767px) {
+  .posts-expand {
+    margin: 0 20px;
+  }
+}
+@media (min-width: 992px) {
+  .post-body {
+    text-align: left;
+  }
+}
+@media (max-width: 991px) {
+  .post-body {
+    text-align: left;
+  }
+}
+.post-body h2,
+.post-body h3,
+.post-body h4,
+.post-body h5,
+.post-body h6 {
+  padding-top: 10px;
+}
+.post-body h2 .header-anchor,
+.post-body h3 .header-anchor,
+.post-body h4 .header-anchor,
+.post-body h5 .header-anchor,
+.post-body h6 .header-anchor {
+  border-bottom-style: none;
+  color: #ccc;
+  float: right;
+  margin-left: 10px;
+  visibility: hidden;
+}
+.post-body h2 .header-anchor:hover,
+.post-body h3 .header-anchor:hover,
+.post-body h4 .header-anchor:hover,
+.post-body h5 .header-anchor:hover,
+.post-body h6 .header-anchor:hover {
+  color: inherit;
+}
+.post-body h2:hover .header-anchor,
+.post-body h3:hover .header-anchor,
+.post-body h4:hover .header-anchor,
+.post-body h5:hover .header-anchor,
+.post-body h6:hover .header-anchor {
+  visibility: visible;
+}
+.post-body img {
+  border: 1px solid #ddd;
+  box-sizing: border-box;
+  padding: 3px;
+}
+@media (max-width: 767px) {
+  .post-body img {
+    padding: initial;
+  }
+}
+.post-body iframe,
+.post-body img,
+.post-body video {
+  margin-bottom: 20px;
+}
+.post-body .video-container {
+  height: 0;
+  margin-bottom: 20px;
+  overflow: hidden;
+  padding-top: 75%;
+  position: relative;
+  width: 100%;
+}
+.post-body .video-container iframe,
+.post-body .video-container object,
+.post-body .video-container embed {
+  height: 100%;
+  left: 0;
+  margin: 0;
+  position: absolute;
+  top: 0;
+  width: 100%;
+}
+.post-gallery {
+  border-collapse: separate;
+  display: table;
+  table-layout: fixed;
+  width: 100%;
+}
+.post-gallery .post-gallery-img {
+  border: 0;
+  display: table-cell;
+  text-align: center;
+  vertical-align: middle;
+}
+.post-gallery .post-gallery-img img {
+  border: 0;
+  max-height: 100%;
+  max-width: 100%;
+}
+.post-gallery-row {
+  display: table-row;
+}
+.posts-expand .post-header {
+  font-size: 1.125em;
+}
+.posts-expand .post-title {
+  font-weight: 400;
+  margin: initial;
+  text-align: center;
+  overflow-wrap: break-word;
+  word-wrap: break-word;
+}
+.posts-expand .post-title-link {
+  border-bottom: none;
+  color: #555;
+  display: inline-block;
+  position: relative;
+  vertical-align: top;
+}
+.posts-expand .post-title-link::before {
+  background: #000;
+  bottom: 0;
+  content: '';
+  height: 2px;
+  left: 0;
+  position: absolute;
+  transform: scaleX(0);
+  visibility: hidden;
+  width: 100%;
+  transition-delay: 0s;
+  transition-duration: 0.2s;
+  transition-timing-function: ease-in-out;
+}
+.posts-expand .post-title-link:hover::before {
+  transform: scaleX(1);
+  visibility: visible;
+}
+.posts-expand .post-title-link .fa {
+  font-size: 0.875em;
+  margin-left: 5px;
+}
+.posts-expand .post-meta {
+  color: #999;
+  font-family: 'Monda', "PingFang SC", "Microsoft YaHei", sans-serif;
+  font-size: 0.75em;
+  margin: 3px 0 60px 0;
+  text-align: center;
+}
+.posts-expand .post-meta .post-description {
+  font-size: 0.875em;
+  margin-top: 2px;
+}
+.posts-expand .post-meta time {
+  border-bottom: 1px dashed #999;
+  cursor: pointer;
+}
+.post-meta .post-meta-item + .post-meta-item::before {
+  content: '|';
+  margin: 0 0.5em;
+}
+.post-meta-divider {
+  margin: 0 0.5em;
+}
+.post-meta-item-icon {
+  margin-right: 3px;
+}
+@media (max-width: 991px) {
+  .post-meta-item-icon {
+    display: inline-block;
+  }
+}
+@media (max-width: 991px) {
+  .post-meta-item-text {
+    display: none;
+  }
+}
+.post-nav {
+  border-top: 1px solid #eee;
+  display: table;
+  margin-top: 15px;
+  width: 100%;
+}
+.post-nav-divider {
+  display: table-cell;
+  width: 10%;
+}
+.post-nav-item {
+  display: table-cell;
+  padding: 10px 0 0 0;
+  vertical-align: top;
+  width: 45%;
+}
+.post-nav-item a {
+  border-bottom: none;
+  color: #555;
+  display: block;
+  font-size: 0.875em;
+  line-height: 1.6;
+  position: relative;
+}
+.post-nav-item a:hover {
+  border-bottom: none;
+  color: #222;
+}
+.post-nav-item a:active {
+  top: 2px;
+}
+.post-nav-item .fa {
+  font-size: 0.75em;
+  margin-right: 5px;
+}
+.post-nav-next a {
+  padding-left: 5px;
+}
+.post-nav-prev {
+  text-align: right;
+}
+.post-nav-prev a {
+  padding-right: 5px;
+}
+.post-nav-prev .fa {
+  margin-left: 5px;
+}
+.rtl.post-body p,
+.rtl.post-body a,
+.rtl.post-body h1,
+.rtl.post-body h2,
+.rtl.post-body h3,
+.rtl.post-body h4,
+.rtl.post-body h5,
+.rtl.post-body h6,
+.rtl.post-body li,
+.rtl.post-body ul,
+.rtl.post-body ol {
+  direction: rtl;
+  font-family: UKIJ Ekran;
+}
+.rtl.post-title {
+  font-family: UKIJ Ekran;
+}
+.post-tags {
+  margin-top: 40px;
+  text-align: center;
+}
+.post-tags a {
+  display: inline-block;
+  font-size: 0.8125em;
+}
+.post-tags a:not(:last-child) {
+  margin-right: 10px;
+}
+.post-widgets {
+  border-top: 1px solid #eee;
+  margin-top: 15px;
+  text-align: center;
+}
+.wp_rating {
+  height: 20px;
+  line-height: 20px;
+  margin-top: 10px;
+  padding-top: 6px;
+  text-align: center;
+}
+.social-like {
+  display: flex;
+  font-size: 0.875em;
+  justify-content: center;
+  text-align: center;
+}
+.reward-container {
+  margin: 20px auto;
+  padding: 10px 0;
+  text-align: center;
+  width: 90%;
+}
+.reward-container button {
+  background: #ff2a2a;
+  border: 0;
+  border-radius: 5px;
+  color: #fff;
+  cursor: pointer;
+  line-height: 2;
+  outline: 0;
+  padding: 0 15px;
+  vertical-align: text-top;
+}
+.reward-container button:hover {
+  background: #f55;
+}
+#qr {
+  padding-top: 20px;
+}
+#qr a {
+  border: 0;
+}
+#qr img {
+  display: inline-block;
+  margin: 0.8em 2em 0 2em;
+  max-width: 100%;
+  width: 180px;
+}
+#qr p {
+  text-align: center;
+}
+.post-copyright {
+  background: #f5f5f5;
+  border-left: 3px solid #ff2a2a;
+  list-style: none;
+  margin: 2em 0 0;
+  padding: 0.5em 1em;
+}
+.category-all-page .category-all-title {
+  text-align: center;
+}
+.category-all-page .category-all {
+  margin-top: 20px;
+}
+.category-all-page .category-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.category-all-page .category-list-item {
+  margin: 5px 10px;
+}
+.category-all-page .category-list-count {
+  color: #bbb;
+}
+.category-all-page .category-list-count::before {
+  content: ' (';
+  display: inline;
+}
+.category-all-page .category-list-count::after {
+  content: ') ';
+  display: inline;
+}
+.category-all-page .category-list-child {
+  padding-left: 10px;
+}
+.event-list {
+  padding: 0;
+}
+.event-list hr {
+  background: #222;
+  margin: 20px 0 45px 0;
+}
+.event-list hr::after {
+  background: #222;
+  color: #fff;
+  content: 'NOW';
+  display: inline-block;
+  font-weight: bold;
+  padding: 0 5px;
+  text-align: right;
+}
+.event-list .event {
+  background: #222;
+  margin: 20px 0;
+  min-height: 40px;
+  padding: 15px 0 15px 10px;
+}
+.event-list .event .event-summary {
+  color: #fff;
+  margin: 0;
+  padding-bottom: 3px;
+}
+.event-list .event .event-summary::before {
+  animation: dot-flash 1s alternate infinite ease-in-out;
+  color: #fff;
+  content: '\f111';
+  display: inline-block;
+  font-family: 'FontAwesome';
+  font-size: 10px;
+  margin-right: 25px;
+  vertical-align: middle;
+}
+.event-list .event .event-relative-time {
+  color: #bbb;
+  display: inline-block;
+  font-size: 12px;
+  font-weight: 400;
+  padding-left: 12px;
+}
+.event-list .event .event-details {
+  color: #fff;
+  display: block;
+  line-height: 18px;
+  margin-left: 56px;
+  padding-bottom: 6px;
+  padding-top: 3px;
+  text-indent: -24px;
+}
+.event-list .event .event-details::before {
+  color: #fff;
+  display: inline-block;
+  font-family: 'FontAwesome';
+  margin-right: 9px;
+  text-align: center;
+  text-indent: 0;
+  width: 14px;
+}
+.event-list .event .event-details.event-location::before {
+  content: '\f041';
+}
+.event-list .event .event-details.event-duration::before {
+  content: '\f017';
+}
+.event-list .event-past {
+  background: #f5f5f5;
+}
+.event-list .event-past .event-summary,
+.event-list .event-past .event-details {
+  color: #bbb;
+  opacity: 0.9;
+}
+.event-list .event-past .event-summary::before,
+.event-list .event-past .event-details::before {
+  animation: none;
+  color: #bbb;
+}
+@-moz-keyframes dot-flash {
+  from {
+    opacity: 1;
+    transform: scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: scale(0.8);
+  }
+}
+@-webkit-keyframes dot-flash {
+  from {
+    opacity: 1;
+    transform: scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: scale(0.8);
+  }
+}
+@-o-keyframes dot-flash {
+  from {
+    opacity: 1;
+    transform: scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: scale(0.8);
+  }
+}
+@keyframes dot-flash {
+  from {
+    opacity: 1;
+    transform: scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: scale(0.8);
+  }
+}
+ul.breadcrumb {
+  font-size: 0.75em;
+  list-style: none;
+  margin: 1em 0;
+  padding: 0 2em;
+  text-align: center;
+}
+ul.breadcrumb li {
+  display: inline;
+}
+ul.breadcrumb li + li::before {
+  content: '/\00a0';
+  font-weight: normal;
+  padding: 0.5em;
+}
+ul.breadcrumb li + li:last-child {
+  font-weight: bold;
+}
+.tag-cloud {
+  text-align: center;
+}
+.tag-cloud a {
+  display: inline-block;
+  margin: 10px;
+}
+.tag-cloud a:hover {
+  color: #222 !important;
+}
+.gt-header a,
+.gt-comments a,
+.gt-popup a {
+  border-bottom: none;
+}
+.gt-container .gt-popup .gt-action.is--active::before {
+  top: 0.7em;
+}
+.search-pop-overlay {
+  background: rgba(0,0,0,0.3);
+  display: none;
+  height: 100%;
+  left: 0;
+  overflow: hidden;
+  position: fixed;
+  top: 0;
+  width: 100%;
+  z-index: 1400;
+}
+.search-popup {
+  background: #fff;
+  border-radius: 5px;
+  color: #333;
+  display: none;
+  height: 80%;
+  left: 50%;
+  margin-left: -350px;
+  padding: 0;
+  position: fixed;
+  top: 10%;
+  width: 700px;
+  z-index: 1500;
+}
+@media (max-width: 767px) {
+  .search-popup {
+    border-radius: 0;
+    height: 100%;
+    left: 0;
+    margin: 0;
+    padding: 0;
+    top: 0;
+    width: 100%;
+  }
+}
+.search-popup .search-icon,
+.search-popup .popup-btn-close {
+  color: #999;
+  display: inline-block;
+  font-size: 18px;
+  height: 36px;
+  padding-left: 10px;
+  padding-right: 10px;
+  width: 18px;
+}
+.search-popup .popup-btn-close {
+  border-left: 1px solid #eee;
+  cursor: pointer;
+  float: right;
+}
+.search-popup .popup-btn-close:hover .fa {
+  color: #222;
+}
+.search-popup .search-header {
+  background: #f5f5f5;
+  border-top-left-radius: 5px;
+  border-top-right-radius: 5px;
+  padding: 5px;
+}
+.search-input {
+  display: inline-block;
+  width: calc(90% - 30px);
+}
+.search-input input {
+  background: transparent;
+  border: 0;
+  outline: 0;
+  padding: 5px 0;
+  width: 100%;
+}
+.search-input .ais-search-box--magnifier svg,
+.search-input .ais-search-box--reset svg {
+  display: none;
+}
+.algolia-powered {
+  float: right;
+}
+.algolia-powered img {
+  display: inline-block;
+  height: 18px;
+  vertical-align: middle;
+}
+.algolia-results {
+  height: calc(100% - 55px);
+  overflow: auto;
+  padding: 5px 30px;
+  position: relative;
+}
+.algolia-results hr {
+  margin: 10px 0;
+}
+.algolia-results .highlight {
+  color: #f00;
+  font-size: inherit;
+  font-style: normal;
+  margin: 0;
+  padding: 0 2px;
+}
+.algolia-hits {
+  margin-top: 20px;
+}
+.algolia-hit-item {
+  margin: 15px 0;
+}
+.algolia-hit-item-link {
+  border-bottom: 1px dashed #ccc;
+  display: block;
+  transition-delay: 0s;
+  transition-duration: 0.2s;
+  transition-timing-function: ease-in-out;
+}
+.algolia-pagination .pagination {
+  border-top: none;
+  margin: 40px 0;
+  opacity: 1;
+  padding: 0;
+}
+.algolia-pagination .pagination-item {
+  display: inline-block;
+}
+.algolia-pagination .page-number {
+  border-top: none;
+}
+.algolia-pagination .page-number:hover {
+  border-bottom: 1px solid #222;
+}
+.algolia-pagination .disabled-item {
+  visibility: hidden;
+}
+.header {
+  margin: 0 auto;
+  position: relative;
+  width: calc(100% - 20px);
+}
+@media (min-width: 1200px) {
+  .header {
+    width: 1160px;
+  }
+}
+@media (min-width: 1600px) {
+  .header {
+    width: 73%;
+  }
+}
+@media (max-width: 991px) {
+  .header {
+    width: auto;
+  }
+}
+.header-inner {
+  background: #fff;
+  border-radius: initial;
+  box-shadow: 0 2px 2px 0 rgba(0,0,0,0.12), 0 3px 1px -2px rgba(0,0,0,0.06), 0 1px 5px 0 rgba(0,0,0,0.12);
+  overflow: hidden;
+  padding: 0;
+  position: absolute;
+  top: 0;
+  width: 240px;
+}
+@media (min-width: 1200px) {
+  .header-inner {
+    width: 240px;
+  }
+}
+@media (max-width: 991px) {
+  .header-inner {
+    border-radius: initial;
+    position: relative;
+    width: auto;
+  }
+}
+.main::before,
+.main::after {
+  content: ' ';
+  display: table;
+}
+.main::after {
+  clear: both;
+}
+@media (max-width: 991px) {
+  .main-inner {
+    width: auto;
+  }
+}
+.content-wrap {
+  background: #fff;
+  border-radius: initial;
+  box-shadow: 0 2px 2px 0 rgba(0,0,0,0.12), 0 3px 1px -2px rgba(0,0,0,0.06), 0 1px 5px 0 rgba(0,0,0,0.12);
+  box-sizing: border-box;
+  float: right;
+  padding: 40px;
+  width: calc(100% - 252px);
+}
+@media (max-width: 991px) {
+  .content-wrap {
+    border-radius: initial;
+    padding: 20px;
+    width: 100%;
+  }
+}
+.sidebar {
+  background: #eee;
+  box-shadow: none;
+  float: left;
+  position: static;
+  width: 240px;
+}
+@media (max-width: 991px) {
+  .sidebar {
+    display: none;
+  }
+}
+.sidebar-toggle {
+  display: none;
+}
+.footer-inner {
+  padding-left: 260px;
+}
+.back-to-top {
+  left: auto;
+  right: 30px;
+}
+@media (max-width: 991px) {
+  .back-to-top {
+    right: 20px;
+  }
+}
+@media (max-width: 991px) {
+  .footer-inner {
+    padding-left: 0;
+    padding-right: 0;
+    width: auto;
+  }
+}
+.site-brand-container {
+  position: relative;
+}
+.site-meta {
+  background: #222;
+  color: #fff;
+  padding: 20px 0;
+}
+@media (max-width: 991px) {
+  .site-meta {
+    box-shadow: 0 0 16px rgba(0,0,0,0.5);
+  }
+}
+.brand {
+  background: none;
+  padding: 0;
+}
+.brand:hover {
+  color: #fff;
+}
+.site-subtitle {
+  font-weight: initial;
+  margin: 10px 10px 0;
+}
+.custom-logo-image {
+  margin-top: 20px;
+}
+@media (max-width: 991px) {
+  .custom-logo-image {
+    display: none;
+  }
+}
+.site-nav-toggle {
+  left: 20px;
+  top: 50%;
+  transform: translateY(-50%);
+}
+@media (min-width: 768px) and (max-width: 991px) {
+  .site-nav-toggle {
+    display: block;
+  }
+}
+.site-nav-toggle .toggle .toggle-line {
+  background: #fff;
+}
+.site-nav {
+  border-top: none;
+}
+@media (min-width: 768px) and (max-width: 991px) {
+  .site-nav {
+    display: none;
+  }
+}
+.menu-item-active a,
+.menu .menu-item a:hover,
+.menu .menu-item span.exturl:hover {
+  background: #f5f5f5;
+}
+.menu-item-active a::after,
+.menu .menu-item a:hover::after,
+.menu .menu-item span.exturl:hover::after {
+  background: #bbb;
+  border-radius: 50%;
+  content: ' ';
+  height: 6px;
+  margin-top: -3px;
+  position: absolute;
+  right: 15px;
+  top: 50%;
+  width: 6px;
+}
+.menu .menu-item {
+  display: block;
+  margin: 0;
+}
+.menu .menu-item a,
+.menu .menu-item span.exturl {
+  padding: 5px 20px;
+  position: relative;
+  text-align: left;
+  transition-property: background-color;
+}
+.menu .menu-item .badge {
+  background: #ccc;
+  border-radius: 10px;
+  color: #fff;
+  float: right;
+  padding: 2px 5px;
+  text-shadow: 1px 1px 0 rgba(0,0,0,0.1);
+  vertical-align: middle;
+}
+.sub-menu {
+  background: #fff;
+  border-bottom: 1px solid #ddd;
+  margin: 0;
+  padding: 6px 0;
+}
+.sub-menu .menu-item {
+  display: inline-block;
+}
+.sub-menu .menu-item a,
+.sub-menu .menu-item span.exturl {
+  margin: 5px 10px;
+  padding: initial;
+}
+.sub-menu .menu-item a:hover,
+.sub-menu .menu-item span.exturl:hover {
+  background: initial;
+  color: #fc6423;
+}
+.sub-menu .menu-item a::after,
+.sub-menu .menu-item span.exturl::after {
+  content: initial !important;
+}
+.sub-menu .menu-item-active a {
+  background: #fff;
+  border-bottom-color: #fc6423;
+  color: #fc6423;
+}
+.sub-menu .menu-item-active a:hover {
+  background: #fff;
+  border-bottom-color: #fc6423;
+}
+.sidebar {
+  bottom: auto;
+  right: auto;
+}
+.sidebar a,
+.sidebar span.exturl {
+  color: #555;
+}
+.sidebar a:hover,
+.sidebar span.exturl:hover {
+  border-bottom-color: #222;
+  color: #222;
+}
+.sidebar-inner {
+  background: #fff;
+  border-radius: initial;
+  box-shadow: 0 2px 2px 0 rgba(0,0,0,0.12), 0 3px 1px -2px rgba(0,0,0,0.06), 0 1px 5px 0 rgba(0,0,0,0.12), 0 -1px 0.5px 0 rgba(0,0,0,0.09);
+  box-sizing: border-box;
+  color: #555;
+  width: 240px;
+  opacity: 0;
+}
+.sidebar-inner.affix {
+  position: fixed;
+  top: 12px;
+}
+.sidebar-inner.affix-bottom {
+  position: absolute;
+}
+.site-state-item {
+  padding: 0 10px;
+}
+.feed-link,
+.chat {
+  border-bottom: 1px dotted #ccc;
+  border-top: 1px dotted #ccc;
+  margin-top: 10px;
+  text-align: center;
+}
+.feed-link a,
+.chat a {
+  border: 0;
+  color: #fc6423;
+  display: block;
+}
+.feed-link a:hover,
+.chat a:hover {
+  background: none;
+  border: 0;
+  color: #e34603;
+}
+.feed-link a:hover .fa,
+.chat a:hover .fa {
+  color: #e34603;
+}
+.links-of-author {
+  display: flex;
+  flex-wrap: wrap;
+  margin-top: 10px;
+  justify-content: center;
+}
+.links-of-author-item {
+  margin: 5px 0 0;
+}
+.links-of-author-item a,
+.links-of-author-item span.exturl {
+  box-sizing: border-box;
+  display: inline-block;
+  margin-bottom: 0;
+  margin-right: 0;
+  max-width: 216px;
+  overflow: hidden;
+  padding: 0 5px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.links-of-author-item a,
+.links-of-author-item span.exturl {
+  border-bottom: none;
+  display: block;
+  text-decoration: none;
+}
+.links-of-author-item a::before,
+.links-of-author-item span.exturl::before {
+  display: none;
+}
+.links-of-author-item a:hover,
+.links-of-author-item span.exturl:hover {
+  background: #eee;
+  border-radius: 4px;
+}
+.links-of-author-item .fa {
+  margin-right: 2px;
+}
+.links-of-blogroll-item {
+  padding: 0;
+}
+.content-wrap {
+  background: initial;
+  box-shadow: initial;
+  padding: initial;
+}
+.post-block {
+  background: #fff;
+  border-radius: initial;
+  box-shadow: 0 2px 2px 0 rgba(0,0,0,0.12), 0 3px 1px -2px rgba(0,0,0,0.06), 0 1px 5px 0 rgba(0,0,0,0.12);
+  padding: 40px;
+}
+.post-block + .post-block {
+  border-radius: initial;
+  box-shadow: 0 2px 2px 0 rgba(0,0,0,0.12), 0 3px 1px -2px rgba(0,0,0,0.06), 0 1px 5px 0 rgba(0,0,0,0.12), 0 -1px 0.5px 0 rgba(0,0,0,0.09);
+  margin-top: 12px;
+}
+.comments {
+  background: #fff;
+  border-radius: initial;
+  box-shadow: 0 2px 2px 0 rgba(0,0,0,0.12), 0 3px 1px -2px rgba(0,0,0,0.06), 0 1px 5px 0 rgba(0,0,0,0.12), 0 -1px 0.5px 0 rgba(0,0,0,0.09);
+  margin: auto;
+  margin-top: 12px;
+  padding: 40px;
+}
+.tabs-comment {
+  margin-top: 1em;
+}
+.posts-expand {
+  padding-top: initial;
+}
+.post-nav-divider {
+  width: 4%;
+}
+.post-nav-item {
+  width: 48%;
+}
+.post-eof {
+  display: none;
+}
+.pagination {
+  background: #fff;
+  border-radius: initial;
+  border-top: initial;
+  box-shadow: 0 2px 2px 0 rgba(0,0,0,0.12), 0 3px 1px -2px rgba(0,0,0,0.06), 0 1px 5px 0 rgba(0,0,0,0.12), 0 -1px 0.5px 0 rgba(0,0,0,0.09);
+  margin: 12px 0 0;
+  padding: 10px 0 10px;
+}
+.pagination .prev,
+.pagination .next,
+.pagination .page-number {
+  margin-bottom: initial;
+  top: initial;
+}
+.main {
+  padding-bottom: initial;
+}
+.footer {
+  bottom: auto;
+}
+.sub-menu {
+  border-bottom: initial;
+  box-shadow: 0 2px 2px 0 rgba(0,0,0,0.12), 0 3px 1px -2px rgba(0,0,0,0.06), 0 1px 5px 0 rgba(0,0,0,0.12);
+}
+.sub-menu + .content .post-block {
+  box-shadow: 0 2px 2px 0 rgba(0,0,0,0.12), 0 3px 1px -2px rgba(0,0,0,0.06), 0 1px 5px 0 rgba(0,0,0,0.12), 0 -1px 0.5px 0 rgba(0,0,0,0.09);
+  margin-top: 12px;
+}
+@media (min-width: 768px) and (max-width: 991px) {
+  .sub-menu + .content .post-block {
+    margin-top: 10px;
+  }
+}
+@media (max-width: 767px) {
+  .sub-menu + .content .post-block {
+    margin-top: 8px;
+  }
+}
+.post-body h1,
+.post-body h2 {
+  border-bottom: 1px solid #eee;
+}
+.post-body h3 {
+  border-bottom: 1px solid #eee;
+}
+.post-body h4 {
+  border-bottom: 1px dotted #eee;
+}
+@media (min-width: 768px) and (max-width: 991px) {
+  .content-wrap {
+    padding: 10px;
+  }
+  .posts-expand {
+    margin: initial;
+  }
+  .posts-expand .post-button {
+    margin-top: 20px;
+  }
+  .post-block {
+    border-radius: initial;
+    box-shadow: 0 2px 2px 0 rgba(0,0,0,0.12), 0 3px 1px -2px rgba(0,0,0,0.06), 0 1px 5px 0 rgba(0,0,0,0.12), 0 -1px 0.5px 0 rgba(0,0,0,0.09);
+    padding: 20px;
+  }
+  .post-block + .post-block {
+    margin-top: 10px;
+  }
+  .comments {
+    margin-top: 10px;
+    padding: 10px 20px;
+  }
+  .pagination {
+    margin: 10px 0 0;
+  }
+}
+@media (max-width: 767px) {
+  .content-wrap {
+    padding: 8px;
+  }
+  .posts-expand {
+    margin: initial;
+  }
+  .posts-expand .post-button {
+    margin: 12px 0;
+  }
+  .post-block {
+    border-radius: initial;
+    box-shadow: 0 2px 2px 0 rgba(0,0,0,0.12), 0 3px 1px -2px rgba(0,0,0,0.06), 0 1px 5px 0 rgba(0,0,0,0.12), 0 -1px 0.5px 0 rgba(0,0,0,0.09);
+    min-height: auto;
+    padding: 12px;
+  }
+  .post-block + .post-block {
+    margin-top: 8px;
+  }
+  .comments {
+    margin-top: 8px;
+    padding: 10px 12px;
+  }
+  .pagination {
+    margin: 8px 0 0;
+  }
+}</style><noscript>
+  <style>
+  .use-motion .brand,
+  .use-motion .menu-item,
+  .sidebar-inner,
+  .use-motion .post-block,
+  .use-motion .pagination,
+  .use-motion .comments,
+  .use-motion .post-header,
+  .use-motion .post-body,
+  .use-motion .collection-header { opacity: initial; }
+
+  .use-motion .site-title,
+  .use-motion .site-subtitle {
+    opacity: initial;
+    top: initial;
+  }
+
+  .use-motion .logo-line-before i { left: initial; }
+  .use-motion .logo-line-after i { right: initial; }
+  </style>
+</noscript>
+
+<script>function loadCss(l){var d=document,h=d.head,s=d.createElement('link');s.rel='stylesheet';s.href=l;!function e(f){if (d.body)return f();setTimeout(function(){e(f)})}(function(){h.appendChild(s);});}loadCss('/style.css');loadCss('//fonts.googleapis.com/css?family=Monda:300,300italic,400,400italic,700,700italic|Roboto Slab:300,300italic,400,400italic,700,700italic|PT Mono:300,300italic,400,400italic,700,700italic&display=swap&subset=latin,latin-ext');loadCss('//cdn.jsdelivr.net/npm/instantsearch.js@2/dist/instantsearch.min.css');loadCss('//cdn.jsdelivr.net/npm/gitalk@1/dist/gitalk.min.css');</script><noscript><link rel="stylesheet" href="/style.css"><link rel="stylesheet" href="//fonts.googleapis.com/css?family=Monda:300,300italic,400,400italic,700,700italic|Roboto Slab:300,300italic,400,400italic,700,700italic|PT Mono:300,300italic,400,400italic,700,700italic&amp;display=swap&amp;subset=latin,latin-ext"><link rel="stylesheet" href="//cdn.jsdelivr.net/npm/instantsearch.js@2/dist/instantsearch.min.css"><link rel="stylesheet" href="//cdn.jsdelivr.net/npm/gitalk@1/dist/gitalk.min.css"></noscript></head>
+
+<body itemscope="" itemtype="http://schema.org/WebPage">
+  <div class="container use-motion">
+    <div class="headband"></div>
+
+    <header class="header" itemscope="" itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-container">
+  <div class="site-meta">
+
+    <div>
+      <a href="/" class="brand" rel="start">
+        <span class="logo-line-before"><i></i></span>
+        <span class="site-title">贝克街的流浪猫</span>
+        <span class="logo-line-after"><i></i></span>
+      </a>
+    </div>
+        <h1 class="site-subtitle" itemprop="description">技术博客</h1>
+      
+  </div>
+
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="切换导航栏">
+      <span class="toggle-line toggle-line-first"></span>
+      <span class="toggle-line toggle-line-middle"></span>
+      <span class="toggle-line toggle-line-last"></span>
+    </div>
+  </div>
+</div>
+
+
+<nav class="site-nav">
+  
+  <ul id="menu" class="menu">
+        <li class="menu-item menu-item-home">
+
+    <a href="/" rel="section"><i class="fa fa-fw fa-home"></i>首页</a>
+
+  </li>
+        <li class="menu-item menu-item-tags">
+
+    <a href="/tags/" rel="section"><i class="fa fa-fw fa-tags"></i>标签</a>
+
+  </li>
+        <li class="menu-item menu-item-categories">
+
+    <a href="/categories/" rel="section"><i class="fa fa-fw fa-th"></i>分类</a>
+
+  </li>
+        <li class="menu-item menu-item-archives">
+
+    <a href="/archives/" rel="section"><i class="fa fa-fw fa-archive"></i>归档</a>
+
+  </li>
+        <li class="menu-item menu-item-about">
+
+    <a href="/about/" rel="section"><i class="fa fa-fw fa-user"></i>关于</a>
+
+  </li>
+      <li class="menu-item menu-item-search">
+        <a role="button" class="popup-trigger"><i class="fa fa-search fa-fw"></i>搜索
+        </a>
+      </li>
+  </ul>
+
+</nav>
+  <div class="site-search">
+    <div class="popup search-popup">
+    <div class="search-header">
+  <span class="search-icon">
+    <i class="fa fa-search"></i>
+  </span>
+  <div class="search-input" id="search-input"></div>
+  <span class="popup-btn-close">
+    <i class="fa fa-times-circle"></i>
+  </span>
+</div>
+<div class="algolia-results">
+  <div id="algolia-stats"></div>
+  <div id="algolia-hits"></div>
+  <div id="algolia-pagination" class="algolia-pagination"></div>
+</div>
+
+  
+</div>
+<div class="search-pop-overlay"></div>
+
+  </div>
+</div>
+    </header>
+
+    
+
+  <span class="exturl github-corner" data-url="aHR0cHM6Ly9naXRodWIuY29tL0JlaUtlSmllRGVMaXVMYW5nTWFv" title="欢迎关注我的 GitHub" aria-label="欢迎关注我的 GitHub"><svg width="80" height="80" viewBox="0 0 250 250" aria-hidden="true"><path d="M0,0 L115,115 L130,115 L142,142 L250,250 L250,0 Z"></path><path d="M128.3,109.0 C113.8,99.7 119.0,89.6 119.0,89.6 C122.0,82.7 120.5,78.6 120.5,78.6 C119.2,72.0 123.4,76.3 123.4,76.3 C127.3,80.9 125.5,87.3 125.5,87.3 C122.9,97.6 130.6,101.9 134.4,103.2" fill="currentColor" style="transform-origin: 130px 106px;" class="octo-arm"></path><path d="M115.0,115.0 C114.9,115.1 118.7,116.5 119.8,115.4 L133.7,101.6 C136.9,99.2 139.9,98.4 142.2,98.6 C133.8,88.0 127.5,74.4 143.8,58.0 C148.5,53.4 154.0,51.2 159.7,51.0 C160.3,49.4 163.2,43.6 171.4,40.1 C171.4,40.1 176.1,42.5 178.8,56.2 C183.1,58.6 187.2,61.8 190.9,65.4 C194.5,69.0 197.7,73.2 200.1,77.6 C213.8,80.2 216.3,84.9 216.3,84.9 C212.7,93.1 206.9,96.0 205.4,96.6 C205.1,102.4 203.0,107.8 198.3,112.5 C181.9,128.9 168.3,122.5 157.7,114.1 C157.9,116.9 156.7,120.9 152.7,124.9 L141.0,136.5 C139.8,137.7 141.6,141.9 141.8,141.8 Z" fill="currentColor" class="octo-body"></path></svg></span>
+
+
+    <main class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          
+
+          <div class="content">
+            
+
+  <div class="posts-expand">
+      
+  
+  
+  <article itemscope="" itemtype="http://schema.org/Article" class="post-block " lang="zh-CN">
+    <link itemprop="mainEntityOfPage" href="https://www.beikejiedeliulangmao.top/protocol/http/a-http-request/">
+
+    <span hidden="" itemprop="author" itemscope="" itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.jpg">
+      <meta itemprop="name" content="贝克街的流浪猫">
+      <meta itemprop="description" content="贝贝猫">
+    </span>
+
+    <span hidden="" itemprop="publisher" itemscope="" itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="贝克街的流浪猫">
+    </span>
+      <header class="post-header">
+        <h2 class="post-title" itemprop="name headline">
+          一次 HTTP 请求
+        </h2>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="fa fa-calendar-o"></i>
+              </span>
+              <span class="post-meta-item-text">发表于</span>
+
+              <time title="创建时间：2019-07-10 16:50:18" itemprop="dateCreated datePublished" datetime="2019-07-10T16:50:18+08:00">2019-07-10</time>
+            </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="fa fa-folder-o"></i>
+              </span>
+              <span class="post-meta-item-text">分类于</span>
+                <span itemprop="about" itemscope="" itemtype="http://schema.org/Thing">
+                  <a href="/categories/Protocol/" itemprop="url" rel="index">
+                    <span itemprop="name">Protocol</span>
+                  </a>
+                </span>
+            </span>
+
+          
+            <span id="/protocol/http/a-http-request/" class="post-meta-item leancloud_visitors" data-flag-title="一次 HTTP 请求" title="阅读次数">
+              <span class="post-meta-item-icon">
+                <i class="fa fa-eye"></i>
+              </span>
+              <span class="post-meta-item-text">阅读次数：</span>
+              <span class="leancloud-visitors-count"></span>
+            </span><br>
+            <span class="post-meta-item" title="本文字数">
+              <span class="post-meta-item-icon">
+                <i class="fa fa-file-word-o"></i>
+              </span>
+                <span class="post-meta-item-text">本文字数：</span>
+              <span>7.2k</span>
+            </span>
+            <span class="post-meta-item" title="阅读时长">
+              <span class="post-meta-item-icon">
+                <i class="fa fa-clock-o"></i>
+              </span>
+                <span class="post-meta-item-text">阅读时长 ≈</span>
+              <span>7 分钟</span>
+            </span>
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+        <h2 id="引言"><a href="#引言" class="headerlink" title="引言"></a>引言</h2><p>大学时代有次去面试一个校内俱乐部，被问了这个问题，一直感觉当时回答的不够好，难以释怀。所以总结本文，其中尽可能详细地剖析了一次HTTP请求都经历什么。</p>
+<a id="more"></a>
+
+<h2 id="整个流程"><a href="#整个流程" class="headerlink" title="整个流程"></a>整个流程</h2><ol>
+<li>域名解析 —&gt; 与服务器建立TCP连接 —&gt; 发起HTTP请求 —&gt; 服务器响应HTTP请求 —&gt;断开连接</li>
+</ol>
+<h2 id="域名解析"><a href="#域名解析" class="headerlink" title="域名解析"></a>域名解析</h2><p>以Chrome浏览器为例：</p>
+<ol>
+<li>Chrome浏览器会首先搜索浏览器自身的DNS缓存（缓存时间比较短，大概只有1分钟，且只能容纳1000条缓存），看自身的缓存中是否有<code>https://www.example.com</code> 对应的条目，而且没有过期，如果有且没有过期则解析到此结束。<ul>
+<li>注：我们怎么查看Chrome自身的缓存？可以使用 chrome://net-internals/#dns 来进行查看</li>
+</ul>
+</li>
+<li>如果浏览器自身的缓存里面没有找到对应的条目，那么Chrome会搜索操作系统自身的DNS缓存,如果找到且没有过期则停止搜索解析到此结束.<ul>
+<li>注：怎么查看操作系统自身的DNS缓存，以Windows系统为例，可以在命令行下使用 ipconfig /displaydns 来进行查看</li>
+</ul>
+</li>
+<li>如果在Windows系统的DNS缓存也没有找到，那么尝试读取hosts文件（位于C:\Windows\System32\drivers\etc），看看这里面有没有该域名对应的IP地址，如果有则解析成功。</li>
+<li>如果在hosts文件中也没有找到对应的条目<ol>
+<li>浏览器就会发起一个DNS的系统调用，就会向本地配置的首选DNS服务器（一般是电信运营商提供的，也可以使用像Google提供的DNS服务器）发起域名解析请求（通过的是UDP协议向DNS的53端口发起请求，这个请求是递归的请求，也就是运营商的DNS服务器必须得提供给我们该域名的IP地址），运营商的DNS服务器首先查找自身的缓存，找到对应的条目，且没有过期，则解析成功。</li>
+<li>如果没有找到对应的条目，则有运营商的DNS代我们的浏览器发起迭代DNS解析请求，它首先是会找根域的DNS的IP地址（这个DNS服务器都内置13台根域的DNS的IP地址），找到根域的DNS地址，就会向其发起请求（请问 <code>http://www.example.com</code>这个域名的IP地址是多少啊？），根域发现这是一个顶级域com域的一个域名，于是就告诉运营商的DNS我不知道这个域名的IP地址，但是我知道com域的IP地址，你去找它去</li>
+<li>于是运营商的DNS就得到了com域的IP地址，又向com域的IP地址发起了请求（请问<code>http://www.example.com</code> 这个域名的IP地址是多少?）,com域这台服务器告诉运营商的DNS我不知道<code>http://www.example.com</code> 这个域名的IP地址，但是我知道<code>http://example.com</code>这个域的DNS地址，你去找它去</li>
+<li>于是运营商的DNS又向<code>http://example.com</code> 这个域名的DNS地址（这个一般就是由域名注册商提供的，像万网，新网等）发起请求（请问<code>http://www.example.com</code> 这个域名的IP地址是多少？），这个时候<code>http://example.com</code>域的DNS服务器一查，诶，果真在我这里，于是就把找到的结果发送给运营商的DNS服务器</li>
+<li>这个时候运营商的DNS服务器就拿到了<code>http://www.example.com</code> 这个域名对应的IP地址，并返回给Windows系统内核，内核又把结果返回给浏览器，终于浏览器拿到了<code>http://www.example.com</code> 对应的IP地址，该进行一步的动作了。</li>
+</ol>
+</li>
+<li>（Windows）操作系统就会查找NetBIOS name Cache（NetBIOS名称缓存，就存在客户端电脑中的），那这个缓存有什么东西呢？凡是最近一段时间内和我成功通讯的计算机的计算机名和Ip地址，就都会存在这个缓存里面。什么情况下该步能解析成功呢？就是该名称正好是几分钟前和我成功通信过，那么这一步就可以成功解析。</li>
+<li>（Windows）如果上一步也没有成功，那会查询WINS 服务器（是NETBIOS名称和IP地址对应的服务器）</li>
+<li>（Windows）如果上一步也没有查询成功，那么客户端就要进行广播查找</li>
+<li>（Windows）如果上一步也没有成功，那么客户端就读取LMHOSTS文件（和HOSTS文件同一个目录下，写法也一样）</li>
+</ol>
+<p>如果第八步还没有解析成功，那么就宣告这次解析失败，那就无法跟目标计算机进行通信。只要这八步中有一步可以解析成功，那就可以成功和目标计算机进行通信。</p>
+<p>DNS有一个弊端，一个域名看上去只是对应一个单独的IP地址。还好有几种方法可以消除这个瓶颈：</p>
+<ol>
+<li>循环 DNS 是DNS查找时返回多个IP时的解决方案。举例来说，facebook.com实际上就对应了多个IP地址。</li>
+<li>负载平衡器是以一个特定IP地址进行侦听并将网络请求转发到集群服务器上的硬件设备。 一些大型的站点一般都会使用这种昂贵的高性能负载平衡器。</li>
+<li>地理 DNS 根据用户所处的地理位置，通过把域名映射到多个不同的IP地址提高可扩展性。这样不同的服务器不能够更新同步状态，但映射静态内容的话非常好。</li>
+<li>Anycast 是一个IP地址映射多个物理主机的路由技术。 美中不足的是Anycast与TCP协议适应的不是很好，所以很少应用在那些方案中。大多数DNS服务器使用Anycast来获得高效低延迟的DNS查找。</li>
+</ol>
+<h2 id="建立TCP连接"><a href="#建立TCP连接" class="headerlink" title="建立TCP连接"></a>建立TCP连接</h2><h3 id="网络协议"><a href="#网络协议" class="headerlink" title="网络协议"></a>网络协议</h3><p>TCP/IP协议模型（Transmission Control Protocol/Internet Protocol），包含了一系列构成互联网基础的网络协议，是Internet的核心协议，被广泛应用于局域网和广域网中，目前已成为事实上的国际标准。TCP/IP协议簇是一组不同层次上的多个协议的组合，通常被认为是一个四层协议系统，与OSI的七层模型相对应。</p>
+<p>HTTP协议就是基于TCP/IP协议模型来传输信息的。<br><img src="/images/loading-cat.gif" data-original="https://bbm-hexo.oss-accelerate.aliyuncs.com/images/http/protocol-tcp-ip.png" alt="protocol-tcp-ip"></p>
+<h4 id="链路层"><a href="#链路层" class="headerlink" title="链路层"></a>链路层</h4><p>也称作数据链路层或网络接口层，通常包括操作系统中的设备驱动程序和计算机中对应的网络接口卡。它们一起处理电缆（或其他任何传输媒介）的物理接口细节。ARP（地址解析协议）和RARP（逆地址解析协议）是某些网络接口（如以太网和令牌环网）使用的特殊协议，用来转换IP层和网络接口层使用的地址。</p>
+<h4 id="网络层"><a href="#网络层" class="headerlink" title="网络层"></a>网络层</h4><p>也称作互联网层，处理分组在网络中的活动，例如分组的选路。在TCP/IP协议族中，网络层协议包括IP协议（网际协议），ICMP协议（Internet互联网控制报文协议），以及IGMP协议（Internet组管理协议）。</p>
+<p>IP是一种网络层协议，提供的是一种不可靠的服务，它只是尽可能快地把分组从源结点送到目的结点，但是并不提供任何可靠性保证。同时被TCP和UDP使用。TCP和UDP的每组数据都通过端系统和每个中间路由器中的IP层在互联网中进行传输。</p>
+<p>ICMP是IP协议的附属协议。IP层用它来与其他主机或路由器交换错误报文和其他重要信息。</p>
+<p>IGMP是Internet组管理协议。它用来把一个UDP数据报多播到多个主机。</p>
+<h4 id="传输层"><a href="#传输层" class="headerlink" title="传输层"></a>传输层</h4><p>主要为两台主机上的应用程序提供端到端的通信。在TCP/IP协议族中，有两个互不相同的传输协议：TCP（传输控制协议）和UDP（用户数据报协议）。</p>
+<p>TCP为两台主机提供高可靠性的数据通信。它所做的工作包括把应用程序交给它的数据分成合适的小块交给下面的网络层，确认接收到的分组，设置发送最后确认分组的超时时钟等。由于运输层提供了高可靠性的端到端的通信，因此应用层可以忽略所有这些细节。为了提供可靠的服务，TCP采用了超时重传、发送和接收端到端的确认分组等机制。</p>
+<p>UDP则为应用层提供一种非常简单的服务。它只是把称作数据报的分组从一台主机发送到另一台主机，但并不保证该数据报能到达另一端。一个数据报是指从发送方传输到接收方的一个信息单元（例如，发送方指定的一定字节数的信息）。UDP协议任何必需的可靠性必须由应用层来提供。</p>
+<h4 id="应用层"><a href="#应用层" class="headerlink" title="应用层"></a>应用层</h4><p>应用层决定了向用户提供应用服务时通信的活动。TCP/IP 协议族内预存了各类通用的应用服务。包括 HTTP，FTP（File Transfer Protocol，文件传输协议），DNS（Domain Name System，域名系统）服务。<br><img src="/images/loading-cat.gif" data-original="https://bbm-hexo.oss-accelerate.aliyuncs.com/images/http/protocol-stack.png" alt="protocol-stack"><br>当应用程序用TCP传送数据时，数据被送入协议栈中，然后逐个通过每一层直到被当作一串比特流送入网络。其中每一层对收到的数据都要增加一些首部信息（有时还要增加尾部信息），该过程如图所示。<br><img src="/images/loading-cat.gif" data-original="https://bbm-hexo.oss-accelerate.aliyuncs.com/images/http/protocol-stack-reserve.png" alt="protocol-stack-reserve"><br>当目的主机收到一个以太网数据帧时，数据就开始从协议栈中由底向上升，同时去掉各层协议加上的报文首部。每层协议盒都要去检查报文首部中的协议标识，以确定接收数据的上层协议。这个过程称作分用（Demultiplexing）。协议是通过目的端口号、源I P地址和源端口号进行解包的。</p>
+<p>通过以上步骤我们从TCP/IP模型的角度来理解了一次HTTP请求与响应的过程。<br>下面这张图更清楚明白：<br><img src="/images/loading-cat.gif" data-original="https://bbm-hexo.oss-accelerate.aliyuncs.com/images/http/protocol-stack-double.png" alt="protocol-stack-double"></p>
+<h3 id="3次握手"><a href="#3次握手" class="headerlink" title="3次握手"></a>3次握手</h3><p>TCP是面向连接的，无论哪一方向另一方发送数据之前，都必须先在双方之间建立一条连接。在TCP/IP协议中，TCP协议提供可靠的连接服务，连接是通过三次握手进行初始化的。三次握手的目的是同步连接双方的序列号和确认号并交换TCP窗口大小信息。<br><img src="/images/loading-cat.gif" data-original="https://bbm-hexo.oss-accelerate.aliyuncs.com/images/http/tcp-handshake.png" alt="tcp-handshake"><br>第一次握手：建立连接。客户端发送连接请求报文段，将SYN位置为1，Sequence Number为x；然后，客户端进入SYN_SEND状态，等待服务器的确认；</p>
+<p>第二次握手：服务器收到SYN报文段。服务器收到客户端的SYN报文段，需要对这个SYN报文段进行确认，设置Acknowledgment Number为x+1(Sequence Number+1)；同时，自己自己还要发送SYN请求信息，将SYN位置为1，Sequence Number为y；服务器端将上述所有信息放到一个报文段（即SYN+ACK报文段）中，一并发送给客户端，此时服务器进入SYN_RECV状态；</p>
+<p>第三次握手：客户端收到服务器的SYN+ACK报文段。然后将Acknowledgment Number设置为y+1，向服务器发送ACK报文段，这个报文段发送完毕以后，客户端和服务器端都进入ESTABLISHED状态，完成TCP三次握手。</p>
+<p><strong>为什么要三次握手</strong><br>为了防止已失效的连接请求报文段突然又传送到了服务端，因而产生错误。已失效的连接请求报文段”的产生在这样一种情况下：client发出的第一个连接请求报文段并没有丢失，而是在某个网络结点长时间的滞留了，以致延误到连接释放以后的某个时间才到达server。本来这是一个早已失效的报文段。但server收到此失效的连接请求报文段后，就误认为是client再次发出的一个新的连接请求。于是就向client发出确认报文段，同意建立连接。假设不采用“三次握手”，那么只要server发出确认，新的连接就建立了。由于现在client并没有发出建立连接的请求，因此不会理睬server的确认，也不会向server发送数据。但server却以为新的运输连接已经建立，并一直等待client发来数据。这样，server的很多资源就白白浪费掉了。采用“三次握手”的办法可以防止上述现象发生。例如刚才那种情况，client不会向server的确认发出确认。server由于收不到确认，就知道client并没有要求建立连接。</p>
+<h2 id="发起HTTP请求"><a href="#发起HTTP请求" class="headerlink" title="发起HTTP请求"></a>发起HTTP请求</h2><p>和服务器建立起TCP连接之后，客户端就会和服务器通过该连接进行基于HTTP协议的通讯。</p>
+<h3 id="请求报文"><a href="#请求报文" class="headerlink" title="请求报文"></a>请求报文</h3><p>一个HTTP请求报文由请求行（request line）、请求头部（header）、空行和请求数据4个部分组成，下图给出了请求报文的一般格式。<br><img src="/images/loading-cat.gif" data-original="https://bbm-hexo.oss-accelerate.aliyuncs.com/images/http/http-request.png" alt="http-request"></p>
+<h3 id="请求行"><a href="#请求行" class="headerlink" title="请求行"></a>请求行</h3><p>请求行分为三个部分：请求方法、请求地址和协议版本</p>
+<p><strong>请求方法</strong><br>HTTP/1.1 定义的请求方法有8种：GET、POST、PUT、DELETE、PATCH、HEAD、OPTIONS、TRACE。</p>
+<p>最常的两种GET和POST，如果是RESTful接口的话一般会用到GET、POST、DELETE、PUT。</p>
+<p><strong>请求地址</strong><br>URL:统一资源定位符，是一种资源位置的抽象唯一识别方法。组成：<code>&lt;协议&gt;：//&lt;主机&gt;：&lt;端口&gt;/&lt;路径&gt;</code> 端口和路径有时可以省略（HTTP默认端口号是80）</p>
+<p><strong>协议版本</strong><br>协议版本的格式为：HTTP/主版本号.次版本号，常用的有HTTP/1.0和HTTP/1.1</p>
+<h3 id="请求头部"><a href="#请求头部" class="headerlink" title="请求头部"></a>请求头部</h3><p>请求头部为请求报文添加了一些附加信息，由“名/值”对组成，每行一对，名和值之间使用冒号分隔。</p>
+<p>常见请求头如下：<br><img src="/images/loading-cat.gif" data-original="https://bbm-hexo.oss-accelerate.aliyuncs.com/images/http/http-request-hreader.png" alt="http-request-hreader"><br>请求头部的最后会有一个空行，表示请求头部结束，接下来为请求数据，这一行非常重要，必不可少。</p>
+<h3 id="请求数据"><a href="#请求数据" class="headerlink" title="请求数据"></a>请求数据</h3><p>可选部分，比如GET请求就没有请求数据。</p>
+<p>下面是一个POST方法的请求报文：</p>
+<blockquote>
+<p>POST 　/index.php　HTTP/1.1 　　 请求行<br>  Host: localhost<br>  User-Agent: Mozilla/5.0 (Windows NT 5.1; rv:10.0.2) Gecko/20100101 Firefox/10.0.2　　请求头<br>  Accept: text/html,application/xhtml+xml,application/xml;q=0.9,/;q=0.8<br>  Accept-Language: zh-cn,zh;q=0.5<br>  Accept-Encoding: gzip, deflate<br>  Connection: keep-alive<br>  Referer: <code>http://localhost/</code><br>  Content-Length：25<br>  Content-Type：application/x-www-form-urlencoded<br>  　　空行<br>  username=aa&amp;password=1234　　请求数据</p>
+</blockquote>
+<h2 id="响应HTTP请求"><a href="#响应HTTP请求" class="headerlink" title="响应HTTP请求"></a>响应HTTP请求</h2><p>服务端接收到HTTP请求后，会进行一些业务处理，最终生成对应的HTTP Response通过TCP连接回传给Client。</p>
+<h3 id="响应报文"><a href="#响应报文" class="headerlink" title="响应报文"></a>响应报文</h3><p><img src="/images/loading-cat.gif" data-original="https://bbm-hexo.oss-accelerate.aliyuncs.com/images/http/http-response.png" alt="http-response"><br>HTTP响应报文主要由状态行、响应头部、空行以及响应数据组成。</p>
+<h3 id="状态行"><a href="#状态行" class="headerlink" title="状态行"></a>状态行</h3><p>由3部分组成，分别为：协议版本，状态码，状态码描述。</p>
+<p>其中协议版本与请求报文一致，状态码描述是对状态码的简单描述，所以这里就只介绍状态码。</p>
+<p><strong>状态码</strong><br>状态代码为3位数字。<br>1xx：指示信息–表示请求已接收，继续处理。<br>2xx：成功–表示请求已被成功接收、理解、接受。<br>3xx：重定向–要完成请求必须进行更进一步的操作。<br>4xx：客户端错误–请求有语法错误或请求无法实现。<br>5xx：服务器端错误–服务器未能实现合法的请求。</p>
+<p>下面列举几个常见的：<br><img src="/images/loading-cat.gif" data-original="https://bbm-hexo.oss-accelerate.aliyuncs.com/images/http/http-status-code.png" alt="http-status-code"></p>
+<h3 id="响应头部"><a href="#响应头部" class="headerlink" title="响应头部"></a>响应头部</h3><p>与请求头部类似，为响应报文添加了一些附加信息</p>
+<p>常见响应头部如下：<br><img src="/images/loading-cat.gif" data-original="https://bbm-hexo.oss-accelerate.aliyuncs.com/images/http/http-response-header.png" alt="http-response-header"></p>
+<h3 id="响应数据"><a href="#响应数据" class="headerlink" title="响应数据"></a>响应数据</h3><p>用于存放需要返回给客户端的数据信息。</p>
+<p>下面是一个响应报文的实例：</p>
+<blockquote>
+<p>HTTP/1.1 200 OK　　状态行<br>  Date: Sun, 17 Mar 2017 08:12:54 GMT　　响应头部<br>  Server: Apache/2.2.8 (Win32) PHP/5.2.5<br>  X-Powered-By: PHP/5.2.5<br>  Set-Cookie: PHPSESSID=c0huq7pdkmm5gg6osoe3mgjmm3; path=/<br>  Expires: Thu, 19 Nov 1981 08:52:00 GMT<br>  Cache-Control: no-store, no-cache, must-revalidate, post-check=0, pre-check=0<br>  Pragma: no-cache<br>  Content-Length: 4393<br>  Keep-Alive: timeout=5, max=100<br>  Connection: Keep-Alive<br>  Content-Type: text/html; charset=utf-8<br>  　　空行<br>  响应数据</p>
+</blockquote>
+<p>关于请求头部和响应头部的知识点很多，这里只是简单介绍。</p>
+<p>通过以上步骤，数据已经传递完毕，HTTP/1.1会维持持久连接，但持续一段时间总会有关闭连接的时候，这时候就需要断开TCP连接。</p>
+<h2 id="断开连接"><a href="#断开连接" class="headerlink" title="断开连接"></a>断开连接</h2><p>当客户端和服务器通过三次握手建立了TCP连接以后，当数据传送完毕，肯定是要断开TCP连接的啊。那对于TCP的断开连接，这里就有了神秘的“四次分手”。<br><img src="/images/loading-cat.gif" data-original="https://bbm-hexo.oss-accelerate.aliyuncs.com/images/http/tcp-say-goodbye.png" alt="tcp-say-goodbye"><br>第一次分手：主机1（可以是客户端，也可以是服务器端），设置Sequence Number，向主机2发送一个FIN报文段；此时，主机1进入FIN_WAIT_1状态；这表示主机1没有数据要发送给主机2了；</p>
+<p>第二次分手：主机2收到了主机1发送的FIN报文段，向主机1回一个ACK报文段，Acknowledgment Number为Sequence Number加1；主机1进入FIN_WAIT_2状态；主机2告诉主机1，我“同意”你的关闭请求；</p>
+<p>第三次分手：主机2向主机1发送FIN报文段，请求关闭连接，同时主机2进入LAST_ACK状态；</p>
+<p>第四次分手：主机1收到主机2发送的FIN报文段，向主机2发送ACK报文段，然后主机1进入TIME_WAIT状态；主机2收到主机1的ACK报文段以后，就关闭连接；此时，主机1等待2MSL后依然没有收到回复，则证明Server端已正常关闭，那好，主机1也可以关闭连接了。</p>
+<p><strong>为什么要四次分手</strong><br>TCP协议是一种面向连接的、可靠的、基于字节流的运输层通信协议。TCP是全双工模式，这就意味着，当主机1发出FIN报文段时，只是表示主机1已经没有数据要发送了，主机1告诉主机2，它的数据已经全部发送完毕了；但是，这个时候主机1还是可以接受来自主机2的数据；当主机2返回ACK报文段时，表示它已经知道主机1没有数据发送了，但是主机2还是可以发送数据到主机1的；当主机2也发送了FIN报文段时，这个时候就表示主机2也没有数据要发送了，就会告诉主机1，我也没有数据要发送了，之后彼此就会愉快的中断这次TCP连接。</p>
+<p>通过以上步骤便完成了HTTP的请求和响应，进行了数据传递，这其中涉及到需要知识点，都进行了逐一了解。</p>
+<h2 id="参考内容"><a href="#参考内容" class="headerlink" title="参考内容"></a>参考内容</h2><p>[1] <span class="exturl" data-url="aHR0cHM6Ly9ibG9nLmNzZG4ubmV0L2x6Z2h4anQvYXJ0aWNsZS9kZXRhaWxzLzUxNDU4NTQw" title="https://blog.csdn.net/lzghxjt/article/details/51458540">http请求与响应全过程<i class="fa fa-external-link"></i></span><br>[2] <span class="exturl" data-url="aHR0cHM6Ly96aHVhbmxhbi56aGlodS5jb20vcC8zODI0MDg5NA==" title="https://zhuanlan.zhihu.com/p/38240894">一次完整的HTTP请求过程<i class="fa fa-external-link"></i></span><br>[3] <span class="exturl" data-url="aHR0cHM6Ly96aHVhbmxhbi56aGlodS5jb20vcC8zNzQzNjUyOA==" title="https://zhuanlan.zhihu.com/p/37436528">一个完整的HTTP请求过程详细<i class="fa fa-external-link"></i></span><br>[4] <span class="exturl" data-url="aHR0cHM6Ly9oaXQtYWxpYmFiYS5naXRodWIuaW8vaW50ZXJ2aWV3L2Jhc2ljL25ldHdvcmsvVENQLmh0bWw=" title="https://hit-alibaba.github.io/interview/basic/network/TCP.html">TCP 的特性<i class="fa fa-external-link"></i></span></p>
+
+    </div>
+
+    
+    
+    
+
+      
+        <div id="wechat_subscriber" style="display: block; padding: 10px 0; margin: 20px auto; width: 100%; text-align: center">
+  <img id="wechat_subscriber_qcode" src="/images/qrcode_for_wechat.jpg" alt="贝克街的流浪猫 wechat" style="width: 400px; max-width: 100%;">
+  <div></div>
+</div>
+
+      
+        <div class="reward-container">
+  <div>您的打赏将鼓励我继续分享!</div>
+  <button disable="enable" onclick="var qr = document.getElementById(&quot;qr&quot;); qr.style.display = (qr.style.display === 'none') ? 'block' : 'none';">
+    打赏
+  </button>
+  <div id="qr" style="display: none;">
+      
+      <div style="display: inline-block;">
+        <img src="/images/wechat.jpg" alt="贝克街的流浪猫 微信支付">
+        <p>微信支付</p>
+      </div>
+      
+      <div style="display: inline-block;">
+        <img src="/images/alipay.jpg" alt="贝克街的流浪猫 支付宝">
+        <p>支付宝</p>
+      </div>
+
+  </div>
+</div>
+
+        
+
+<div>
+<ul class="post-copyright">
+  <li class="post-copyright-author">
+    <strong>本文作者： </strong>贝克街的流浪猫
+  </li>
+  <li class="post-copyright-link">
+    <strong>本文链接：</strong>
+    <a href="https://www.beikejiedeliulangmao.top/protocol/http/a-http-request/" title="一次 HTTP 请求">https://www.beikejiedeliulangmao.top/protocol/http/a-http-request/</a>
+  </li>
+  <li class="post-copyright-license">
+    <strong>版权声明： </strong>本博客所有文章除特别声明外，均采用 <span class="exturl" data-url="aHR0cHM6Ly9jcmVhdGl2ZWNvbW1vbnMub3JnL2xpY2Vuc2VzL2J5LW5jLXNhLzQuMC9udWxs"><i class="fa fa-fw fa-creative-commons"></i>BY-NC-SA</span> 许可协议，转载请注明出处！
+  </li>
+  <li class="post-copyright-license">
+    <strong>创作声明： </strong>本文基于上述所有参考内容进行创作，其中可能涉及复制、修改或者转换，图片均来自网络，如有侵权请联系我，我会第一时间进行删除。
+  </li>
+</ul>
+</div>
+
+
+      <footer class="post-footer">
+          <div class="post-tags">
+              <a href="/tags/Web/" rel="tag"># Web</a>
+              <a href="/tags/HTTP/" rel="tag"># HTTP</a>
+          </div>
+
+        
+
+          <div class="post-nav">
+            <div class="post-nav-next post-nav-item">
+                <a href="/java/web/java-web/" rel="next" title="Java Web">
+                  <i class="fa fa-chevron-left"></i> Java Web
+                </a>
+            </div>
+
+            <span class="post-nav-divider"></span>
+
+            <div class="post-nav-prev post-nav-item">
+                <a href="/database/mysql/" rel="prev" title="MySQL">
+                  MySQL <i class="fa fa-chevron-right"></i>
+                </a>
+            </div>
+          </div>
+      </footer>
+    
+  </article>
+  
+  
+  
+
+  </div>
+
+
+          </div>
+          
+    <div class="comments" id="gitalk-container"></div>
+
+        </div>
+          
+  
+  <div class="toggle sidebar-toggle">
+    <span class="toggle-line toggle-line-first"></span>
+    <span class="toggle-line toggle-line-middle"></span>
+    <span class="toggle-line toggle-line-last"></span>
+  </div>
+
+  <aside class="sidebar">
+    <div class="sidebar-inner">
+
+      <ul class="sidebar-nav motion-element">
+        <li class="sidebar-nav-toc">
+          文章目录
+        </li>
+        <li class="sidebar-nav-overview">
+          站点概览
+        </li>
+      </ul>
+
+      <!--noindex-->
+      <div class="post-toc-wrap sidebar-panel">
+          <div class="post-toc motion-element"><ol class="nav"><li class="nav-item nav-level-2"><a class="nav-link" href="#%E5%BC%95%E8%A8%80"><span class="nav-number">1.</span> <span class="nav-text">引言</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E6%95%B4%E4%B8%AA%E6%B5%81%E7%A8%8B"><span class="nav-number">2.</span> <span class="nav-text">整个流程</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E5%9F%9F%E5%90%8D%E8%A7%A3%E6%9E%90"><span class="nav-number">3.</span> <span class="nav-text">域名解析</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E5%BB%BA%E7%AB%8BTCP%E8%BF%9E%E6%8E%A5"><span class="nav-number">4.</span> <span class="nav-text">建立TCP连接</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#%E7%BD%91%E7%BB%9C%E5%8D%8F%E8%AE%AE"><span class="nav-number">4.1.</span> <span class="nav-text">网络协议</span></a><ol class="nav-child"><li class="nav-item nav-level-4"><a class="nav-link" href="#%E9%93%BE%E8%B7%AF%E5%B1%82"><span class="nav-number">4.1.1.</span> <span class="nav-text">链路层</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#%E7%BD%91%E7%BB%9C%E5%B1%82"><span class="nav-number">4.1.2.</span> <span class="nav-text">网络层</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#%E4%BC%A0%E8%BE%93%E5%B1%82"><span class="nav-number">4.1.3.</span> <span class="nav-text">传输层</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#%E5%BA%94%E7%94%A8%E5%B1%82"><span class="nav-number">4.1.4.</span> <span class="nav-text">应用层</span></a></li></ol></li><li class="nav-item nav-level-3"><a class="nav-link" href="#3%E6%AC%A1%E6%8F%A1%E6%89%8B"><span class="nav-number">4.2.</span> <span class="nav-text">3次握手</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E5%8F%91%E8%B5%B7HTTP%E8%AF%B7%E6%B1%82"><span class="nav-number">5.</span> <span class="nav-text">发起HTTP请求</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#%E8%AF%B7%E6%B1%82%E6%8A%A5%E6%96%87"><span class="nav-number">5.1.</span> <span class="nav-text">请求报文</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E8%AF%B7%E6%B1%82%E8%A1%8C"><span class="nav-number">5.2.</span> <span class="nav-text">请求行</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E8%AF%B7%E6%B1%82%E5%A4%B4%E9%83%A8"><span class="nav-number">5.3.</span> <span class="nav-text">请求头部</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E8%AF%B7%E6%B1%82%E6%95%B0%E6%8D%AE"><span class="nav-number">5.4.</span> <span class="nav-text">请求数据</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E5%93%8D%E5%BA%94HTTP%E8%AF%B7%E6%B1%82"><span class="nav-number">6.</span> <span class="nav-text">响应HTTP请求</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#%E5%93%8D%E5%BA%94%E6%8A%A5%E6%96%87"><span class="nav-number">6.1.</span> <span class="nav-text">响应报文</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E7%8A%B6%E6%80%81%E8%A1%8C"><span class="nav-number">6.2.</span> <span class="nav-text">状态行</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E5%93%8D%E5%BA%94%E5%A4%B4%E9%83%A8"><span class="nav-number">6.3.</span> <span class="nav-text">响应头部</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E5%93%8D%E5%BA%94%E6%95%B0%E6%8D%AE"><span class="nav-number">6.4.</span> <span class="nav-text">响应数据</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E6%96%AD%E5%BC%80%E8%BF%9E%E6%8E%A5"><span class="nav-number">7.</span> <span class="nav-text">断开连接</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E5%8F%82%E8%80%83%E5%86%85%E5%AE%B9"><span class="nav-number">8.</span> <span class="nav-text">参考内容</span></a></li></ol></div>
+      </div>
+      <!--/noindex-->
+
+      <div class="site-overview-wrap sidebar-panel">
+        <div class="site-author motion-element" itemprop="author" itemscope="" itemtype="http://schema.org/Person">
+    <img class="site-author-image" itemprop="image" alt="贝克街的流浪猫" src="/images/avatar.jpg">
+  <p class="site-author-name" itemprop="name">贝克街的流浪猫</p>
+  <div class="site-description" itemprop="description">贝贝猫</div>
+</div>
+<div class="site-state-wrap motion-element">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+          <a href="/archives/">
+        
+          <span class="site-state-item-count">120</span>
+          <span class="site-state-item-name">日志</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-categories">
+            <a href="/categories/">
+          
+        <span class="site-state-item-count">24</span>
+        <span class="site-state-item-name">分类</span></a>
+      </div>
+      <div class="site-state-item site-state-tags">
+            <a href="/tags/">
+          
+        <span class="site-state-item-count">158</span>
+        <span class="site-state-item-name">标签</span></a>
+      </div>
+  </nav>
+</div>
+  <div class="feed-link motion-element">
+    <a href="/atom.xml" rel="alternate">
+      <i class="fa fa-rss"></i>RSS
+    </a>
+  </div>
+  <div class="links-of-author motion-element">
+      <span class="links-of-author-item">
+        <span class="exturl" data-url="aHR0cHM6Ly9naXRodWIuY29tL0JlaUtlSmllRGVMaXVMYW5nTWFv" title="GitHub → https://github.com/BeiKeJieDeLiuLangMao"><i class="fa fa-fw fa-github"></i></span>
+      </span>
+      <span class="links-of-author-item">
+        <span class="exturl" data-url="aHR0cHM6Ly96aHVhbmxhbi56aGlodS5jb20vY18xMTY3NDI5NTg4NzExMzM3OTg1" title="知乎 → https://zhuanlan.zhihu.com/c_1167429588711337985"><i class="fa fa-fw fa-book"></i></span>
+      </span>
+      <span class="links-of-author-item">
+        <span class="exturl" data-url="bWFpbHRvOjUxNzM3NTY4NUBxcS5jb20=" title="E-Mail → mailto:517375685@qq.com"><i class="fa fa-fw fa-envelope"></i></span>
+      </span>
+      <span class="links-of-author-item">
+        <span class="exturl" data-url="aHR0cHM6Ly9zdGFja292ZXJmbG93LmNvbS91c2Vycy84NzgyOTY0L3lhbmctY2hlbj90YWI9cHJvZmlsZQ==" title="StackOverflow → https://stackoverflow.com/users/8782964/yang-chen?tab=profile"><i class="fa fa-fw fa-stack-overflow"></i></span>
+      </span>
+  </div>
+
+
+
+      </div>
+        <div class="back-to-top motion-element">
+          <i class="fa fa-arrow-up"></i>
+          <span>0%</span>
+        </div>
+
+    </div>
+  </aside>
+  <div id="sidebar-dimmer"></div>
+
+
+      </div>
+    </main>
+
+    <footer class="footer">
+      <div class="footer-inner">
+        
+  <div class="beian"><span class="exturl" data-url="aHR0cDovL3d3dy5iZWlhbi5taWl0Lmdvdi5jbg==">辽ICP备19017854号 </span>
+  </div>
+
+<div class="copyright">
+  
+  © 2019 – 
+  <span itemprop="copyrightYear">2021</span>
+  <span class="with-love">
+    <i class="fa fa-heart"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">贝克街的流浪猫</span>
+    <span class="post-meta-divider">|</span>
+    <span class="post-meta-item-icon">
+      <i class="fa fa-area-chart"></i>
+    </span>
+      <span class="post-meta-item-text">站点总字数：</span>
+    <span title="站点总字数">1.5m</span>
+    <span class="post-meta-divider">|</span>
+    <span class="post-meta-item-icon">
+      <i class="fa fa-coffee"></i>
+    </span>
+      <span class="post-meta-item-text">站点阅读时长 ≈</span>
+    <span title="站点阅读时长">22:36</span>
+</div>
+
+        
+<div class="busuanzi-count">
+  <script async="" src="https://busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js"></script>
+    <span class="post-meta-item" id="busuanzi_container_site_uv" style="display: none;">
+      <span class="post-meta-item-icon">
+        <i class="fa fa-user"></i>
+      </span>
+      <span class="site-uv" title="总访客量">
+        贝贝猫有
+        <span id="busuanzi_value_site_uv"></span>
+        位同学
+      </span>
+    </span>
+    <span class="post-meta-divider">|</span>
+    <span class="post-meta-item" id="busuanzi_container_site_pv" style="display: none;">
+      <span class="post-meta-item-icon">
+        <i class="fa fa-eye"></i>
+      </span>
+      <span class="site-pv" title="总访问量">
+        笔记被翻阅
+        <span id="busuanzi_value_site_pv"></span>
+        次
+      </span>
+    </span>
+</div>
+
+
+
+
+
+
+  
+
+
+
+
+
+
+        
+      </div>
+    </footer>
+  </div>
+
+  
+  
+  <script src="//cdn.jsdelivr.net/npm/medium-zoom@1/dist/medium-zoom.min.js"></script>
+  <script src="//cdn.jsdelivr.net/npm/pangu@4/dist/browser/pangu.min.js"></script>
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+
+
+
+
+  
+
+<script src="//cdn.jsdelivr.net/npm/instantsearch.js@2/dist/instantsearch.min.js"></script>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+  
+  <script src="//cdn.jsdelivr.net/npm/quicklink@1/dist/quicklink.umd.js"></script>
+  
+
+
+
+
+
+
+
+<script type="text/javascript" src="/bundle.js"></script><script type="text/javascript">function leancloudSelector(url) {
+    return document.getElementById(url).querySelector('.leancloud-visitors-count');
+  }
+  if (CONFIG.page.isPost) {
+    function addCount(Counter) {
+      var visitors = document.querySelector('.leancloud_visitors');
+      var url = visitors.getAttribute('id').trim();
+      var title = visitors.getAttribute('data-flag-title').trim();
+
+      Counter('get', `/classes/Counter?where=${JSON.stringify({ url })}`)
+        .then(response => response.json())
+        .then(({ results }) => {
+          if (results.length > 0) {
+            var counter = results[0];
+              leancloudSelector(url).innerText = counter.time + 1;
+            Counter('put', '/classes/Counter/' + counter.objectId, { time: { '__op': 'Increment', 'amount': 1 } })
+              .then(response => response.json())
+              .catch(error => {
+                console.log('Failed to save visitor count', error);
+              })
+          } else {
+              leancloudSelector(url).innerText = 'Counter not initialized! More info at console err msg.';
+              console.error('ATTENTION! LeanCloud counter has security bug, see how to solve it here: https://github.com/theme-next/hexo-leancloud-counter-security. \n However, you can still use LeanCloud without security, by setting `security` option to `false`.');
+            
+          }
+        })
+        .catch(error => {
+          console.log('LeanCloud Counter Error', error);
+        });
+    }
+  } else {
+    function showTime(Counter) {
+      var visitors = document.querySelectorAll('.leancloud_visitors');
+      var entries = [...visitors].map(element => {
+        return element.getAttribute('id').trim();
+      });
+
+      Counter('get', `/classes/Counter?where=${JSON.stringify({ url: { '$in': entries } })}`)
+        .then(response => response.json())
+        .then(({ results }) => {
+          if (results.length === 0) {
+            document.querySelectorAll('.leancloud_visitors .leancloud-visitors-count').forEach(element => {
+              element.innerText = 0;
+            });
+            return;
+          }
+          for (var i = 0; i < results.length; i++) {
+            var item = results[i];
+            var url = item.url;
+            var time = item.time;
+            leancloudSelector(url).innerText = time;
+          }
+          for (var i = 0; i < entries.length; i++) {
+            var url = entries[i];
+            var element = leancloudSelector(url);
+            if (element.innerText == '') {
+              element.innerText = 0;
+            }
+          }
+        })
+        .catch(error => {
+          console.log('LeanCloud Counter Error', error);
+        });
+    }
+  }
+
+  fetch('https://app-router.leancloud.cn/2/route?appId=gmT3IkYtHVMymcwAjbwHhtiv-gzGzoHsz')
+    .then(response => response.json())
+    .then(({ api_server }) => {
+      var Counter = (method, url, data) => {
+        return fetch(`https://${api_server}/1.1${url}`, {
+          method: method,
+          headers: {
+            'X-LC-Id': 'gmT3IkYtHVMymcwAjbwHhtiv-gzGzoHsz',
+            'X-LC-Key': 'co6tpmcyS9za2D1uqQyMFtnN',
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(data)
+        });
+      };
+      if (CONFIG.page.isPost) {
+        const localhost = /http:\/\/(localhost|127.0.0.1|0.0.0.0)/;
+        if (localhost.test(document.URL)) return;
+        addCount(Counter);
+      } else if (document.querySelectorAll('.post-title-link').length >= 1) {
+        showTime(Counter);
+      }
+    });;(function(){
+      var bp = document.createElement('script');
+      var curProtocol = window.location.protocol.split(':')[0];
+      bp.src = (curProtocol === 'https') ? 'https://zz.bdstatic.com/linksubmit/push.js' : 'http://push.zhanzhang.baidu.com/push.js';
+      var s = document.getElementsByTagName("script")[0];
+      s.parentNode.insertBefore(bp, s);
+    })();;if (document.querySelectorAll('pre.mermaid').length) {
+  NexT.utils.getScript('//cdn.jsdelivr.net/npm/mermaid@8/dist/mermaid.min.js', () => {
+    mermaid.initialize({
+      theme: 'forest',
+      logLevel: 3,
+      flowchart: { curve: 'linear' },
+      gantt: { axisFormat: '%m/%d/%Y' },
+      sequence: { actorMargin: 50 }
+    });
+  }, window.mermaid);
+};window.addEventListener('load', () => {
+      quicklink({
+        timeout: 3000,
+        priority: true,
+        ignores: [uri => uri.includes('#'),uri => uri == 'https://www.beikejiedeliulangmao.top/protocol/http/a-http-request/',]
+      });
+      });;NexT.utils.getScript('//cdn.jsdelivr.net/npm/gitalk@1/dist/gitalk.min.js', () => {
+    var gitalk = new Gitalk({
+      clientID: '6201d1cc2825a93aa161',
+      clientSecret: '71c60f650595a3eedba64b844f811b90acac3798',
+      repo: 'HexoBlogComment',
+      owner: 'BeiKeJieDeLiuLangMao',
+      admin: ['BeiKeJieDeLiuLangMao'],
+      id: '7d49c4b8da88f9f66228b77112cef9a8',
+        language: 'zh-CN',
+      distractionFreeMode: 'true'
+    });
+    gitalk.render('gitalk-container');
+  }, window.Gitalk);;window.imageLazyLoadSetting = {
+                isSPA: false,
+                processImages: null,
+            };;window.addEventListener("load",function(){var t=/\.(gif|jpg|jpeg|tiff|png)$/i,r=/^data:image\/[a-z]+;base64,/;Array.prototype.slice.call(document.querySelectorAll("img[data-original]")).forEach(function(a){var e=a.parentNode;"A"===e.tagName&&(e.href.match(t)||e.href.match(r))&&(e.href=a.dataset.original)})});;!function(n){n.imageLazyLoadSetting.processImages=o;var i=n.imageLazyLoadSetting.isSPA,l=Array.prototype.slice.call(document.querySelectorAll("img[data-original]"));function o(){i&&(l=Array.prototype.slice.call(document.querySelectorAll("img[data-original]")));for(var r=0;r<l.length;r++)t=l[r],void 0,0<=(e=t.getBoundingClientRect()).bottom&&0<=e.left&&e.top<=(n.innerHeight||document.documentElement.clientHeight)&&function(t){var e,n,i,o,a=l[r];e=a,n=function(){l=l.filter(function(t){return a!==t})},i=new Image,o=e.getAttribute("data-original"),i.onload=function(){e.src=o,n&&n()},i.src=o}();var t,e}o(),n.addEventListener("scroll",function(){var t,e;t=o,e=n,clearTimeout(t.tId),t.tId=setTimeout(function(){t.call(e)},500)})}(this);</script></body></html>

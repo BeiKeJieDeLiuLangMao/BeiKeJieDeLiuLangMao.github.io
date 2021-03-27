@@ -1,0 +1,3899 @@
+<!DOCTYPE html><html lang="zh-CN"><head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 5.1.1">
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/avatar.jpg">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/avatar.jpg">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/avatar.jpg">
+  <link rel="mask-icon" href="/images/avatar.jpg" color="#222">
+  <link rel="alternate" href="/atom.xml" title="贝克街的流浪猫" type="application/atom+xml">
+  <meta http-equiv="Cache-Control" content="no-transform">
+  <meta http-equiv="Cache-Control" content="no-siteapp">
+  <meta name="google-site-verification" content="PB8pKbwvyCztAdFAxM1AdLMfqXY7wDk6xWZIy3BYn0M">
+  <meta name="baidu-site-verification" content="lHxDkbImj8">
+
+
+
+
+
+  
+  
+
+
+<script id="hexo-configurations">
+  var NexT = window.NexT || {};
+  var CONFIG = {
+    root: '/',
+    scheme: 'Gemini',
+    version: '7.5.0',
+    exturl: true,
+    sidebar: {"position":"left","display":"post","offset":12,"onmobile":false},
+    copycode: {"enable":true,"show_result":true,"style":null},
+    back2top: {"enable":true,"sidebar":true,"scrollpercent":true},
+    bookmark: {"enable":false,"color":"#222","save":"auto"},
+    fancybox: false,
+    mediumzoom: true,
+    lazyload: false,
+    pangu: true,
+    algolia: {
+      appID: 'XKULKGLQCN',
+      apiKey: '59d463bff59108a7719f93aa31f249f3',
+      indexName: 'Hexo Blog',
+      hits: {"per_page":10},
+      labels: {"input_placeholder":"文章查询","hits_empty":"很抱歉，贝贝猫没有发表关于 \"${query}\" 的文章","hits_stats":"找到了 ${hits} 篇文章，耗时 ${time} 毫秒"}
+    },
+    localsearch: {"enable":false,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false},
+    path: '',
+    motion: {"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},
+    sidebarPadding: 40
+  };
+</script>
+
+  <meta name="description" content="引言本文整理了 Linux 内核中缓存与页交换的相关知识，其他 Linux 相关文章均收录于 <Linux系列文章>。">
+<meta property="og:type" content="article">
+<meta property="og:title" content="Linux 缓存与页交换">
+<meta property="og:url" content="https://www.beikejiedeliulangmao.top/linux/cache-and-swap/index.html">
+<meta property="og:site_name" content="贝克街的流浪猫">
+<meta property="og:description" content="引言本文整理了 Linux 内核中缓存与页交换的相关知识，其他 Linux 相关文章均收录于 <Linux系列文章>。">
+<meta property="og:locale" content="zh_CN">
+<meta property="og:image" content="https://www.beikejiedeliulangmao.top/images/loading-cat.gif">
+<meta property="og:image" content="https://www.beikejiedeliulangmao.top/images/loading-cat.gif">
+<meta property="og:image" content="https://www.beikejiedeliulangmao.top/images/loading-cat.gif">
+<meta property="og:image" content="https://www.beikejiedeliulangmao.top/images/loading-cat.gif">
+<meta property="og:image" content="https://www.beikejiedeliulangmao.top/images/loading-cat.gif">
+<meta property="og:image" content="https://www.beikejiedeliulangmao.top/images/loading-cat.gif">
+<meta property="og:image" content="https://www.beikejiedeliulangmao.top/images/loading-cat.gif">
+<meta property="og:image" content="https://www.beikejiedeliulangmao.top/images/loading-cat.gif">
+<meta property="og:image" content="https://www.beikejiedeliulangmao.top/images/loading-cat.gif">
+<meta property="og:image" content="https://www.beikejiedeliulangmao.top/images/loading-cat.gif">
+<meta property="og:image" content="https://www.beikejiedeliulangmao.top/images/loading-cat.gif">
+<meta property="og:image" content="https://www.beikejiedeliulangmao.top/images/loading-cat.gif">
+<meta property="og:image" content="https://www.beikejiedeliulangmao.top/images/loading-cat.gif">
+<meta property="og:image" content="https://www.beikejiedeliulangmao.top/images/loading-cat.gif">
+<meta property="og:image" content="https://www.beikejiedeliulangmao.top/images/loading-cat.gif">
+<meta property="article:published_time" content="2019-10-29T01:39:38.000Z">
+<meta property="article:modified_time" content="2021-01-17T04:25:40.566Z">
+<meta property="article:author" content="贝克街的流浪猫">
+<meta property="article:tag" content="OperatingSystem">
+<meta property="article:tag" content="Unix">
+<meta property="article:tag" content="Linux">
+<meta property="article:tag" content="Kernel">
+<meta property="article:tag" content="PageCache">
+<meta property="article:tag" content="BlockCache">
+<meta property="article:tag" content="PageSwap">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="https://www.beikejiedeliulangmao.top/images/loading-cat.gif">
+
+<link rel="canonical" href="https://www.beikejiedeliulangmao.top/linux/cache-and-swap/">
+
+
+<script id="page-configurations">
+  // https://hexo.io/docs/variables.html
+  CONFIG.page = {
+    sidebar: "",
+    isHome: false,
+    isPost: true,
+    isPage: false,
+    isArchive: false
+  };
+</script>
+
+  <title>Linux 缓存与页交换 | 贝克街的流浪猫</title>
+  
+    <script>
+      function sendPageView() {
+        var host = window.location.hostname;
+        if (host == "localhost" && true) return;
+        var uid = localStorage.getItem('uid') || (Math.random() + '.' + Math.random());
+        localStorage.setItem('uid', uid);
+        navigator.sendBeacon('https://www.google-analytics.com/collect', new URLSearchParams({
+          v  : 1,
+          tid: 'UA-146830566-1',
+          cid: uid,
+          t  : 'pageview',
+          dp : encodeURIComponent(location.pathname)
+        }));
+      }
+      document.addEventListener('pjax:complete', sendPageView);
+      sendPageView();
+    </script>
+
+
+  <script>
+    var _hmt = _hmt || [];
+    (function() {
+      var hm = document.createElement("script");
+      hm.src = "https://hm.baidu.com/hm.js?818a8e6061ff2bd0b5531a739f216601";
+      var s = document.getElementsByTagName("script")[0];
+      s.parentNode.insertBefore(hm, s);
+    })();
+  </script>
+
+
+
+
+  <style>body {
+  background-image: url("https://www.beikejiedeliulangmao.top/images/background.jpeg") !important;
+  background-attachment: fixed !important;
+  background-repeat: no-repeat !important;
+  background-size: 100% 100% !important;
+}
+.bg_content {
+  position: fixed;
+  top: 0;
+  z-index: -1;
+  width: 100%;
+  height: 100%;
+}
+.copyright {
+  color: #000;
+}
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+  background-color: #fff;
+}
+::-webkit-scrollbar-button {
+  width: 0;
+  height: 0;
+}
+::-webkit-scrollbar-button:start:increment,
+::-webkit-scrollbar-button:end:decrement {
+  display: none;
+}
+::-webkit-scrollbar-corner {
+  display: block;
+}
+::-webkit-scrollbar-thumb {
+  border-radius: 6px;
+  background-color: rgba(0,0,0,0.4);
+}
+::-webkit-scrollbar-thumb:hover {
+  border-radius: 6px;
+  background-color: rgba(0,0,0,0.6);
+}
+::-webkit-scrollbar-track,
+::-webkit-scrollbar-thumb {
+  border-right: 1px solid transparent;
+  border-left: 1px solid transparent;
+}
+::-webkit-scrollbar-button:start {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-button:end {
+  width: 6px;
+  height: 6px;
+}
+html {
+  line-height: 1.15; 
+  -webkit-text-size-adjust: 100%; 
+}
+body {
+  margin: 0;
+}
+main {
+  display: block;
+}
+h1 {
+  font-size: 2em;
+  margin: 0.67em 0;
+}
+hr {
+  box-sizing: content-box; 
+  height: 0; 
+  overflow: visible; 
+}
+pre {
+  font-family: monospace, monospace; 
+  font-size: 1em; 
+}
+a {
+  background: transparent;
+}
+abbr[title] {
+  border-bottom: none; 
+  text-decoration: underline; 
+  text-decoration: underline dotted; 
+}
+b,
+strong {
+  font-weight: bolder;
+}
+code,
+kbd,
+samp {
+  font-family: monospace, monospace; 
+  font-size: 1em; 
+}
+small {
+  font-size: 80%;
+}
+sub,
+sup {
+  font-size: 75%;
+  line-height: 0;
+  position: relative;
+  vertical-align: baseline;
+}
+sub {
+  bottom: -0.25em;
+}
+sup {
+  top: -0.5em;
+}
+img {
+  border-style: none;
+}
+button,
+input,
+optgroup,
+select,
+textarea {
+  font-family: inherit; 
+  font-size: 100%; 
+  line-height: 1.15; 
+  margin: 0; 
+}
+button,
+input {
+
+  overflow: visible;
+}
+button,
+select {
+
+  text-transform: none;
+}
+button,
+[type='button'],
+[type='reset'],
+[type='submit'] {
+  -webkit-appearance: button;
+}
+button::-moz-focus-inner,
+[type='button']::-moz-focus-inner,
+[type='reset']::-moz-focus-inner,
+[type='submit']::-moz-focus-inner {
+  border-style: none;
+  padding: 0;
+}
+button:-moz-focusring,
+[type='button']:-moz-focusring,
+[type='reset']:-moz-focusring,
+[type='submit']:-moz-focusring {
+  outline: 1px dotted ButtonText;
+}
+fieldset {
+  padding: 0.35em 0.75em 0.625em;
+}
+legend {
+  box-sizing: border-box; 
+  color: inherit; 
+  display: table; 
+  max-width: 100%; 
+  padding: 0; 
+  white-space: normal; 
+}
+progress {
+  vertical-align: baseline;
+}
+textarea {
+  overflow: auto;
+}
+[type='checkbox'],
+[type='radio'] {
+  box-sizing: border-box; 
+  padding: 0; 
+}
+[type='number']::-webkit-inner-spin-button,
+[type='number']::-webkit-outer-spin-button {
+  height: auto;
+}
+[type='search'] {
+  outline-offset: -2px; 
+  -webkit-appearance: textfield; 
+}
+[type='search']::-webkit-search-decoration {
+  -webkit-appearance: none;
+}
+::-webkit-file-upload-button {
+  font: inherit; 
+  -webkit-appearance: button; 
+}
+details {
+  display: block;
+}
+summary {
+  display: list-item;
+}
+template {
+  display: none;
+}
+[hidden] {
+  display: none;
+}
+::selection {
+  background: #262a30;
+  color: #fff;
+}
+html,
+body {
+  height: 100%;
+}
+body {
+  background: #eee;
+  color: #555;
+  font-family: 'Monda', "PingFang SC", "Microsoft YaHei", sans-serif;
+  font-size: 1em;
+  line-height: 2;
+}
+@media (max-width: 991px) {
+  body {
+    padding-left: 0 !important;
+    padding-right: 0 !important;
+  }
+}
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+  font-family: 'Roboto Slab', 'Monda', "PingFang SC", "Microsoft YaHei", sans-serif;
+  font-weight: bold;
+  line-height: 1.5;
+  margin: 20px 0 15px;
+  padding: 0;
+}
+h1 {
+  font-size: 1.5em;
+}
+h2 {
+  font-size: 1.375em;
+}
+h3 {
+  font-size: 1.25em;
+}
+h4 {
+  font-size: 1.125em;
+}
+h5 {
+  font-size: 1em;
+}
+h6 {
+  font-size: 0.875em;
+}
+p {
+  margin: 0 0 20px 0;
+}
+a,
+span.exturl {
+  border-bottom: 1px solid #999;
+  color: #555;
+  outline: 0;
+  text-decoration: none;
+  overflow-wrap: break-word;
+  word-wrap: break-word;
+  cursor: pointer;
+}
+a:hover,
+span.exturl:hover {
+  border-bottom-color: #222;
+  color: #222;
+}
+iframe,
+img,
+video {
+  display: block;
+  margin-left: auto;
+  margin-right: auto;
+  max-width: 100%;
+}
+hr {
+  background-color: #ddd;
+  background-image: repeating-linear-gradient(-45deg, #fff, #fff 4px, transparent 4px, transparent 8px);
+  border: 0;
+  height: 3px;
+  margin: 40px 0;
+}
+blockquote {
+  border-left: 4px solid #ddd;
+  color: #666;
+  margin: 0;
+  padding: 0 15px;
+}
+blockquote cite::before {
+  content: '-';
+  padding: 0 5px;
+}
+dt {
+  font-weight: 700;
+}
+dd {
+  margin: 0;
+  padding: 0;
+}
+kbd {
+  background-color: #f5f5f5;
+  background-image: linear-gradient(#eee, #fff, #eee);
+  border: 1px solid #ccc;
+  border-radius: 0.2em;
+  box-shadow: 0.1em 0.1em 0.2em rgba(0,0,0,0.1);
+  font-family: inherit;
+  padding: 0.1em 0.3em;
+  white-space: nowrap;
+}
+.table-container {
+  -webkit-overflow-scrolling: touch;
+  overflow: auto;
+}
+table {
+  border-collapse: collapse;
+  border-spacing: 0;
+  font-size: 0.875em;
+  margin: 0 0 20px 0;
+  width: 100%;
+}
+tbody tr:nth-of-type(odd) {
+  background: #f9f9f9;
+}
+tbody tr:hover {
+  background: #f5f5f5;
+}
+caption,
+th,
+td {
+  font-weight: normal;
+  padding: 8px;
+  text-align: left;
+  vertical-align: middle;
+}
+th,
+td {
+  border: 1px solid #ddd;
+  border-bottom: 3px solid #ddd;
+}
+th {
+  font-weight: 700;
+  padding-bottom: 10px;
+}
+td {
+  border-bottom-width: 1px;
+}
+.btn {
+  background: #fff;
+  border: 2px solid #555;
+  border-radius: 2px;
+  color: #555;
+  display: inline-block;
+  font-size: 0.875em;
+  line-height: 2;
+  padding: 0 20px;
+  text-decoration: none;
+  transition-property: background-color;
+  transition-delay: 0s;
+  transition-duration: 0.2s;
+  transition-timing-function: ease-in-out;
+}
+.btn:hover {
+  background: #222;
+  border-color: #222;
+  color: #fff;
+}
+.btn + .btn {
+  margin: 0 0 8px 8px;
+}
+.btn .fa-fw {
+  text-align: left;
+  width: 1.285714285714286em;
+}
+.toggle {
+  line-height: 0;
+}
+.toggle .toggle-line {
+  background: #fff;
+  display: inline-block;
+  height: 2px;
+  left: 0;
+  position: relative;
+  top: 0;
+  transition: all 0.4s;
+  vertical-align: top;
+  width: 100%;
+}
+.toggle .toggle-line:not(:first-child) {
+  margin-top: 3px;
+}
+.toggle.toggle-arrow .toggle-line-first {
+  left: 50%;
+  top: 2px;
+  transform: rotate(45deg);
+  width: 50%;
+}
+.toggle.toggle-arrow .toggle-line-middle {
+  left: 2px;
+  width: 90%;
+}
+.toggle.toggle-arrow .toggle-line-last {
+  left: 50%;
+  top: -2px;
+  transform: rotate(-45deg);
+  width: 50%;
+}
+.toggle.toggle-close .toggle-line-first {
+  transform: rotate(-45deg);
+  top: 5px;
+}
+.toggle.toggle-close .toggle-line-middle {
+  opacity: 0;
+}
+.toggle.toggle-close .toggle-line-last {
+  transform: rotate(45deg);
+  top: -5px;
+}
+.highlight-container {
+  position: relative;
+}
+.highlight-container:hover .copy-btn,
+.highlight-container .copy-btn:focus {
+  opacity: 1;
+}
+.copy-btn {
+  color: #333;
+  cursor: pointer;
+  display: inline-block;
+  font-weight: 700;
+  line-height: 1.6;
+  opacity: 0;
+  outline: 0;
+  padding: 2px 6px;
+  position: absolute;
+  transition: opacity 0.3s ease-in-out;
+  vertical-align: middle;
+  white-space: nowrap;
+  -moz-user-select: none;
+  -ms-user-select: none;
+  -webkit-user-select: none;
+  user-select: none;
+  background-color: #eee;
+  background-image: linear-gradient(#fcfcfc, #eee);
+  border: 1px solid #d5d5d5;
+  border-radius: 3px;
+  font-size: 0.8125em;
+  right: 4px;
+  top: 8px;
+}
+.highlight,
+pre {
+  background: #f7f7f7;
+  color: #4d4d4c;
+  line-height: 1.6;
+  margin: 0 auto 20px;
+}
+pre,
+code {
+  font-family: 'PT Mono', consolas, Menlo, monospace, "PingFang SC", "Microsoft YaHei";
+}
+code {
+  background: #eee;
+  border-radius: 3px;
+  color: #555;
+  padding: 2px 4px;
+  overflow-wrap: break-word;
+  word-wrap: break-word;
+}
+.highlight *::selection {
+  background: #d6d6d6;
+}
+.highlight pre {
+  border: 0;
+  margin: 0;
+  padding: 0;
+}
+.highlight table {
+  border: 0;
+  margin: 0;
+  width: auto;
+}
+.highlight tr:first-child pre {
+  padding-top: 10px;
+}
+.highlight tr:last-child pre {
+  padding-bottom: 10px;
+}
+.highlight td {
+  border: 0;
+  padding: 0;
+}
+.highlight figcaption {
+  background: #eee;
+  color: #4d4d4c;
+  font-size: 0.875em;
+  line-height: 1.2;
+  padding: 0.5em;
+}
+.highlight figcaption::before,
+.highlight figcaption::after {
+  content: ' ';
+  display: table;
+}
+.highlight figcaption::after {
+  clear: both;
+}
+.highlight figcaption a {
+  color: #4d4d4c;
+  float: right;
+}
+.highlight figcaption a:hover {
+  border-bottom-color: #4d4d4c;
+}
+.highlight .gutter pre {
+  background: #eff2f3;
+  color: #869194;
+  padding-left: 10px;
+  padding-right: 10px;
+  text-align: right;
+  -moz-user-select: none;
+  -ms-user-select: none;
+  -webkit-user-select: none;
+  user-select: none;
+}
+.highlight .code pre {
+  background: #f7f7f7;
+  padding-left: 10px;
+  width: 100%;
+}
+.gist table {
+  width: auto;
+}
+.gist table td {
+  border: 0;
+}
+pre {
+  overflow: auto;
+  padding: 10px;
+}
+pre code {
+  background: none;
+  color: #4d4d4c;
+  font-size: 0.875em;
+  padding: 0;
+  text-shadow: none;
+}
+pre .deletion {
+  background: #fdd;
+}
+pre .addition {
+  background: #dfd;
+}
+pre .meta {
+  color: #eab700;
+  -moz-user-select: none;
+  -ms-user-select: none;
+  -webkit-user-select: none;
+  user-select: none;
+}
+pre .comment {
+  color: #8e908c;
+}
+pre .variable,
+pre .attribute,
+pre .tag,
+pre .name,
+pre .regexp,
+pre .ruby .constant,
+pre .xml .tag .title,
+pre .xml .pi,
+pre .xml .doctype,
+pre .html .doctype,
+pre .css .id,
+pre .css .class,
+pre .css .pseudo {
+  color: #c82829;
+}
+pre .number,
+pre .preprocessor,
+pre .built_in,
+pre .builtin-name,
+pre .literal,
+pre .params,
+pre .constant,
+pre .command {
+  color: #f5871f;
+}
+pre .ruby .class .title,
+pre .css .rules .attribute,
+pre .string,
+pre .symbol,
+pre .value,
+pre .inheritance,
+pre .header,
+pre .ruby .symbol,
+pre .xml .cdata,
+pre .special,
+pre .formula {
+  color: #718c00;
+}
+pre .title,
+pre .css .hexcolor {
+  color: #3e999f;
+}
+pre .function,
+pre .python .decorator,
+pre .python .title,
+pre .ruby .function .title,
+pre .ruby .title .keyword,
+pre .perl .sub,
+pre .javascript .title,
+pre .coffeescript .title {
+  color: #4271ae;
+}
+pre .keyword,
+pre .javascript .function {
+  color: #8959a8;
+}
+.blockquote-center {
+  border-left: none;
+  margin: 40px 0;
+  padding: 0;
+  position: relative;
+  text-align: center;
+}
+.blockquote-center::before,
+.blockquote-center::after {
+  background-repeat: no-repeat;
+  background-size: 22px 22px;
+  content: ' ';
+  display: block;
+  height: 24px;
+  opacity: 0.2;
+  position: absolute;
+  width: 100%;
+}
+.blockquote-center::before {
+  background-image: url("../images/quote-l.svg");
+  background-position: 0 -6px;
+  border-top: 1px solid #ccc;
+  top: -20px;
+}
+.blockquote-center::after {
+  background-image: url("../images/quote-r.svg");
+  background-position: 100% 8px;
+  border-bottom: 1px solid #ccc;
+  bottom: -20px;
+}
+.blockquote-center p,
+.blockquote-center div {
+  text-align: center;
+}
+.post-body .group-picture img {
+  border: 0;
+  margin: 0 auto;
+  padding: 0 3px;
+}
+.group-picture-row {
+  margin-bottom: 6px;
+  overflow: hidden;
+}
+.group-picture-column {
+  float: left;
+  margin-bottom: 10px;
+}
+.post-body .label {
+  display: inline;
+  padding: 0 2px;
+}
+.post-body .label.default {
+  background: #f0f0f0;
+}
+.post-body .label.primary {
+  background: #efe6f7;
+}
+.post-body .label.info {
+  background: #e5f2f8;
+}
+.post-body .label.success {
+  background: #e7f4e9;
+}
+.post-body .label.warning {
+  background: #fcf6e1;
+}
+.post-body .label.danger {
+  background: #fae8eb;
+}
+.post-body .tabs {
+  margin-bottom: 20px;
+}
+.post-body .tabs,
+.tabs-comment {
+  display: block;
+  padding-top: 10px;
+  position: relative;
+}
+.post-body .tabs ul.nav-tabs,
+.tabs-comment ul.nav-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  margin: 0;
+  margin-bottom: -1px;
+  padding: 0;
+}
+@media (max-width: 413px) {
+  .post-body .tabs ul.nav-tabs,
+  .tabs-comment ul.nav-tabs {
+    display: block;
+    margin-bottom: 5px;
+  }
+}
+.post-body .tabs ul.nav-tabs li.tab,
+.tabs-comment ul.nav-tabs li.tab {
+  background: #fff;
+  border-bottom: 1px solid #ddd;
+  border-left: 1px solid transparent;
+  border-right: 1px solid transparent;
+  border-top: 3px solid transparent;
+  flex-grow: 1;
+  list-style-type: none;
+}
+@media (max-width: 413px) {
+  .post-body .tabs ul.nav-tabs li.tab,
+  .tabs-comment ul.nav-tabs li.tab {
+    border-bottom: 1px solid transparent;
+    border-left: 3px solid transparent;
+    border-right: 1px solid transparent;
+    border-top: 1px solid transparent;
+  }
+}
+.post-body .tabs ul.nav-tabs li.tab a,
+.tabs-comment ul.nav-tabs li.tab a {
+  border-bottom: initial;
+  display: block;
+  line-height: 1.8;
+  outline: 0;
+  padding: 0.25em 0.75em;
+  text-align: center;
+  transition-delay: 0s;
+  transition-duration: 0.2s;
+  transition-timing-function: ease-out;
+}
+.post-body .tabs ul.nav-tabs li.tab a i,
+.tabs-comment ul.nav-tabs li.tab a i {
+  width: 1.285714285714286em;
+}
+.post-body .tabs ul.nav-tabs li.tab.active,
+.tabs-comment ul.nav-tabs li.tab.active {
+  border-bottom: 1px solid transparent;
+  border-left: 1px solid #ddd;
+  border-right: 1px solid #ddd;
+  border-top: 3px solid #fc6423;
+}
+@media (max-width: 413px) {
+  .post-body .tabs ul.nav-tabs li.tab.active,
+  .tabs-comment ul.nav-tabs li.tab.active {
+    border-bottom: 1px solid #ddd;
+    border-left: 3px solid #fc6423;
+    border-right: 1px solid #ddd;
+    border-top: 1px solid #ddd;
+  }
+}
+.post-body .tabs ul.nav-tabs li.tab.active a,
+.tabs-comment ul.nav-tabs li.tab.active a {
+  color: #555;
+  cursor: default;
+}
+.post-body .tabs .tab-content .tab-pane,
+.tabs-comment .tab-content .tab-pane {
+  border: 1px solid #ddd;
+  padding: 20px 20px 0 20px;
+}
+.post-body .tabs .tab-content .tab-pane:not(.active),
+.tabs-comment .tab-content .tab-pane:not(.active) {
+  display: none;
+}
+.post-body .tabs .tab-content .tab-pane.active,
+.tabs-comment .tab-content .tab-pane.active {
+  display: block;
+}
+.post-body .note {
+  margin-bottom: 20px;
+  padding: 15px;
+  position: relative;
+  border: 1px solid #eee;
+  border-left-width: 5px;
+  border-radius: 3px;
+}
+.post-body .note h2,
+.post-body .note h3,
+.post-body .note h4,
+.post-body .note h5,
+.post-body .note h6 {
+  margin-top: 0;
+  border-bottom: initial;
+  margin-bottom: 0;
+  padding-top: 0;
+}
+.post-body .note p:first-child,
+.post-body .note ul:first-child,
+.post-body .note ol:first-child,
+.post-body .note table:first-child,
+.post-body .note pre:first-child,
+.post-body .note blockquote:first-child,
+.post-body .note img:first-child {
+  margin-top: 0;
+}
+.post-body .note p:last-child,
+.post-body .note ul:last-child,
+.post-body .note ol:last-child,
+.post-body .note table:last-child,
+.post-body .note pre:last-child,
+.post-body .note blockquote:last-child,
+.post-body .note img:last-child {
+  margin-bottom: 0;
+}
+.post-body .note.default {
+  border-left-color: #777;
+}
+.post-body .note.default h2,
+.post-body .note.default h3,
+.post-body .note.default h4,
+.post-body .note.default h5,
+.post-body .note.default h6 {
+  color: #777;
+}
+.post-body .note.primary {
+  border-left-color: #6f42c1;
+}
+.post-body .note.primary h2,
+.post-body .note.primary h3,
+.post-body .note.primary h4,
+.post-body .note.primary h5,
+.post-body .note.primary h6 {
+  color: #6f42c1;
+}
+.post-body .note.info {
+  border-left-color: #428bca;
+}
+.post-body .note.info h2,
+.post-body .note.info h3,
+.post-body .note.info h4,
+.post-body .note.info h5,
+.post-body .note.info h6 {
+  color: #428bca;
+}
+.post-body .note.success {
+  border-left-color: #5cb85c;
+}
+.post-body .note.success h2,
+.post-body .note.success h3,
+.post-body .note.success h4,
+.post-body .note.success h5,
+.post-body .note.success h6 {
+  color: #5cb85c;
+}
+.post-body .note.warning {
+  border-left-color: #f0ad4e;
+}
+.post-body .note.warning h2,
+.post-body .note.warning h3,
+.post-body .note.warning h4,
+.post-body .note.warning h5,
+.post-body .note.warning h6 {
+  color: #f0ad4e;
+}
+.post-body .note.danger {
+  border-left-color: #d9534f;
+}
+.post-body .note.danger h2,
+.post-body .note.danger h3,
+.post-body .note.danger h4,
+.post-body .note.danger h5,
+.post-body .note.danger h6 {
+  color: #d9534f;
+}
+.pagination .prev,
+.pagination .next,
+.pagination .page-number,
+.pagination .space {
+  display: inline-block;
+  margin: 0 10px;
+  padding: 0 11px;
+  position: relative;
+  top: -1px;
+}
+@media (max-width: 767px) {
+  .pagination .prev,
+  .pagination .next,
+  .pagination .page-number,
+  .pagination .space {
+    margin: 0 5px;
+  }
+}
+.pagination {
+  border-top: 1px solid #eee;
+  margin: 120px 0 0;
+  text-align: center;
+}
+.pagination .prev,
+.pagination .next,
+.pagination .page-number {
+  border-bottom: 0;
+  border-top: 1px solid #eee;
+  transition-property: border-color;
+  transition-delay: 0s;
+  transition-duration: 0.2s;
+  transition-timing-function: ease-in-out;
+}
+.pagination .prev:hover,
+.pagination .next:hover,
+.pagination .page-number:hover {
+  border-top-color: #222;
+}
+.pagination .space {
+  margin: 0;
+  padding: 0;
+}
+.pagination .prev {
+  margin-left: 0;
+}
+.pagination .next {
+  margin-right: 0;
+}
+.pagination .page-number.current,
+.algolia-pagination .current .page-number {
+  background: #ccc;
+  border-top-color: #ccc;
+  color: #fff;
+}
+@media (max-width: 767px) {
+  .pagination {
+    border-top: none;
+  }
+  .pagination .prev,
+  .pagination .next,
+  .pagination .page-number {
+    border-bottom: 1px solid #eee;
+    border-top: 0;
+    margin-bottom: 10px;
+    padding: 0 10px;
+  }
+  .pagination .prev:hover,
+  .pagination .next:hover,
+  .pagination .page-number:hover {
+    border-bottom-color: #222;
+  }
+}
+.comments {
+  margin: 60px 20px 0;
+  overflow: hidden;
+}
+.comment-button-group {
+  display: flex;
+  flex-wrap: wrap-reverse;
+  justify-content: center;
+  margin: 1em 0;
+}
+.comment-button-group .comment-button {
+  margin: 0.1em 0.2em;
+}
+.comment-button-group .comment-button.active {
+  background: #222;
+  border-color: #222;
+  color: #fff;
+}
+.comment-position {
+  display: none;
+}
+.comment-position.active {
+  display: block;
+}
+.tabs-comment {
+  background: #fff;
+  margin-top: 4em;
+  padding-top: 0;
+}
+.tabs-comment .comments {
+  border: 0;
+  box-shadow: none;
+  margin-top: 0;
+  padding-top: 0;
+}
+.container {
+  min-height: 100%;
+  position: relative;
+}
+.main-inner {
+  margin: 0 auto;
+  width: calc(100% - 20px);
+}
+@media (min-width: 1200px) {
+  .main-inner {
+    width: 1160px;
+  }
+}
+@media (min-width: 1600px) {
+  .main-inner {
+    width: 73%;
+  }
+}
+.header {
+  background: transparent;
+}
+.header-inner {
+  margin: 0 auto;
+  position: relative;
+  width: calc(100% - 20px);
+}
+@media (min-width: 1200px) {
+  .header-inner {
+    width: 1160px;
+  }
+}
+@media (min-width: 1600px) {
+  .header-inner {
+    width: 73%;
+  }
+}
+.headband {
+  background: #222;
+  height: 3px;
+}
+.site-meta {
+  margin: 0;
+  text-align: center;
+}
+@media (max-width: 767px) {
+  .site-meta {
+    text-align: center;
+  }
+}
+.brand {
+  background: #222;
+  border-bottom: none;
+  color: #fff;
+  display: inline-block;
+  line-height: 1.375em;
+  padding: 0 40px;
+  position: relative;
+}
+.brand:hover {
+  color: #fff;
+}
+.site-title {
+  display: inline-block;
+  font-family: 'Monda', "PingFang SC", "Microsoft YaHei", sans-serif;
+  font-size: 1.375em;
+  font-weight: normal;
+  line-height: 1.5;
+  vertical-align: top;
+}
+.site-subtitle {
+  color: #ddd;
+  font-size: 0.8125em;
+  margin-top: 10px;
+}
+.use-motion .brand {
+  opacity: 0;
+}
+.use-motion .site-title,
+.use-motion .site-subtitle,
+.use-motion .custom-logo-image {
+  opacity: 0;
+  position: relative;
+  top: -10px;
+}
+.site-nav-toggle {
+  display: none;
+  left: 10px;
+  position: absolute;
+}
+@media (max-width: 767px) {
+  .site-nav-toggle {
+    display: block;
+  }
+}
+.site-nav-toggle .toggle {
+  background: transparent;
+  border: 0;
+  margin-top: 2px;
+  padding: 10px;
+  width: 22px;
+}
+.site-nav-toggle .toggle .toggle-line {
+  background: #555;
+  border-radius: 1px;
+}
+.site-nav {
+  display: block;
+}
+@media (max-width: 767px) {
+  .site-nav {
+    border-top: 1px solid #ddd;
+    clear: both;
+    display: none;
+    margin: 0 -10px;
+    padding: 0 10px;
+  }
+}
+.site-nav.site-nav-on {
+  display: block;
+}
+.menu {
+  margin-top: 20px;
+  padding-left: 0;
+  text-align: center;
+}
+.menu-item {
+  display: inline-block;
+  list-style: none;
+  margin: 0 10px;
+}
+@media (max-width: 767px) {
+  .menu-item {
+    margin-top: 10px;
+  }
+}
+.menu-item a,
+.menu-item span.exturl {
+  border-bottom: 0;
+  display: block;
+  font-size: 0.8125em;
+  transition-property: border-color;
+  transition-delay: 0s;
+  transition-duration: 0.2s;
+  transition-timing-function: ease-in-out;
+}
+@media (hover: none) {
+  .menu-item a:hover,
+  .menu-item span.exturl:hover {
+    border-bottom-color: transparent !important;
+  }
+}
+.menu-item .fa {
+  margin-right: 8px;
+}
+.menu-item .badge {
+  display: inline-block;
+  font-weight: 700;
+  line-height: 1;
+  margin-left: 0.35em;
+  margin-top: 0.35em;
+  text-align: center;
+  white-space: nowrap;
+}
+@media (max-width: 767px) {
+  .menu-item .badge {
+    float: right;
+    margin-left: 0;
+  }
+}
+.use-motion .menu-item {
+  opacity: 0;
+}
+.github-corner :hover .octo-arm {
+  animation: octocat-wave 560ms ease-in-out;
+}
+.github-corner svg {
+  border: 0;
+  color: #fff;
+  fill: #222;
+  position: absolute;
+  right: 0;
+  top: 0;
+  z-index: 1000;
+}
+@media (max-width: 991px) {
+  .github-corner svg {
+    color: #222;
+    fill: #fff;
+  }
+  .github-corner .github-corner:hover .octo-arm {
+    animation: none;
+  }
+  .github-corner .github-corner .octo-arm {
+    animation: octocat-wave 560ms ease-in-out;
+  }
+}
+@-moz-keyframes octocat-wave {
+  0%, 100% {
+    transform: rotate(0);
+  }
+  20%, 60% {
+    transform: rotate(-25deg);
+  }
+  40%, 80% {
+    transform: rotate(10deg);
+  }
+}
+@-webkit-keyframes octocat-wave {
+  0%, 100% {
+    transform: rotate(0);
+  }
+  20%, 60% {
+    transform: rotate(-25deg);
+  }
+  40%, 80% {
+    transform: rotate(10deg);
+  }
+}
+@-o-keyframes octocat-wave {
+  0%, 100% {
+    transform: rotate(0);
+  }
+  20%, 60% {
+    transform: rotate(-25deg);
+  }
+  40%, 80% {
+    transform: rotate(10deg);
+  }
+}
+@keyframes octocat-wave {
+  0%, 100% {
+    transform: rotate(0);
+  }
+  20%, 60% {
+    transform: rotate(-25deg);
+  }
+  40%, 80% {
+    transform: rotate(10deg);
+  }
+}
+.sidebar {
+  background: #222;
+  bottom: 0;
+  box-shadow: inset 0 2px 6px #000;
+  position: fixed;
+  top: 0;
+  z-index: 1200;
+}
+.sidebar a,
+.sidebar span.exturl {
+  border-bottom-color: #555;
+  color: #999;
+}
+.sidebar a:hover,
+.sidebar span.exturl:hover {
+  border-bottom-color: #eee;
+  color: #eee;
+}
+@media (max-width: 991px) {
+  .sidebar {
+    display: none;
+  }
+}
+.sidebar-inner {
+  color: #999;
+  padding: 20px 10px;
+  text-align: center;
+}
+.site-overview-wrap {
+  overflow-x: hidden;
+  overflow-y: auto;
+}
+.cc-license {
+  margin-top: 10px;
+  text-align: center;
+}
+.cc-license .cc-opacity {
+  border-bottom: none;
+  opacity: 0.7;
+}
+.cc-license .cc-opacity:hover {
+  opacity: 0.9;
+}
+.cc-license img {
+  display: inline-block;
+}
+.site-author-image {
+  border: 1px solid #eee;
+  display: block;
+  height: auto;
+  margin: 0 auto;
+  max-width: 120px;
+  padding: 2px;
+  border-radius: 50%;
+}
+.site-author-name {
+  color: #222;
+  font-weight: 600;
+  margin: 0;
+  text-align: center;
+}
+.site-description {
+  color: #999;
+  font-size: 0.8125em;
+  margin-top: 0;
+  text-align: center;
+}
+.links-of-author {
+  margin-top: 15px;
+}
+.links-of-author a,
+.links-of-author span.exturl {
+  border-bottom-color: #555;
+  display: inline-block;
+  font-size: 0.8125em;
+  margin-bottom: 10px;
+  margin-right: 10px;
+  vertical-align: middle;
+  transition-delay: 0s;
+  transition-duration: 0.2s;
+  transition-timing-function: ease-in-out;
+}
+.links-of-author a::before,
+.links-of-author span.exturl::before {
+  background: #0ab5cd;
+  border-radius: 50%;
+  content: ' ';
+  display: inline-block;
+  height: 4px;
+  margin-right: 3px;
+  vertical-align: middle;
+  width: 4px;
+}
+.feed-link,
+.chat {
+  margin-top: 15px;
+}
+.feed-link a,
+.chat a {
+  border: 1px solid #fc6423;
+  border-radius: 4px;
+  color: #fc6423;
+  display: inline-block;
+  padding: 0 15px;
+}
+.feed-link a .fa,
+.chat a .fa {
+  margin-right: 5px;
+}
+.feed-link a:hover,
+.chat a:hover {
+  background: #fc6423;
+  border: 1px solid #fc6423;
+  color: #fff;
+}
+.feed-link a:hover .fa,
+.chat a:hover .fa {
+  color: #fff;
+}
+.links-of-blogroll {
+  font-size: 0.8125em;
+  margin-top: 10px;
+}
+.links-of-blogroll-title {
+  font-size: 0.875em;
+  font-weight: 600;
+  margin-top: 0;
+}
+.links-of-blogroll-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.links-of-blogroll-item {
+  padding: 2px 10px;
+}
+.links-of-blogroll-item a,
+.links-of-blogroll-item span.exturl {
+  box-sizing: border-box;
+  display: inline-block;
+  max-width: 280px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+#sidebar-dimmer {
+  display: none;
+}
+@media (max-width: 767px) {
+  #sidebar-dimmer {
+    background: #000;
+    display: block;
+    height: 100%;
+    left: 100%;
+    opacity: 0;
+    position: fixed;
+    top: 0;
+    width: 100%;
+    z-index: 1100;
+  }
+  .sidebar-active + #sidebar-dimmer {
+    opacity: 0.7;
+    transform: translateX(-100%);
+    transition: opacity 0.5s;
+  }
+}
+.sidebar-nav {
+  margin: 0;
+  padding-bottom: 20px;
+  padding-left: 0;
+}
+.sidebar-nav li {
+  border-bottom: 1px solid transparent;
+  color: #555;
+  cursor: pointer;
+  display: inline-block;
+  font-size: 0.875em;
+}
+.sidebar-nav li.sidebar-nav-overview {
+  margin-left: 10px;
+}
+.sidebar-nav li:hover {
+  color: #fc6423;
+}
+.sidebar-nav .sidebar-nav-active {
+  border-bottom-color: #fc6423;
+  color: #fc6423;
+}
+.sidebar-nav .sidebar-nav-active:hover {
+  color: #fc6423;
+}
+.sidebar-panel {
+  display: none;
+}
+.sidebar-panel-active {
+  display: block;
+}
+.sidebar-toggle {
+  background: #222;
+  bottom: 45px;
+  cursor: pointer;
+  height: 14px;
+  left: 30px;
+  padding: 5px;
+  position: fixed;
+  width: 14px;
+  z-index: 1300;
+}
+@media (max-width: 991px) {
+  .sidebar-toggle {
+    left: 20px;
+    opacity: 0.8;
+    display: none;
+  }
+}
+.sidebar-toggle:hover .toggle-line {
+  background: #fc6423;
+}
+.post-toc-wrap {
+  overflow-x: hidden;
+  overflow-y: auto;
+}
+.post-toc {
+  font-size: 0.875em;
+}
+.post-toc ol {
+  list-style: none;
+  margin: 0;
+  padding: 0 2px 5px 10px;
+  text-align: left;
+}
+.post-toc ol > ol {
+  padding-left: 0;
+}
+.post-toc ol a {
+  border-bottom-color: #ccc;
+  color: #666;
+  transition-property: all;
+  transition-delay: 0s;
+  transition-duration: 0.2s;
+  transition-timing-function: ease-in-out;
+}
+.post-toc ol a:hover {
+  border-bottom-color: #000;
+  color: #000;
+}
+.post-toc .nav-item {
+  line-height: 1.8;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.post-toc .nav .nav-child {
+  display: none;
+}
+.post-toc .nav .active > .nav-child {
+  display: block;
+}
+.post-toc .nav .active-current > .nav-child {
+  display: block;
+}
+.post-toc .nav .active-current > .nav-child > .nav-item {
+  display: block;
+}
+.post-toc .nav .active > a {
+  border-bottom-color: #fc6423;
+  color: #fc6423;
+}
+.post-toc .nav .active-current > a {
+  color: #fc6423;
+}
+.post-toc .nav .active-current > a:hover {
+  color: #fc6423;
+}
+.site-state {
+  display: flex;
+  justify-content: center;
+  line-height: 1.4;
+  margin-top: 10px;
+  overflow: hidden;
+  text-align: center;
+  white-space: nowrap;
+}
+.site-state-item {
+  padding: 0 15px;
+}
+.site-state-item:not(:first-child) {
+  border-left: 1px solid #eee;
+}
+.site-state-item a {
+  border-bottom: none;
+}
+.site-state-item-count {
+  color: inherit;
+  display: block;
+  font-size: 1em;
+  font-weight: 600;
+  text-align: center;
+}
+.site-state-item-name {
+  color: #999;
+  font-size: 0.8125em;
+}
+.footer {
+  color: #999;
+  font-size: 0.875em;
+  padding: 20px 0;
+}
+.footer.footer-fixed {
+  bottom: 0;
+  left: 0;
+  position: absolute;
+  right: 0;
+}
+.footer img {
+  border: 0;
+}
+.footer-inner {
+  box-sizing: border-box;
+  margin: 0 auto;
+  text-align: center;
+  width: calc(100% - 20px);
+}
+@media (min-width: 1200px) {
+  .footer-inner {
+    width: 1160px;
+  }
+}
+@media (min-width: 1600px) {
+  .footer-inner {
+    width: 73%;
+  }
+}
+.with-love {
+  color: red;
+  display: inline-block;
+  margin: 0 5px;
+  animation: iconAnimate 1.33s ease-in-out infinite;
+}
+.powered-by,
+.theme-info {
+  display: inline-block;
+}
+@-moz-keyframes iconAnimate {
+  0%, 100% {
+    transform: scale(1);
+  }
+  10%, 30% {
+    transform: scale(0.9);
+  }
+  20%, 40%, 60%, 80% {
+    transform: scale(1.1);
+  }
+  50%, 70% {
+    transform: scale(1.1);
+  }
+}
+@-webkit-keyframes iconAnimate {
+  0%, 100% {
+    transform: scale(1);
+  }
+  10%, 30% {
+    transform: scale(0.9);
+  }
+  20%, 40%, 60%, 80% {
+    transform: scale(1.1);
+  }
+  50%, 70% {
+    transform: scale(1.1);
+  }
+}
+@-o-keyframes iconAnimate {
+  0%, 100% {
+    transform: scale(1);
+  }
+  10%, 30% {
+    transform: scale(0.9);
+  }
+  20%, 40%, 60%, 80% {
+    transform: scale(1.1);
+  }
+  50%, 70% {
+    transform: scale(1.1);
+  }
+}
+@keyframes iconAnimate {
+  0%, 100% {
+    transform: scale(1);
+  }
+  10%, 30% {
+    transform: scale(0.9);
+  }
+  20%, 40%, 60%, 80% {
+    transform: scale(1.1);
+  }
+  50%, 70% {
+    transform: scale(1.1);
+  }
+}
+.back-to-top {
+  background: #eee;
+  font-size: 12px;
+  margin: 8px -10px -20px;
+  opacity: 0;
+  text-align: center;
+  transition-delay: 0s;
+  transition-duration: 0.2s;
+  transition-timing-function: ease-in-out;
+}
+.back-to-top.back-to-top-on {
+  cursor: pointer;
+  opacity: 0.6;
+}
+.back-to-top.back-to-top-on:hover {
+  opacity: 0.8;
+}
+.post-body {
+  font-family: 'Monda', "PingFang SC", "Microsoft YaHei", sans-serif;
+  overflow-wrap: break-word;
+  word-wrap: break-word;
+}
+@media (min-width: 1200px) {
+  .post-body {
+    font-size: 1.125em;
+  }
+}
+.post-body span.exturl .fa {
+  font-size: 0.875em;
+  margin-left: 4px;
+}
+.post-body .image-caption,
+.post-body .figure .caption {
+  color: #999;
+  font-size: 0.875em;
+  font-weight: bold;
+  line-height: 1;
+  margin: -20px auto 15px;
+  text-align: center;
+}
+.post-sticky-flag {
+  display: inline-block;
+  transform: rotate(30deg);
+}
+.post-button {
+  margin-top: 40px;
+  text-align: center;
+}
+.use-motion .post-block,
+.use-motion .pagination,
+.use-motion .comments {
+  opacity: 0;
+}
+.use-motion .post-header {
+  opacity: 0;
+}
+.use-motion .post-body {
+  opacity: 0;
+}
+.use-motion .collection-header {
+  opacity: 0;
+}
+.posts-collapse {
+  margin-left: 55px;
+  position: relative;
+}
+@media (max-width: 767px) {
+  .posts-collapse {
+    margin-left: 20px;
+    margin-right: 20px;
+  }
+}
+.posts-collapse .collection-title {
+  font-size: 1.125em;
+  position: relative;
+}
+.posts-collapse .collection-title::before {
+  background: #999;
+  border: 1px solid #fff;
+  border-radius: 50%;
+  content: ' ';
+  height: 10px;
+  left: 0;
+  margin-left: -6px;
+  margin-top: -4px;
+  position: absolute;
+  top: 50%;
+  width: 10px;
+}
+.posts-collapse .collection-year {
+  margin: 60px 0;
+  position: relative;
+}
+.posts-collapse .collection-year::before {
+  background: #bbb;
+  border-radius: 50%;
+  content: ' ';
+  height: 8px;
+  left: 0;
+  margin-left: -4px;
+  margin-top: -4px;
+  position: absolute;
+  top: 50%;
+  width: 8px;
+}
+.posts-collapse .collection-header {
+  display: inline-block;
+  margin: 0 0 0 20px;
+}
+.posts-collapse .collection-header small {
+  color: #bbb;
+  margin-left: 5px;
+}
+.posts-collapse .post-header {
+  border-bottom: 1px dashed #ccc;
+  margin: 30px 0;
+  padding-left: 15px;
+  position: relative;
+  transition-property: border;
+  transition-delay: 0s;
+  transition-duration: 0.2s;
+  transition-timing-function: ease-in-out;
+}
+.posts-collapse .post-header::before {
+  background: #bbb;
+  border: 1px solid #fff;
+  border-radius: 50%;
+  content: ' ';
+  height: 6px;
+  left: 0;
+  margin-left: -4px;
+  position: absolute;
+  top: 0.75em;
+  transition-property: background;
+  width: 6px;
+  transition-delay: 0s;
+  transition-duration: 0.2s;
+  transition-timing-function: ease-in-out;
+}
+.posts-collapse .post-header:hover {
+  border-bottom-color: #666;
+}
+.posts-collapse .post-header:hover::before {
+  background: #222;
+}
+.posts-collapse .post-meta {
+  display: inline;
+  font-size: 0.75em;
+  margin-right: 10px;
+}
+.posts-collapse .post-title {
+  display: inline;
+  font-size: 1em;
+  font-weight: normal;
+  margin-bottom: 0;
+  margin-top: 0;
+}
+.posts-collapse .post-title a,
+.posts-collapse .post-title span.exturl {
+  border-bottom: none;
+  color: #666;
+}
+.posts-collapse::before {
+  background: #f5f5f5;
+  content: ' ';
+  height: 100%;
+  left: 0;
+  margin-left: -2px;
+  position: absolute;
+  top: 1.25em;
+  width: 4px;
+}
+.posts-collapse .fa-external-link {
+  font-size: 0.875em;
+  margin-left: 5px;
+}
+.post-eof {
+  background: #ccc;
+  height: 1px;
+  margin: 80px auto 60px;
+  text-align: center;
+  width: 8%;
+}
+.post-block:last-child .post-eof {
+  display: none;
+}
+.posts-expand {
+  padding-top: 40px;
+}
+@media (max-width: 767px) {
+  .posts-expand {
+    margin: 0 20px;
+  }
+}
+@media (min-width: 992px) {
+  .post-body {
+    text-align: left;
+  }
+}
+@media (max-width: 991px) {
+  .post-body {
+    text-align: left;
+  }
+}
+.post-body h2,
+.post-body h3,
+.post-body h4,
+.post-body h5,
+.post-body h6 {
+  padding-top: 10px;
+}
+.post-body h2 .header-anchor,
+.post-body h3 .header-anchor,
+.post-body h4 .header-anchor,
+.post-body h5 .header-anchor,
+.post-body h6 .header-anchor {
+  border-bottom-style: none;
+  color: #ccc;
+  float: right;
+  margin-left: 10px;
+  visibility: hidden;
+}
+.post-body h2 .header-anchor:hover,
+.post-body h3 .header-anchor:hover,
+.post-body h4 .header-anchor:hover,
+.post-body h5 .header-anchor:hover,
+.post-body h6 .header-anchor:hover {
+  color: inherit;
+}
+.post-body h2:hover .header-anchor,
+.post-body h3:hover .header-anchor,
+.post-body h4:hover .header-anchor,
+.post-body h5:hover .header-anchor,
+.post-body h6:hover .header-anchor {
+  visibility: visible;
+}
+.post-body img {
+  border: 1px solid #ddd;
+  box-sizing: border-box;
+  padding: 3px;
+}
+@media (max-width: 767px) {
+  .post-body img {
+    padding: initial;
+  }
+}
+.post-body iframe,
+.post-body img,
+.post-body video {
+  margin-bottom: 20px;
+}
+.post-body .video-container {
+  height: 0;
+  margin-bottom: 20px;
+  overflow: hidden;
+  padding-top: 75%;
+  position: relative;
+  width: 100%;
+}
+.post-body .video-container iframe,
+.post-body .video-container object,
+.post-body .video-container embed {
+  height: 100%;
+  left: 0;
+  margin: 0;
+  position: absolute;
+  top: 0;
+  width: 100%;
+}
+.post-gallery {
+  border-collapse: separate;
+  display: table;
+  table-layout: fixed;
+  width: 100%;
+}
+.post-gallery .post-gallery-img {
+  border: 0;
+  display: table-cell;
+  text-align: center;
+  vertical-align: middle;
+}
+.post-gallery .post-gallery-img img {
+  border: 0;
+  max-height: 100%;
+  max-width: 100%;
+}
+.post-gallery-row {
+  display: table-row;
+}
+.posts-expand .post-header {
+  font-size: 1.125em;
+}
+.posts-expand .post-title {
+  font-weight: 400;
+  margin: initial;
+  text-align: center;
+  overflow-wrap: break-word;
+  word-wrap: break-word;
+}
+.posts-expand .post-title-link {
+  border-bottom: none;
+  color: #555;
+  display: inline-block;
+  position: relative;
+  vertical-align: top;
+}
+.posts-expand .post-title-link::before {
+  background: #000;
+  bottom: 0;
+  content: '';
+  height: 2px;
+  left: 0;
+  position: absolute;
+  transform: scaleX(0);
+  visibility: hidden;
+  width: 100%;
+  transition-delay: 0s;
+  transition-duration: 0.2s;
+  transition-timing-function: ease-in-out;
+}
+.posts-expand .post-title-link:hover::before {
+  transform: scaleX(1);
+  visibility: visible;
+}
+.posts-expand .post-title-link .fa {
+  font-size: 0.875em;
+  margin-left: 5px;
+}
+.posts-expand .post-meta {
+  color: #999;
+  font-family: 'Monda', "PingFang SC", "Microsoft YaHei", sans-serif;
+  font-size: 0.75em;
+  margin: 3px 0 60px 0;
+  text-align: center;
+}
+.posts-expand .post-meta .post-description {
+  font-size: 0.875em;
+  margin-top: 2px;
+}
+.posts-expand .post-meta time {
+  border-bottom: 1px dashed #999;
+  cursor: pointer;
+}
+.post-meta .post-meta-item + .post-meta-item::before {
+  content: '|';
+  margin: 0 0.5em;
+}
+.post-meta-divider {
+  margin: 0 0.5em;
+}
+.post-meta-item-icon {
+  margin-right: 3px;
+}
+@media (max-width: 991px) {
+  .post-meta-item-icon {
+    display: inline-block;
+  }
+}
+@media (max-width: 991px) {
+  .post-meta-item-text {
+    display: none;
+  }
+}
+.post-nav {
+  border-top: 1px solid #eee;
+  display: table;
+  margin-top: 15px;
+  width: 100%;
+}
+.post-nav-divider {
+  display: table-cell;
+  width: 10%;
+}
+.post-nav-item {
+  display: table-cell;
+  padding: 10px 0 0 0;
+  vertical-align: top;
+  width: 45%;
+}
+.post-nav-item a {
+  border-bottom: none;
+  color: #555;
+  display: block;
+  font-size: 0.875em;
+  line-height: 1.6;
+  position: relative;
+}
+.post-nav-item a:hover {
+  border-bottom: none;
+  color: #222;
+}
+.post-nav-item a:active {
+  top: 2px;
+}
+.post-nav-item .fa {
+  font-size: 0.75em;
+  margin-right: 5px;
+}
+.post-nav-next a {
+  padding-left: 5px;
+}
+.post-nav-prev {
+  text-align: right;
+}
+.post-nav-prev a {
+  padding-right: 5px;
+}
+.post-nav-prev .fa {
+  margin-left: 5px;
+}
+.rtl.post-body p,
+.rtl.post-body a,
+.rtl.post-body h1,
+.rtl.post-body h2,
+.rtl.post-body h3,
+.rtl.post-body h4,
+.rtl.post-body h5,
+.rtl.post-body h6,
+.rtl.post-body li,
+.rtl.post-body ul,
+.rtl.post-body ol {
+  direction: rtl;
+  font-family: UKIJ Ekran;
+}
+.rtl.post-title {
+  font-family: UKIJ Ekran;
+}
+.post-tags {
+  margin-top: 40px;
+  text-align: center;
+}
+.post-tags a {
+  display: inline-block;
+  font-size: 0.8125em;
+}
+.post-tags a:not(:last-child) {
+  margin-right: 10px;
+}
+.post-widgets {
+  border-top: 1px solid #eee;
+  margin-top: 15px;
+  text-align: center;
+}
+.wp_rating {
+  height: 20px;
+  line-height: 20px;
+  margin-top: 10px;
+  padding-top: 6px;
+  text-align: center;
+}
+.social-like {
+  display: flex;
+  font-size: 0.875em;
+  justify-content: center;
+  text-align: center;
+}
+.reward-container {
+  margin: 20px auto;
+  padding: 10px 0;
+  text-align: center;
+  width: 90%;
+}
+.reward-container button {
+  background: #ff2a2a;
+  border: 0;
+  border-radius: 5px;
+  color: #fff;
+  cursor: pointer;
+  line-height: 2;
+  outline: 0;
+  padding: 0 15px;
+  vertical-align: text-top;
+}
+.reward-container button:hover {
+  background: #f55;
+}
+#qr {
+  padding-top: 20px;
+}
+#qr a {
+  border: 0;
+}
+#qr img {
+  display: inline-block;
+  margin: 0.8em 2em 0 2em;
+  max-width: 100%;
+  width: 180px;
+}
+#qr p {
+  text-align: center;
+}
+.post-copyright {
+  background: #f5f5f5;
+  border-left: 3px solid #ff2a2a;
+  list-style: none;
+  margin: 2em 0 0;
+  padding: 0.5em 1em;
+}
+.category-all-page .category-all-title {
+  text-align: center;
+}
+.category-all-page .category-all {
+  margin-top: 20px;
+}
+.category-all-page .category-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.category-all-page .category-list-item {
+  margin: 5px 10px;
+}
+.category-all-page .category-list-count {
+  color: #bbb;
+}
+.category-all-page .category-list-count::before {
+  content: ' (';
+  display: inline;
+}
+.category-all-page .category-list-count::after {
+  content: ') ';
+  display: inline;
+}
+.category-all-page .category-list-child {
+  padding-left: 10px;
+}
+.event-list {
+  padding: 0;
+}
+.event-list hr {
+  background: #222;
+  margin: 20px 0 45px 0;
+}
+.event-list hr::after {
+  background: #222;
+  color: #fff;
+  content: 'NOW';
+  display: inline-block;
+  font-weight: bold;
+  padding: 0 5px;
+  text-align: right;
+}
+.event-list .event {
+  background: #222;
+  margin: 20px 0;
+  min-height: 40px;
+  padding: 15px 0 15px 10px;
+}
+.event-list .event .event-summary {
+  color: #fff;
+  margin: 0;
+  padding-bottom: 3px;
+}
+.event-list .event .event-summary::before {
+  animation: dot-flash 1s alternate infinite ease-in-out;
+  color: #fff;
+  content: '\f111';
+  display: inline-block;
+  font-family: 'FontAwesome';
+  font-size: 10px;
+  margin-right: 25px;
+  vertical-align: middle;
+}
+.event-list .event .event-relative-time {
+  color: #bbb;
+  display: inline-block;
+  font-size: 12px;
+  font-weight: 400;
+  padding-left: 12px;
+}
+.event-list .event .event-details {
+  color: #fff;
+  display: block;
+  line-height: 18px;
+  margin-left: 56px;
+  padding-bottom: 6px;
+  padding-top: 3px;
+  text-indent: -24px;
+}
+.event-list .event .event-details::before {
+  color: #fff;
+  display: inline-block;
+  font-family: 'FontAwesome';
+  margin-right: 9px;
+  text-align: center;
+  text-indent: 0;
+  width: 14px;
+}
+.event-list .event .event-details.event-location::before {
+  content: '\f041';
+}
+.event-list .event .event-details.event-duration::before {
+  content: '\f017';
+}
+.event-list .event-past {
+  background: #f5f5f5;
+}
+.event-list .event-past .event-summary,
+.event-list .event-past .event-details {
+  color: #bbb;
+  opacity: 0.9;
+}
+.event-list .event-past .event-summary::before,
+.event-list .event-past .event-details::before {
+  animation: none;
+  color: #bbb;
+}
+@-moz-keyframes dot-flash {
+  from {
+    opacity: 1;
+    transform: scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: scale(0.8);
+  }
+}
+@-webkit-keyframes dot-flash {
+  from {
+    opacity: 1;
+    transform: scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: scale(0.8);
+  }
+}
+@-o-keyframes dot-flash {
+  from {
+    opacity: 1;
+    transform: scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: scale(0.8);
+  }
+}
+@keyframes dot-flash {
+  from {
+    opacity: 1;
+    transform: scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: scale(0.8);
+  }
+}
+ul.breadcrumb {
+  font-size: 0.75em;
+  list-style: none;
+  margin: 1em 0;
+  padding: 0 2em;
+  text-align: center;
+}
+ul.breadcrumb li {
+  display: inline;
+}
+ul.breadcrumb li + li::before {
+  content: '/\00a0';
+  font-weight: normal;
+  padding: 0.5em;
+}
+ul.breadcrumb li + li:last-child {
+  font-weight: bold;
+}
+.tag-cloud {
+  text-align: center;
+}
+.tag-cloud a {
+  display: inline-block;
+  margin: 10px;
+}
+.tag-cloud a:hover {
+  color: #222 !important;
+}
+.gt-header a,
+.gt-comments a,
+.gt-popup a {
+  border-bottom: none;
+}
+.gt-container .gt-popup .gt-action.is--active::before {
+  top: 0.7em;
+}
+.search-pop-overlay {
+  background: rgba(0,0,0,0.3);
+  display: none;
+  height: 100%;
+  left: 0;
+  overflow: hidden;
+  position: fixed;
+  top: 0;
+  width: 100%;
+  z-index: 1400;
+}
+.search-popup {
+  background: #fff;
+  border-radius: 5px;
+  color: #333;
+  display: none;
+  height: 80%;
+  left: 50%;
+  margin-left: -350px;
+  padding: 0;
+  position: fixed;
+  top: 10%;
+  width: 700px;
+  z-index: 1500;
+}
+@media (max-width: 767px) {
+  .search-popup {
+    border-radius: 0;
+    height: 100%;
+    left: 0;
+    margin: 0;
+    padding: 0;
+    top: 0;
+    width: 100%;
+  }
+}
+.search-popup .search-icon,
+.search-popup .popup-btn-close {
+  color: #999;
+  display: inline-block;
+  font-size: 18px;
+  height: 36px;
+  padding-left: 10px;
+  padding-right: 10px;
+  width: 18px;
+}
+.search-popup .popup-btn-close {
+  border-left: 1px solid #eee;
+  cursor: pointer;
+  float: right;
+}
+.search-popup .popup-btn-close:hover .fa {
+  color: #222;
+}
+.search-popup .search-header {
+  background: #f5f5f5;
+  border-top-left-radius: 5px;
+  border-top-right-radius: 5px;
+  padding: 5px;
+}
+.search-input {
+  display: inline-block;
+  width: calc(90% - 30px);
+}
+.search-input input {
+  background: transparent;
+  border: 0;
+  outline: 0;
+  padding: 5px 0;
+  width: 100%;
+}
+.search-input .ais-search-box--magnifier svg,
+.search-input .ais-search-box--reset svg {
+  display: none;
+}
+.algolia-powered {
+  float: right;
+}
+.algolia-powered img {
+  display: inline-block;
+  height: 18px;
+  vertical-align: middle;
+}
+.algolia-results {
+  height: calc(100% - 55px);
+  overflow: auto;
+  padding: 5px 30px;
+  position: relative;
+}
+.algolia-results hr {
+  margin: 10px 0;
+}
+.algolia-results .highlight {
+  color: #f00;
+  font-size: inherit;
+  font-style: normal;
+  margin: 0;
+  padding: 0 2px;
+}
+.algolia-hits {
+  margin-top: 20px;
+}
+.algolia-hit-item {
+  margin: 15px 0;
+}
+.algolia-hit-item-link {
+  border-bottom: 1px dashed #ccc;
+  display: block;
+  transition-delay: 0s;
+  transition-duration: 0.2s;
+  transition-timing-function: ease-in-out;
+}
+.algolia-pagination .pagination {
+  border-top: none;
+  margin: 40px 0;
+  opacity: 1;
+  padding: 0;
+}
+.algolia-pagination .pagination-item {
+  display: inline-block;
+}
+.algolia-pagination .page-number {
+  border-top: none;
+}
+.algolia-pagination .page-number:hover {
+  border-bottom: 1px solid #222;
+}
+.algolia-pagination .disabled-item {
+  visibility: hidden;
+}
+.header {
+  margin: 0 auto;
+  position: relative;
+  width: calc(100% - 20px);
+}
+@media (min-width: 1200px) {
+  .header {
+    width: 1160px;
+  }
+}
+@media (min-width: 1600px) {
+  .header {
+    width: 73%;
+  }
+}
+@media (max-width: 991px) {
+  .header {
+    width: auto;
+  }
+}
+.header-inner {
+  background: #fff;
+  border-radius: initial;
+  box-shadow: 0 2px 2px 0 rgba(0,0,0,0.12), 0 3px 1px -2px rgba(0,0,0,0.06), 0 1px 5px 0 rgba(0,0,0,0.12);
+  overflow: hidden;
+  padding: 0;
+  position: absolute;
+  top: 0;
+  width: 240px;
+}
+@media (min-width: 1200px) {
+  .header-inner {
+    width: 240px;
+  }
+}
+@media (max-width: 991px) {
+  .header-inner {
+    border-radius: initial;
+    position: relative;
+    width: auto;
+  }
+}
+.main::before,
+.main::after {
+  content: ' ';
+  display: table;
+}
+.main::after {
+  clear: both;
+}
+@media (max-width: 991px) {
+  .main-inner {
+    width: auto;
+  }
+}
+.content-wrap {
+  background: #fff;
+  border-radius: initial;
+  box-shadow: 0 2px 2px 0 rgba(0,0,0,0.12), 0 3px 1px -2px rgba(0,0,0,0.06), 0 1px 5px 0 rgba(0,0,0,0.12);
+  box-sizing: border-box;
+  float: right;
+  padding: 40px;
+  width: calc(100% - 252px);
+}
+@media (max-width: 991px) {
+  .content-wrap {
+    border-radius: initial;
+    padding: 20px;
+    width: 100%;
+  }
+}
+.sidebar {
+  background: #eee;
+  box-shadow: none;
+  float: left;
+  position: static;
+  width: 240px;
+}
+@media (max-width: 991px) {
+  .sidebar {
+    display: none;
+  }
+}
+.sidebar-toggle {
+  display: none;
+}
+.footer-inner {
+  padding-left: 260px;
+}
+.back-to-top {
+  left: auto;
+  right: 30px;
+}
+@media (max-width: 991px) {
+  .back-to-top {
+    right: 20px;
+  }
+}
+@media (max-width: 991px) {
+  .footer-inner {
+    padding-left: 0;
+    padding-right: 0;
+    width: auto;
+  }
+}
+.site-brand-container {
+  position: relative;
+}
+.site-meta {
+  background: #222;
+  color: #fff;
+  padding: 20px 0;
+}
+@media (max-width: 991px) {
+  .site-meta {
+    box-shadow: 0 0 16px rgba(0,0,0,0.5);
+  }
+}
+.brand {
+  background: none;
+  padding: 0;
+}
+.brand:hover {
+  color: #fff;
+}
+.site-subtitle {
+  font-weight: initial;
+  margin: 10px 10px 0;
+}
+.custom-logo-image {
+  margin-top: 20px;
+}
+@media (max-width: 991px) {
+  .custom-logo-image {
+    display: none;
+  }
+}
+.site-nav-toggle {
+  left: 20px;
+  top: 50%;
+  transform: translateY(-50%);
+}
+@media (min-width: 768px) and (max-width: 991px) {
+  .site-nav-toggle {
+    display: block;
+  }
+}
+.site-nav-toggle .toggle .toggle-line {
+  background: #fff;
+}
+.site-nav {
+  border-top: none;
+}
+@media (min-width: 768px) and (max-width: 991px) {
+  .site-nav {
+    display: none;
+  }
+}
+.menu-item-active a,
+.menu .menu-item a:hover,
+.menu .menu-item span.exturl:hover {
+  background: #f5f5f5;
+}
+.menu-item-active a::after,
+.menu .menu-item a:hover::after,
+.menu .menu-item span.exturl:hover::after {
+  background: #bbb;
+  border-radius: 50%;
+  content: ' ';
+  height: 6px;
+  margin-top: -3px;
+  position: absolute;
+  right: 15px;
+  top: 50%;
+  width: 6px;
+}
+.menu .menu-item {
+  display: block;
+  margin: 0;
+}
+.menu .menu-item a,
+.menu .menu-item span.exturl {
+  padding: 5px 20px;
+  position: relative;
+  text-align: left;
+  transition-property: background-color;
+}
+.menu .menu-item .badge {
+  background: #ccc;
+  border-radius: 10px;
+  color: #fff;
+  float: right;
+  padding: 2px 5px;
+  text-shadow: 1px 1px 0 rgba(0,0,0,0.1);
+  vertical-align: middle;
+}
+.sub-menu {
+  background: #fff;
+  border-bottom: 1px solid #ddd;
+  margin: 0;
+  padding: 6px 0;
+}
+.sub-menu .menu-item {
+  display: inline-block;
+}
+.sub-menu .menu-item a,
+.sub-menu .menu-item span.exturl {
+  margin: 5px 10px;
+  padding: initial;
+}
+.sub-menu .menu-item a:hover,
+.sub-menu .menu-item span.exturl:hover {
+  background: initial;
+  color: #fc6423;
+}
+.sub-menu .menu-item a::after,
+.sub-menu .menu-item span.exturl::after {
+  content: initial !important;
+}
+.sub-menu .menu-item-active a {
+  background: #fff;
+  border-bottom-color: #fc6423;
+  color: #fc6423;
+}
+.sub-menu .menu-item-active a:hover {
+  background: #fff;
+  border-bottom-color: #fc6423;
+}
+.sidebar {
+  bottom: auto;
+  right: auto;
+}
+.sidebar a,
+.sidebar span.exturl {
+  color: #555;
+}
+.sidebar a:hover,
+.sidebar span.exturl:hover {
+  border-bottom-color: #222;
+  color: #222;
+}
+.sidebar-inner {
+  background: #fff;
+  border-radius: initial;
+  box-shadow: 0 2px 2px 0 rgba(0,0,0,0.12), 0 3px 1px -2px rgba(0,0,0,0.06), 0 1px 5px 0 rgba(0,0,0,0.12), 0 -1px 0.5px 0 rgba(0,0,0,0.09);
+  box-sizing: border-box;
+  color: #555;
+  width: 240px;
+  opacity: 0;
+}
+.sidebar-inner.affix {
+  position: fixed;
+  top: 12px;
+}
+.sidebar-inner.affix-bottom {
+  position: absolute;
+}
+.site-state-item {
+  padding: 0 10px;
+}
+.feed-link,
+.chat {
+  border-bottom: 1px dotted #ccc;
+  border-top: 1px dotted #ccc;
+  margin-top: 10px;
+  text-align: center;
+}
+.feed-link a,
+.chat a {
+  border: 0;
+  color: #fc6423;
+  display: block;
+}
+.feed-link a:hover,
+.chat a:hover {
+  background: none;
+  border: 0;
+  color: #e34603;
+}
+.feed-link a:hover .fa,
+.chat a:hover .fa {
+  color: #e34603;
+}
+.links-of-author {
+  display: flex;
+  flex-wrap: wrap;
+  margin-top: 10px;
+  justify-content: center;
+}
+.links-of-author-item {
+  margin: 5px 0 0;
+}
+.links-of-author-item a,
+.links-of-author-item span.exturl {
+  box-sizing: border-box;
+  display: inline-block;
+  margin-bottom: 0;
+  margin-right: 0;
+  max-width: 216px;
+  overflow: hidden;
+  padding: 0 5px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.links-of-author-item a,
+.links-of-author-item span.exturl {
+  border-bottom: none;
+  display: block;
+  text-decoration: none;
+}
+.links-of-author-item a::before,
+.links-of-author-item span.exturl::before {
+  display: none;
+}
+.links-of-author-item a:hover,
+.links-of-author-item span.exturl:hover {
+  background: #eee;
+  border-radius: 4px;
+}
+.links-of-author-item .fa {
+  margin-right: 2px;
+}
+.links-of-blogroll-item {
+  padding: 0;
+}
+.content-wrap {
+  background: initial;
+  box-shadow: initial;
+  padding: initial;
+}
+.post-block {
+  background: #fff;
+  border-radius: initial;
+  box-shadow: 0 2px 2px 0 rgba(0,0,0,0.12), 0 3px 1px -2px rgba(0,0,0,0.06), 0 1px 5px 0 rgba(0,0,0,0.12);
+  padding: 40px;
+}
+.post-block + .post-block {
+  border-radius: initial;
+  box-shadow: 0 2px 2px 0 rgba(0,0,0,0.12), 0 3px 1px -2px rgba(0,0,0,0.06), 0 1px 5px 0 rgba(0,0,0,0.12), 0 -1px 0.5px 0 rgba(0,0,0,0.09);
+  margin-top: 12px;
+}
+.comments {
+  background: #fff;
+  border-radius: initial;
+  box-shadow: 0 2px 2px 0 rgba(0,0,0,0.12), 0 3px 1px -2px rgba(0,0,0,0.06), 0 1px 5px 0 rgba(0,0,0,0.12), 0 -1px 0.5px 0 rgba(0,0,0,0.09);
+  margin: auto;
+  margin-top: 12px;
+  padding: 40px;
+}
+.tabs-comment {
+  margin-top: 1em;
+}
+.posts-expand {
+  padding-top: initial;
+}
+.post-nav-divider {
+  width: 4%;
+}
+.post-nav-item {
+  width: 48%;
+}
+.post-eof {
+  display: none;
+}
+.pagination {
+  background: #fff;
+  border-radius: initial;
+  border-top: initial;
+  box-shadow: 0 2px 2px 0 rgba(0,0,0,0.12), 0 3px 1px -2px rgba(0,0,0,0.06), 0 1px 5px 0 rgba(0,0,0,0.12), 0 -1px 0.5px 0 rgba(0,0,0,0.09);
+  margin: 12px 0 0;
+  padding: 10px 0 10px;
+}
+.pagination .prev,
+.pagination .next,
+.pagination .page-number {
+  margin-bottom: initial;
+  top: initial;
+}
+.main {
+  padding-bottom: initial;
+}
+.footer {
+  bottom: auto;
+}
+.sub-menu {
+  border-bottom: initial;
+  box-shadow: 0 2px 2px 0 rgba(0,0,0,0.12), 0 3px 1px -2px rgba(0,0,0,0.06), 0 1px 5px 0 rgba(0,0,0,0.12);
+}
+.sub-menu + .content .post-block {
+  box-shadow: 0 2px 2px 0 rgba(0,0,0,0.12), 0 3px 1px -2px rgba(0,0,0,0.06), 0 1px 5px 0 rgba(0,0,0,0.12), 0 -1px 0.5px 0 rgba(0,0,0,0.09);
+  margin-top: 12px;
+}
+@media (min-width: 768px) and (max-width: 991px) {
+  .sub-menu + .content .post-block {
+    margin-top: 10px;
+  }
+}
+@media (max-width: 767px) {
+  .sub-menu + .content .post-block {
+    margin-top: 8px;
+  }
+}
+.post-body h1,
+.post-body h2 {
+  border-bottom: 1px solid #eee;
+}
+.post-body h3 {
+  border-bottom: 1px solid #eee;
+}
+.post-body h4 {
+  border-bottom: 1px dotted #eee;
+}
+@media (min-width: 768px) and (max-width: 991px) {
+  .content-wrap {
+    padding: 10px;
+  }
+  .posts-expand {
+    margin: initial;
+  }
+  .posts-expand .post-button {
+    margin-top: 20px;
+  }
+  .post-block {
+    border-radius: initial;
+    box-shadow: 0 2px 2px 0 rgba(0,0,0,0.12), 0 3px 1px -2px rgba(0,0,0,0.06), 0 1px 5px 0 rgba(0,0,0,0.12), 0 -1px 0.5px 0 rgba(0,0,0,0.09);
+    padding: 20px;
+  }
+  .post-block + .post-block {
+    margin-top: 10px;
+  }
+  .comments {
+    margin-top: 10px;
+    padding: 10px 20px;
+  }
+  .pagination {
+    margin: 10px 0 0;
+  }
+}
+@media (max-width: 767px) {
+  .content-wrap {
+    padding: 8px;
+  }
+  .posts-expand {
+    margin: initial;
+  }
+  .posts-expand .post-button {
+    margin: 12px 0;
+  }
+  .post-block {
+    border-radius: initial;
+    box-shadow: 0 2px 2px 0 rgba(0,0,0,0.12), 0 3px 1px -2px rgba(0,0,0,0.06), 0 1px 5px 0 rgba(0,0,0,0.12), 0 -1px 0.5px 0 rgba(0,0,0,0.09);
+    min-height: auto;
+    padding: 12px;
+  }
+  .post-block + .post-block {
+    margin-top: 8px;
+  }
+  .comments {
+    margin-top: 8px;
+    padding: 10px 12px;
+  }
+  .pagination {
+    margin: 8px 0 0;
+  }
+}</style><noscript>
+  <style>
+  .use-motion .brand,
+  .use-motion .menu-item,
+  .sidebar-inner,
+  .use-motion .post-block,
+  .use-motion .pagination,
+  .use-motion .comments,
+  .use-motion .post-header,
+  .use-motion .post-body,
+  .use-motion .collection-header { opacity: initial; }
+
+  .use-motion .site-title,
+  .use-motion .site-subtitle {
+    opacity: initial;
+    top: initial;
+  }
+
+  .use-motion .logo-line-before i { left: initial; }
+  .use-motion .logo-line-after i { right: initial; }
+  </style>
+</noscript>
+
+<script>function loadCss(l){var d=document,h=d.head,s=d.createElement('link');s.rel='stylesheet';s.href=l;!function e(f){if (d.body)return f();setTimeout(function(){e(f)})}(function(){h.appendChild(s);});}loadCss('/style.css');loadCss('//fonts.googleapis.com/css?family=Monda:300,300italic,400,400italic,700,700italic|Roboto Slab:300,300italic,400,400italic,700,700italic|PT Mono:300,300italic,400,400italic,700,700italic&display=swap&subset=latin,latin-ext');loadCss('//cdn.jsdelivr.net/npm/instantsearch.js@2/dist/instantsearch.min.css');loadCss('//cdn.jsdelivr.net/npm/gitalk@1/dist/gitalk.min.css');</script><noscript><link rel="stylesheet" href="/style.css"><link rel="stylesheet" href="//fonts.googleapis.com/css?family=Monda:300,300italic,400,400italic,700,700italic|Roboto Slab:300,300italic,400,400italic,700,700italic|PT Mono:300,300italic,400,400italic,700,700italic&amp;display=swap&amp;subset=latin,latin-ext"><link rel="stylesheet" href="//cdn.jsdelivr.net/npm/instantsearch.js@2/dist/instantsearch.min.css"><link rel="stylesheet" href="//cdn.jsdelivr.net/npm/gitalk@1/dist/gitalk.min.css"></noscript></head>
+
+<body itemscope="" itemtype="http://schema.org/WebPage">
+  <div class="container use-motion">
+    <div class="headband"></div>
+
+    <header class="header" itemscope="" itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-container">
+  <div class="site-meta">
+
+    <div>
+      <a href="/" class="brand" rel="start">
+        <span class="logo-line-before"><i></i></span>
+        <span class="site-title">贝克街的流浪猫</span>
+        <span class="logo-line-after"><i></i></span>
+      </a>
+    </div>
+        <h1 class="site-subtitle" itemprop="description">技术博客</h1>
+      
+  </div>
+
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="切换导航栏">
+      <span class="toggle-line toggle-line-first"></span>
+      <span class="toggle-line toggle-line-middle"></span>
+      <span class="toggle-line toggle-line-last"></span>
+    </div>
+  </div>
+</div>
+
+
+<nav class="site-nav">
+  
+  <ul id="menu" class="menu">
+        <li class="menu-item menu-item-home">
+
+    <a href="/" rel="section"><i class="fa fa-fw fa-home"></i>首页</a>
+
+  </li>
+        <li class="menu-item menu-item-tags">
+
+    <a href="/tags/" rel="section"><i class="fa fa-fw fa-tags"></i>标签</a>
+
+  </li>
+        <li class="menu-item menu-item-categories">
+
+    <a href="/categories/" rel="section"><i class="fa fa-fw fa-th"></i>分类</a>
+
+  </li>
+        <li class="menu-item menu-item-archives">
+
+    <a href="/archives/" rel="section"><i class="fa fa-fw fa-archive"></i>归档</a>
+
+  </li>
+        <li class="menu-item menu-item-about">
+
+    <a href="/about/" rel="section"><i class="fa fa-fw fa-user"></i>关于</a>
+
+  </li>
+      <li class="menu-item menu-item-search">
+        <a role="button" class="popup-trigger"><i class="fa fa-search fa-fw"></i>搜索
+        </a>
+      </li>
+  </ul>
+
+</nav>
+  <div class="site-search">
+    <div class="popup search-popup">
+    <div class="search-header">
+  <span class="search-icon">
+    <i class="fa fa-search"></i>
+  </span>
+  <div class="search-input" id="search-input"></div>
+  <span class="popup-btn-close">
+    <i class="fa fa-times-circle"></i>
+  </span>
+</div>
+<div class="algolia-results">
+  <div id="algolia-stats"></div>
+  <div id="algolia-hits"></div>
+  <div id="algolia-pagination" class="algolia-pagination"></div>
+</div>
+
+  
+</div>
+<div class="search-pop-overlay"></div>
+
+  </div>
+</div>
+    </header>
+
+    
+
+  <span class="exturl github-corner" data-url="aHR0cHM6Ly9naXRodWIuY29tL0JlaUtlSmllRGVMaXVMYW5nTWFv" title="欢迎关注我的 GitHub" aria-label="欢迎关注我的 GitHub"><svg width="80" height="80" viewBox="0 0 250 250" aria-hidden="true"><path d="M0,0 L115,115 L130,115 L142,142 L250,250 L250,0 Z"></path><path d="M128.3,109.0 C113.8,99.7 119.0,89.6 119.0,89.6 C122.0,82.7 120.5,78.6 120.5,78.6 C119.2,72.0 123.4,76.3 123.4,76.3 C127.3,80.9 125.5,87.3 125.5,87.3 C122.9,97.6 130.6,101.9 134.4,103.2" fill="currentColor" style="transform-origin: 130px 106px;" class="octo-arm"></path><path d="M115.0,115.0 C114.9,115.1 118.7,116.5 119.8,115.4 L133.7,101.6 C136.9,99.2 139.9,98.4 142.2,98.6 C133.8,88.0 127.5,74.4 143.8,58.0 C148.5,53.4 154.0,51.2 159.7,51.0 C160.3,49.4 163.2,43.6 171.4,40.1 C171.4,40.1 176.1,42.5 178.8,56.2 C183.1,58.6 187.2,61.8 190.9,65.4 C194.5,69.0 197.7,73.2 200.1,77.6 C213.8,80.2 216.3,84.9 216.3,84.9 C212.7,93.1 206.9,96.0 205.4,96.6 C205.1,102.4 203.0,107.8 198.3,112.5 C181.9,128.9 168.3,122.5 157.7,114.1 C157.9,116.9 156.7,120.9 152.7,124.9 L141.0,136.5 C139.8,137.7 141.6,141.9 141.8,141.8 Z" fill="currentColor" class="octo-body"></path></svg></span>
+
+
+    <main class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          
+
+          <div class="content">
+            
+
+  <div class="posts-expand">
+      
+  
+  
+  <article itemscope="" itemtype="http://schema.org/Article" class="post-block " lang="zh-CN">
+    <link itemprop="mainEntityOfPage" href="https://www.beikejiedeliulangmao.top/linux/cache-and-swap/">
+
+    <span hidden="" itemprop="author" itemscope="" itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.jpg">
+      <meta itemprop="name" content="贝克街的流浪猫">
+      <meta itemprop="description" content="贝贝猫">
+    </span>
+
+    <span hidden="" itemprop="publisher" itemscope="" itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="贝克街的流浪猫">
+    </span>
+      <header class="post-header">
+        <h2 class="post-title" itemprop="name headline">
+          Linux 缓存与页交换
+        </h2>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="fa fa-calendar-o"></i>
+              </span>
+              <span class="post-meta-item-text">发表于</span>
+
+              <time title="创建时间：2019-10-29 09:39:38" itemprop="dateCreated datePublished" datetime="2019-10-29T09:39:38+08:00">2019-10-29</time>
+            </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="fa fa-folder-o"></i>
+              </span>
+              <span class="post-meta-item-text">分类于</span>
+                <span itemprop="about" itemscope="" itemtype="http://schema.org/Thing">
+                  <a href="/categories/Linux/" itemprop="url" rel="index">
+                    <span itemprop="name">Linux</span>
+                  </a>
+                </span>
+            </span>
+
+          
+            <span id="/linux/cache-and-swap/" class="post-meta-item leancloud_visitors" data-flag-title="Linux 缓存与页交换" title="阅读次数">
+              <span class="post-meta-item-icon">
+                <i class="fa fa-eye"></i>
+              </span>
+              <span class="post-meta-item-text">阅读次数：</span>
+              <span class="leancloud-visitors-count"></span>
+            </span><br>
+            <span class="post-meta-item" title="本文字数">
+              <span class="post-meta-item-icon">
+                <i class="fa fa-file-word-o"></i>
+              </span>
+                <span class="post-meta-item-text">本文字数：</span>
+              <span>25k</span>
+            </span>
+            <span class="post-meta-item" title="阅读时长">
+              <span class="post-meta-item-icon">
+                <i class="fa fa-clock-o"></i>
+              </span>
+                <span class="post-meta-item-text">阅读时长 ≈</span>
+              <span>23 分钟</span>
+            </span>
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+        <h2 id="引言"><a href="#引言" class="headerlink" title="引言"></a>引言</h2><p>本文整理了 Linux 内核中缓存与页交换的相关知识，其他 Linux 相关文章均收录于 <a href="https://www.beikejiedeliulangmao.top/categories/Linux">&lt;Linux系列文章&gt;</a>。</p>
+<a id="more"></a>
+
+<h2 id="缓存与页交换"><a href="#缓存与页交换" class="headerlink" title="缓存与页交换"></a>缓存与页交换</h2><p>从外部存储设备读取数据，比从物理设备读取数据要慢得多，因此 Linux 使用了缓存机制将已经读取的数据保存在内存中，供后续访问使用。而外部存储设备相较于内存来说容量一般大很多，所以当物理内存不够时，会将一部分物理内存中的内容暂存在外部存储中，在有需要的时候再取回来。这两个主题就是缓存与页交换，它们之间十分相似，又有很多联系，可以说缓存是页交换的逆操作，接下来我们就将详细地介绍一下它们。</p>
+<h3 id="页缓存和块缓存"><a href="#页缓存和块缓存" class="headerlink" title="页缓存和块缓存"></a>页缓存和块缓存</h3><p>缓存利用部分系统物理内存，确保最重要、最常使用的块设备数据在操作时可直接从主内存获取，而无须从低速设备读取。物理内存还用于存储从块设备读取的数据，使得随后对该数据的访问可直接在物理内存进行，而无须从外部设备内取用。</p>
+<p>当然，这项工作是透明的，应用程序不会也不能注意到数据来源方面的差别。数据并非在每次修改后都立即写回，而是在一定的时间间隔之后才进行回写，时间间隔的长度取决于多种因素，如空闲物理内存的容量、物理内存中数据的利用率，等等。在进行回写时，单个的写请求会被收集起来，并打包进行，这在总体上花费的时间较少，因而，延迟写操作在总体上改进了系统性能，这就是我们前面介绍块设备时提到的 IO 调度。</p>
+<p>但是，缓存也有负面效应，我们必须审慎地使用它：</p>
+<ul>
+<li>通常，物理内存的容量比块设备小得多，因而只能缓存仔细挑选的部分数据。</li>
+<li>用于缓存的内存区不能分配给“普通”的应用程序使用，这就减少了实际上可用的物理内存容量。</li>
+<li>如果系统崩溃(例如，由于停电)，缓存包含的数据可能没有写回到底层的块设备。这造成了不可恢复的数据丢失。</li>
+</ul>
+<p>内核为块设备提供了两种通用的缓存，它们分别是：</p>
+<ul>
+<li>页缓存(page cache)针对以页为单位的所有操作，并考虑了特定体系结构上的页长度。因为其他类型的文件访问也是基于内核中的页缓存实现的，所以页缓存实际上负责了块设备的大部分缓存工作。</li>
+<li>块缓存(buffer cache)以块为操作单位。在进行 I/O 操作时，存取的单位是设备的各个块，而不是整个内存页，尽管页长度对所有文件系统都是相同的，但块长度取决于特定的文件系统或其设置。因而，块缓存必须能够处理不同长度的块。</li>
+</ul>
+<p>在许多场合下，页缓存和块缓存是联合使用的，一个缓存的页可以在写操作期间划分为不同的缓冲区（写操作时也被称为缓冲区），这样可以更加细粒度地进行修改，而在数据回写时，可以只回写被修改的缓冲区，而无需将整个页都传输回底层设备。</p>
+<h4 id="页缓存"><a href="#页缓存" class="headerlink" title="页缓存"></a>页缓存</h4><p>我们知道页缓存的任务是通过一些物理内存页，加速在块设备上按页为单位执行的操作。页缓存的运作方式对用户应用是透明的，应用无法感知数据来自页缓存还是块设备，read 和 write 系统调用的结构相同。在访问外部存储数据时，会先检查缓存中是否存在需要的数据，如果不存在的话，才会从块设备中读取到内存中，读入内存后，该页就会被插入到缓存中，因而后续访问可以快速完成。</p>
+<p>这里，我们需要尽可能地减小搜索页缓存的时间，这样我们的缓存才有价值，Linux 通过基数树来管理页缓存中的页。下图就展示了基数树中如何组织各个页缓存，值得注意的是，该树并不是自平衡的，树的不同分支之间可能有任意高度差。<br><img src="/images/loading-cat.gif" data-original="https://bbm-hexo.oss-accelerate.aliyuncs.com/images/linux/page-cache-tree.png" alt="page-cache-tree"><br>树的根记录了树的高度和第一个树干节点的指针，叶子节点内存页，树干节点本质上是一个数组，数组的长度一般是 64，上图为了化简所以只画出了 5 个的数组元素，除此之外每个树干节点上还会有一个 Count 记录数组中的元素数目，同时每个树节点具有两个搜索标记，一个用来标记给定页当前是否是脏的，另一个用来标识该页是否正在进行回写，标记不仅对直接树干节点设置，还会一直向上设置到根节点，如果某个层次 n+1 设置了某个标记，那么其在 n 层的父节点也会设置该标记，通过它可以快速确认某个区域是否有脏页或者正在回写的页。</p>
+<p>因为树干节点的数组长度是固定的，所以当树的高度确定时，我们就能计算出该树所能容纳的节点数目。当树的高度为 N 时，能容纳的叶子节点数就有 64 的 N 次方。我们可以通过一个整数（实际上就是页偏移，该整数的每 6 位代表了基数树中一层的槽下标）作为 key 来标识树中的所有节点，就以上图中最右边的内存页为例，它的 key 为 43，因为我们可以通过第一层的 4 号槽 + 第二层的 3 号槽定位到它，在树中查找元素就通过这个 key 进行。因为不同树高所能容纳的最大节点数是固定的，所以如果我们使用的 key 为 32 位时，树的最大高度就是 6，如果使用的 key 为 64 位时，树的最大高度为 11，当向树中插入节点时发现树高不够时，就会增加树的高度，增加树高的方式也很简单，就是在临近树根的地方增加一层，并将原来与树根相连的节点放到新节点的 0 号槽上，这样树的容量就扩大了 64 倍。</p>
+<p>由于页缓存的存在，所以写操作并不是直接对块设备进行，而是在内存中进行，修改的数据先收集起来，然后被传输到更底层的块设备 I/O 调度中，在那里对写操作进行进一步优化。不过块 I/O 层的内容我们前面已经介绍过了（I/O 操作排队执行，并且调度算法可能会进行操作的重排与合并来加快 I/O 执行效率），所以这里我们主要关心页缓存的数据在什么时机进行回写。对于这个问题，在运行不同的应用中可能追求的效果并不相同，为了迎合各种场景，内核提供了如下几种同步方案：</p>
+<ul>
+<li>内核有几个守护进程（pdflush），它们周期性地激活，负责扫描缓存中的页，并将一定时间没有与底层设备同步的页回写。</li>
+<li>如果缓存中修改的数据项在短时间内激增，内核会主动激活 pdflush（增加激活频率）。</li>
+<li>提供相关的系统调用，可由用户进程决定何时回写未同步的数据，例如 sync 调用。</li>
+</ul>
+<p>内核通过 address_space 管理缓存页与块设备之间的关系，大家还记得么，在页缓存的 page 数据结构中保存了从属的 address_space 对象指针以及在从属文件中的页偏移，而 address_space 对象中保存了对某一文件的内存映射关系，address_space 就是通过上述的基数树来管理文件的内存映射（页缓存），而基数树节点对应的 key 正是该页数据在文件中的偏移。</p>
+<figure class="highlight cpp"><table><tbody><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br></pre></td><td class="code"><pre><span class="line"><span class="class"><span class="keyword">struct</span> <span class="title">page</span>{</span></span><br><span class="line">    <span class="keyword">unsigned</span> <span class="keyword">long</span>           flags;</span><br><span class="line">    <span class="keyword">atomic_t</span>                _count;</span><br><span class="line">    <span class="keyword">atomic_t</span>                _mapcount;</span><br><span class="line">    <span class="keyword">unsigned</span> <span class="keyword">long</span>           <span class="keyword">private</span>;</span><br><span class="line">    <span class="class"><span class="keyword">struct</span> <span class="title">address_space</span>    *<span class="title">mapping</span>;</span> <span class="comment">// 地址空间</span></span><br><span class="line">    <span class="keyword">pgoff_t</span>                 index;  <span class="comment">// 页偏移</span></span><br><span class="line">    <span class="class"><span class="keyword">struct</span> <span class="title">list_head</span>        <span class="title">lru</span>;</span></span><br><span class="line">    <span class="keyword">void</span>                    *<span class="keyword">virtual</span>;</span><br><span class="line">};</span><br><span class="line"><span class="class"><span class="keyword">struct</span> <span class="title">address_space</span>{</span></span><br><span class="line">    <span class="class"><span class="keyword">struct</span> <span class="title">inode</span>            *<span class="title">host</span>;</span>            <span class="comment">//所有者：inode或块设备，在 inode 的结构中也保存了其对应的 address_space 对象</span></span><br><span class="line">    <span class="class"><span class="keyword">struct</span> <span class="title">radix_tree_root</span>  <span class="title">page_tree</span>;</span>        <span class="comment">//所有页的基数树</span></span><br><span class="line">    <span class="keyword">unsigned</span> <span class="keyword">int</span>            i_mmap_wrutable;  <span class="comment">//VM_SHAREAD映射的计数</span></span><br><span class="line">    <span class="class"><span class="keyword">struct</span> <span class="title">prio_tree_root</span>   <span class="title">i_mmap</span>;</span>           <span class="comment">//私有和共享映射的树</span></span><br><span class="line">    <span class="class"><span class="keyword">struct</span> <span class="title">list_head</span>        <span class="title">i_mmap_nonlinear</span>;</span> <span class="comment">//VM_NONLINEAR映射的链表元素</span></span><br><span class="line">    <span class="keyword">unsigned</span> <span class="keyword">long</span>           nrpages;          <span class="comment">//页的总数</span></span><br><span class="line">    <span class="keyword">pgoff_t</span>                 writeback_index;  <span class="comment">//回写由此开始</span></span><br><span class="line">    <span class="class"><span class="keyword">struct</span> <span class="title">address_space_operations</span>  *<span class="title">a_ops</span>;</span>  <span class="comment">//方法，即地址空间操作</span></span><br><span class="line">    <span class="keyword">unsigned</span> <span class="keyword">long</span>           flags;            <span class="comment">//错误标志位/gfp掩码</span></span><br><span class="line">    <span class="class"><span class="keyword">struct</span> <span class="title">backing_dev_info</span> *<span class="title">backing_dev_info</span>;</span><span class="comment">//设备预读</span></span><br><span class="line">    <span class="class"><span class="keyword">struct</span> <span class="title">list_head</span>;</span>       private_list;</span><br><span class="line">    <span class="class"><span class="keyword">struct</span> <span class="title">address_space</span>    <span class="title">private_list</span>;</span></span><br><span class="line">} __attribute__((aligned(<span class="keyword">sizeof</span>(<span class="keyword">long</span>))));</span><br></pre></td></tr></tbody></table></figure>
+
+<p>读文件时，首先通过要读取的文件内容的字节偏移量 offset 计算出要读取的页偏移 index =（offset / page_size），然后通过该文件的 inode 找到这个文件对应的地址空间 address_space，然后在 address_space 中的基数树中通过页偏移 index 找到对应的页缓存，如果页缓存命中，那么直接返回文件内容，如果页缓存缺失，那么产生一个页缺失异常，创建一个页缓存页，然后从磁盘中读取相应文件的页填充该缓存页，随后从页缺失异常中恢复，继续往下读。</p>
+<p>写文件时，首先通过所写内容在文件中的字节偏移量 offset 计算出相应的页偏移 index =（offset / page_size），然后还是通过 inode 找到 address_space，通过 address_space 的基数树根据页偏移 index 找到对应的页缓存，如果页缓存命中，直接把文件内容修改更新在页缓存的页中。写文件就结束了。这时候文件修改位于页缓存，并没有写回到磁盘文件中去。</p>
+<p>一个页缓存中的页如果被修改，那么会被标记成脏页。脏页需要写回到磁盘中的文件块。一般是通过 pdflush 守护进程或者主动 sync 的方式回写到块设备中。</p>
+<p>现在，当我们再回到介绍 VFS 时用到的各组件关系图时，就能很容易的将各个部分串联起来了，进程通过文件描述符管理打开的文件，文件又会指向对应的 inode 实例，inode 中又指向了 address_space 对象，其中的 page_tree 记录了文件的缓存，在进行文件读写时实际上是在读写缓存的内容。<br><img src="/images/loading-cat.gif" data-original="https://bbm-hexo.oss-accelerate.aliyuncs.com/images/linux/vfs-all-kinds-of-component.png" alt="vfs-all-kinds-of-component"><br>在进行回写时，又会通过 inode 找到文件从属的块设备，根据块设备使用的文件系统的不同会以不同的方式组织硬盘的数据块，在文件系统的下层是块设备的 I/O 层，这里会涉及到 I/O 的调度过程，最后通过块设备驱动将数据传到硬盘中，这里又涉及到总线的传输协议。<br><img src="/images/loading-cat.gif" data-original="https://bbm-hexo.oss-accelerate.aliyuncs.com/images/linux/block-io.png" alt="block-io"><br>通常，修改文件或其他按页缓存的对象时，只会修改页的部分，而非全部。这就在数据同步时引起了一个问题。将整页写回到块设备是没有意义的，因为内存中该页的大部分数据仍然与块设备是同步的。为节省时间，内核在写操作期间，将缓行中的每页划分为较小的单位，称为缓冲区。在同步数据时，内核可以将回写操作限制在那些实际发生了修改的较小的单位上。因而，页缓存的思想没有受到危害。</p>
+<p>最后让我们简单地介绍一下预读的过程，我们知道在我们读取一个文件的数据时，一般并不会只读取一页数据，而是顺序读取多页，就下例而言，假如我们想要读取第一页，这时候内核会一次读取 8 页，这 8 页被称为一个预读窗口，然后我们读完第一页之后继续向后读，这时候内核的预读过程就带来了实质性的性能提升，当我们访问到第 6 页时（注意该页也在预读窗口中），因为预读过程会在预读窗口的其中一页中设置 PG_Readahead 标志，而第 6 页就设置了该标志，读取第六页时会触发一个异步读取过程，因为在第六页之后还有几页在内存中，所以这里没必要使用一个同步读取过程，而后台进行的 I/O 操作将确保进程的进一步读取时，相关页已经进入缓存，之后预读的内容也会在其中一页设置 PG_Readahead 标志，如此不断重复以完成整个文件的预读过程。</p>
+<h4 id="块缓存"><a href="#块缓存" class="headerlink" title="块缓存"></a>块缓存</h4><p>内核的早期版本只包含了块缓存，来加速文件操作和提高系统性能。这是来自于其他具有相同结构的类 UNIX 操作系统的遗产。与内存页相比，块不仅比较小(大多数情况下)，而且长度是可变的，依赖于使用的块设备(或文件系统)。</p>
+<p>但是，现在更加倾向于使用基于页操作实现的通用文件存储方法，块缓存作为中枢系统缓存的重要性已经逐渐失去，现在主要的缓存任务由页缓存承担。现在使用块缓冲的地方很少，一般在处理小数据时才会使用，例如处理文件系统的元数据时，通常会使用此类方法。</p>
+<p>块缓存在结构上由两部分构成：</p>
+<ol>
+<li>缓冲头(buffer head) 包含了与缓冲区状态相关的所有管理数据，包括块号、块长度、访问计数器等。</li>
+<li>实际缓存数据保存在专门分配的页中，这些页也可能同时存在于页缓存中，这进一步细分了页缓存。在下例中，页被划分为 4 个长度相同的部分，每一部分由其自身的缓冲头描述。缓冲头存储的内存区域与实际数据存储的区域是无关的。</li>
+</ol>
+<p><img src="/images/loading-cat.gif" data-original="https://bbm-hexo.oss-accelerate.aliyuncs.com/images/linux/page-block-cache.png" alt="page-block-cache"><br>实际上在 Linux 2.6 中，才将块缓的数据区存合并到页缓存中，之前的版本中这两部分缓存数据是分别管理的，所以需要显式的同步，而现在这种块缓存管理方式，会导致当某一块数据既存在页缓存又存在块缓存时，块缓存在页缓存的内部，这样当修改块缓存时，页缓存也跟着得到了修改，不需要显式地同步。</p>
+<p>但这并不意味着，块缓存完全在页缓存的管理范围内，这里只是说它们的数据部分是整合在一起的，而管理机制是独立的两套机制。在读取文件系统的超级块时，使用的就是块缓存，而不是页缓存。块缓存的运作是独立于页缓存的，而不是在其基础上建立的。它的管理方式比较简单，所有缓存头都管理在一个长度恒定的数组中，各个数组项按照 LRU（最近最少使用）方式管理，当一个数组项用过之后，将其置于索引 0 位置，其他项下移，这样最常用的缓存就会处于数组的开头，而不常用的就会处于数组的末尾，如果长时间不使用，就会掉出数组，继而这部分内存就会被回收。</p>
+<h4 id="地址空间"><a href="#地址空间" class="headerlink" title="地址空间"></a>地址空间</h4><p>接下来我们介绍一下前面提到的地址空间 address_space，在之前的例子中 address_space 只与文件 inode 关联，描述文件内容与缓存的映射关系，但是实际上地址空间是一个更通用的接口，这使得缓存也能容纳其他源的数据并快速访问，比如它也可以和块设备关联（某一硬盘分区），对缓存的回写会直接回写到块设备上而不是块设备的某一文件中。</p>
+<p>前面我们提到过，内存中的页会被分配到一个地址空间中，这些页内的数据就是缓存的内容。而后备存储器标识了一个地址空间中的页的数据来源。我们知道，物理内存页实际上也会映射到处理器的虚拟地址空间中，当访问虚拟内存的某一区域时，发现该位置没有关联到物理内存页，内核可根据地址空间结构来找到读取数据的来源。<br><img src="/images/loading-cat.gif" data-original="https://bbm-hexo.oss-accelerate.aliyuncs.com/images/linux/address-space-relationship.png" alt="address-space-relationship"></p>
+<h3 id="数据同步"><a href="#数据同步" class="headerlink" title="数据同步"></a>数据同步</h3><p>物理内存和硬盘空间在很大程度上是可以互换的。如果有大量的物理内存是空闲的，则内核使用一部分内存来缓冲块设备的数据，反过来，如果物理内存太少，可以将数据换出内存，转移到磁盘空间。二者有个共同点，数据总是在物理内存中操作，随后在随机的时间点写回(或刷出)到磁盘，以持久保存修改。在这里，块存储设备通常称为物理内存的后备存储器。</p>
+<p>前面我们讨论了 Linux 提供的各种缓存方法，但是并没有详细介绍缓存是如何回写的，这里我们开始详细地介绍它们。</p>
+<ol>
+<li>后台线程重复检查系统内存的状态，周期性地回写数据。</li>
+<li>在系统缓存中脏页过多，而内核需要干净页的情况下，将进行显式刷出。</li>
+</ol>
+<p>在页的刷出(flushing)、交换(swapping)、释放(releasing)操作之间，有着明确的关系。不仅需要定期检查内存页的状态，还需要检查空闲内存的大小。在完成检查后，未使用或很少使用的页将自动换出，但在换出前，其中包含的数据将与后备存储器同步，以防数据丢失。对动态生成的页，系统交换区充当后备存储器。对映射自文件的页来说，其交换区就是底层文件系统中与页对应的部分。如果内存发生严重的不足，必须强制刷出脏数据，以获得干净的页。</p>
+<p>同步和交换不能彼此混淆。同步只保证物理内存中保存的数据与后备存储器一致，而交换将导致从物理内存刷出数据，以释放空间，用于优先级更高的事项。在数据从物理内存清除之前，将与相关的后备存储器进行同步。</p>
+<p>内核可能因不同原因、在不同的时机触发不同的刷出数据的机制。</p>
+<ul>
+<li>周期性的内核线程，将扫描脏页的链表，并根据页变脏的时间，来选择一些页写回。如果系统不是太忙于写操作，那么内核会在脏页的数目，以及刷出页所需的硬盘访问操作对系统造成的负荷之间，维持一个平衡。</li>
+<li>如果系统中的脏页过多(一个大型的写操作可能造成这种情况)，内核将触发进一步的机制对脏页与后备存储器进行同步，直至脏页的数目降低到个可接受的程度。</li>
+<li>内核的各个组件可能要求数据必须在特定事件发生时同步，例如在重新装载文件系统时。</li>
+</ul>
+<p>前两种机制是通过 pdflush 实现的，该线程执行同步代码，而第三种机制散落在内核中的多处代码中。</p>
+<h4 id="pdflush-机制"><a href="#pdflush-机制" class="headerlink" title="pdflush 机制"></a>pdflush 机制</h4><p>前面我们说过系统中会有几个 pdflush 守护线程来负责数据的同步，实际上 pdflush 线程的数量是随着系统负载动态变化的。一般来说最大存在 8 个，最小存在 2 个。如果 1 秒内所有 pdflush 线程都处于繁忙状态，那么就会增加一个新线程，反之如果一个线程空闲了超过 1 秒，就会被销毁，但是线程的总数受最大存在数和最小存在数的限制。</p>
+<p>这里为什么需要多个 pdflush 线程呢？现在的系统中通常都有多个块设备，如果只有一个 pdflush 线程并且它忙着给其中一个块设备进行回写时，另一个块设备的写入请求就会一直排队等待，所以我们才需要多个 pdflush 线程，内核期望这些块设备都忙于回写而不是空闲等待。因为不同的块设备有不同的队列，因此数据可以并行写入。这时候，数据传输速率主要受限于 I/O 带宽，而不是硬件 CPU 上的计算能力。下图概述了 pdflush 线程和回写队列之间的关系。pdflush 线程数目是动态变化的，而这些线程有的负责多条 I/O 队列，而有些 I/O 队列是由多个 pdflush 线程一起处理的。<br><img src="/images/loading-cat.gif" data-original="https://bbm-hexo.oss-accelerate.aliyuncs.com/images/linux/pdflush-io-queue.png" alt="pdflush-io-queue"><br>在一个 pdflush 线程启动后会被置入一个全局链表 pdflush_list 中，然后 pdflush 线程进入睡眠并记录进入睡眠的时间点，当需要为 pdflush 派发实际的工作任务时，会从 pdflush_list 中挑出一个线程（从列表中移除），为其指定工作（目标函数）并调度它。如果派发任务时发现当前列表 pdflush_list 中的剩余线程数为 0，指派任务的过程会失败并返回 -1。同时，当 pdflush_list 剩余线程数为 0 时也会记录当前时间，这样在任意一个 pdflush 线程执行完目标任务后，可以根据 pdflush_list 剩余线程数为 0 的时间，来决定是否创建新的线程（数目为 0 超过 1 秒）此外，如果 pdflush_list 存在线程，就会检查 pdflush_list 中的线程睡眠时间超过 1 秒，如果有任意一个线程睡眠超过 1 秒，则销毁该线程，这很像线程池的工作方式。</p>
+<p>既然 pdflush 线程实际上相当于一个线程池，那么在这个线程池中，实际的工作内容是什么样的呢？前面我们也说过了，这里有两个方案，一个是周期性回写，一个是强制回写。接下来我们先介绍一下周期性回写。</p>
+<h4 id="周期性回写"><a href="#周期性回写" class="headerlink" title="周期性回写"></a>周期性回写</h4><p>周期性回写的机制通过一个定期激活组件控制，之后我们会介绍内核如何进行周期性的任务触发，这里我们只需要知道内核有机制能保证周期性的函数调用。内核默认会每隔 5 秒钟执行一次周期性回写函数，这个周期性回写函数需要在一个空闲的 pdflush 线程上运行，如果当前没有空闲的 pdflush 线程，那么内核会 1 秒后重新尝试，还记得吗？pdflush 线程默认 1 秒增加一个，它们之间是有联系的。</p>
+<p>周期性回写函数在执行的过程中，对哪些页进行回写呢，实际上并非所有的脏页都会进行回写，因为在回写期间 inode 是需要锁定的，所以脏页会分为小组进行处理，以防止对单个 inode 的过度阻塞，进而影响系统的性能。每次周期性回写过程默认只会回写那些超过 30 秒未回写的脏页，而且一次回写过程默认最多回写 1024 页，然后就会结束，等 5 秒后才会再次被激活。</p>
+<p>除了周期性的触发上述回写过程之外，内核还会计算内存中脏页的比例，当在进行 write 系统调用时发现当前脏页的比例达到了 10%（默认），也会触发上述的过程，该过程也是异步的通过 pdflush 线程进行，之后 write 系统调用会返回。之所以这么做是因为周期性回写默认 5 秒触发一个，也就是说超过 30 秒的脏页最多可能延迟 5 秒后才会被处理，所以在 write 系统调用时根据当前脏页比例，主动触发后台的回写过程，有助于控制脏页的比例。</p>
+<h4 id="强制回写"><a href="#强制回写" class="headerlink" title="强制回写"></a>强制回写</h4><p>在系统负荷不高时，上述的后台回写过程工作的还很不错，内核能尽量确保脏页的数目不会失去控制，并且物理内存与底层块设备之间，数据充分的得到交换。但是，当进行频繁的写操作时，情况就不一样了。</p>
+<p>在内核接收到对内存的紧急请求，而同时因为有大量脏页而不能满足该请求时，内核必须设法尽快将脏页的内容传输到块设备，以尽快释放物理内存用于其他目的。在这种情况下，使用的方法与后台刷出数据所用的方法是相同的，但同步操作不是由周期性过程发起，而是由内核显式触发，换句话说，这种回写是“强制”的，此外在这个时候，回写的页也不再要求已经脏了一段时间了（30 秒），而是任何脏页都可以被回写。在申请内存时，如果内存不足，会进行强制回写，它会每次回写 1024 页直到内存够用为止。除此之外 write 系统调用也会在脏页比例超过 40%（默认）时进行同步的强制回写，直到脏页比例下降到 40% 以下为止，在这个过程中 write 不会返回而是会阻塞。</p>
+<h4 id="系统调用同步"><a href="#系统调用同步" class="headerlink" title="系统调用同步"></a>系统调用同步</h4><p>除了上述内核控制的回写过程外，我们还可以从用户空间通过各种系统调用来启用内核同步机制，以确保内存和块设备之间(完全或部分)的数据完整性。有如下 3 个基本选项可用。</p>
+<ol>
+<li>使用 sync 系统调用刷出整个缓存内容。在某些情况下，这可能非常耗时。</li>
+<li>各个文件的内容(以及相关 inode 的元数据)可以被传输到底层的块设备。内核为此提供了 fsync（回写元数据） 和 fdatasync（不回写元数据） 系统调用。</li>
+<li>msync 用于同步内存映射。</li>
+</ol>
+<h3 id="页面回收和页交换"><a href="#页面回收和页交换" class="headerlink" title="页面回收和页交换"></a>页面回收和页交换</h3><p>要满足用户的需求，或一直满足内存密集型应用程序的需求，无论计算机上可用的物理内存有多少，都是不够的。因而，内核将很少使用的部分内存换出到块设备，这相当于提供了更多的主内存。这种机制称为页交换(swapping)或换页(paging)，由内核实现，它对应用程序是透明的。但页交换不是从内存逐出页的唯一机制。如果一个很少使用的页的后备存储器是一个块设备(例如，文件的内存映射)，那么就无须换出被修改的页，而是可以直接与块设备同步。腾出的页帧可以用在其他地方，如果再次需要该数据，可以从来源重新建立该页。如果页的后备存储器是一个文件，但不能在内存中修改(例如，二进制可执行文件的数据)，那么在当前不需要的情况下，可以直接丢弃该页。这三种技术，连同选择很少使用页的策略，统称为页面回收(page reclaim)。请注意，分配给核心内核(即并非用于缓存)的页是不能回收的，因为这种做法带来的复杂性的增加，将超出其好处。</p>
+<p>除此之外，缓存的长度从来都不是固定的，可以根据需要增长（没有使用的物理内存，与其浪费，还不如用来缓存一些数据）。但如果一些重要的任务需要被缓存占用的内存，内核将回收这部分缓存使用到的内存以支持这些需求。接下来我们将介绍页交换和页面回收的实现。</p>
+<p>前面我们描述了数据与底层块设备的同步，这能够缓解内核在可用物理内存达到极限时所面临的态势。将缓存的数据回写，可以释放一些内存，以便将物理内存用于更重要的功能。所涉及的数据可以在需要时从块设备再次读取，虽然会花费时间，但不会丢失信息。但是该过程也有其局限性。在某些时候，缓存和缓冲区都不能再收缩。而且数据同步对动态产生的内存页是不适用的，因为这种页没有后备存储器。对于这类内存，我们就需要使用交换区来保存内存中的数据。</p>
+<p>这里我们只有少数的几类内存页需要换出到交换区，而其他有后备存储器的页，直接换出到对应的后备存储器即可。</p>
+<ol>
+<li>进程的栈或者匿名映射的内存区</li>
+<li>私有映射，映射修改后不向底层块设备回写的文件，通常需要换出到交换区</li>
+<li>进程堆以及使用 malloc 分配的页</li>
+<li>用于实现某些进程间通讯的页，例如共享内存</li>
+</ol>
+<p>内核使用的页绝对不会换出，我们之前也讨论过相关的问题，这是内核设计时定的一个规则，如果内核内存可以换出，会增加内核代码的复杂度，而且内核也不需要非常多的内存，和换出内核内存所带来的额外工作量相比，将内核内存换出所带来的好处实在是太少了。</p>
+<p>此外，将外设映射到内存空间的页也不会换出，因为这些页是用作应用程序与设备间通讯的手段，而并非用于持久存储数据。</p>
+<p>因为在通常的系统中硬盘容量比物理内存空间大很多，内核连同处理器(处理器管理的虚拟地址空间比实际存在的物理内存要大很多)可以征用部分磁盘，用作内存的扩展。由于硬盘比物理内存慢很多，页交换只是在紧急情况下的备用方案，它使得系统可以运行，但速度会降低很多。</p>
+<p>在实现页交换和页面回收时，我们主要考虑如下问题：</p>
+<ol>
+<li>换出的页在硬盘中如何组织，内核如何将页写入交换区</li>
+<li>何时将多少页换出，内核必须维持空闲页帧与换出操作所需时间的均衡</li>
+<li>哪些页需要被回收，怎么让性能损失最小化，如果交换区和物理内存之间频繁的交换（也称为页颠簸），则效率就会很差</li>
+<li>如果后续要使用该数据，如何将页从交换区换回到物理内存中</li>
+<li>哪些缓存可以被删除，当系统内存不足时需要缩减缓存的数据</li>
+</ol>
+<p>接下来我会先介绍一下交换区的管理方案，然后再介绍页面回收的完整过程，这里我不会再介绍页缓存回写之后回收内存页的情况，因为我们前面花了很大的篇幅来解释相关的知识，但是我们心里要清楚地明白：整个这套内存回收的机制不仅适用于有后备存储的页（回写文件）和还适用于无后备存储的页（交换区）。它们唯一的区别是内核决定将页从内存移除时，页数据所写入的位置。如果一个页有后备存储，那么在回收该页时，会写出到后备存储器中，而其他页会写入到交换区中。</p>
+<h4 id="管理交换区"><a href="#管理交换区" class="headerlink" title="管理交换区"></a>管理交换区</h4><p>换出的页可以保存在一个没有文件系统的专用分区中，也可以存储在某个现存文件系统中的一个定长文件中。而且系统中还可以同时存在多个交换区。还可以根据各个交换区的速度不同，为其指定优先级。内核使用交换区时可以根据优先级进行选择。如果使用了几个优先级相同的交换区，内核将使用循环的方式来确保尽可能均匀地利用各个交换区。如果交换区的优先级不同，内核首先使用高优先级的交换区，当高优先级的交换区不够时，才会逐渐转移到优先级较低的交换区。</p>
+<p>我们可以通过 proc 文件系统来查看交换分区的状态，下例中我们使用了一个专用分区和 2 个文件来容纳交换区，交换分区的优先级最高，因而内核会优先使用它，而两个文件的优先级较低，都是 0，当交换分区用尽后，内核会均匀地使用这两个交换文件。</p>
+<figure class="highlight bash"><table><tbody><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">cat /proc/swaps</span><br><span class="line">Filename                Type        Size    Used    Priority</span><br><span class="line">/dev/hda5               partition   136512  96164   1</span><br><span class="line">/mnt/swap1              file        65556   6432    0</span><br><span class="line">/tmp/swap2              file        65556   6432    0</span><br></pre></td></tr></tbody></table></figure>
+
+<p>每个交换区都细分为若干连续的槽(slot)，每个槽的长度刚好与系统的一个页帧相同。在大多数处理器上，一个页的长度是 4KB。本质上，系统中的任何一页都可以容纳到交换区的任一槽中。但内核还使用了一种称为聚集(clustering)的方案，使得内存数据能够尽快交换到交换区。进程内存区中连续的页(或者一次换出过程中涉及到的页)将按照特定的聚集大小(通常是256页)逐一写到硬盘上。如果交换区中没有那么大的空间来容纳此长度的聚集，内核才会将聚集打散，然后使用不连续的空闲槽位。</p>
+<p>为跟踪交换分区的使用情况，内核必须维护一些数据结构，将该信息保存在内存中，其中最重要的数据成员是一个位图，用于跟踪交换区中各槽位的使用空闲状态。同时，为了更加高效进行槽位查询，该结构中还包括了其他数据内容，我们接下来就来介绍一下它。</p>
+<figure class="highlight cpp"><table><tbody><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br></pre></td><td class="code"><pre><span class="line"><span class="class"><span class="keyword">struct</span> <span class="title">swap_info_struct</span> {</span></span><br><span class="line">        <span class="keyword">unsigned</span> <span class="keyword">int</span> flags; <span class="comment">/* 交换区的状态，是否可用等 */</span></span><br><span class="line">        <span class="keyword">int</span> prio;   <span class="comment">/* 交换区的优先级 */</span></span><br><span class="line">        <span class="class"><span class="keyword">struct</span> <span class="title">file</span> *<span class="title">swap_file</span>;</span> <span class="comment">/* 如果是交换分区，则指向设备文件的 file 对象，如果是交换文件，则指向对应文件的 file 对象 */</span></span><br><span class="line">        <span class="class"><span class="keyword">struct</span> <span class="title">block_device</span> *<span class="title">bdev</span>;</span> <span class="comment">/* 底层块设备 */</span></span><br><span class="line">        <span class="class"><span class="keyword">struct</span> <span class="title">list_head</span> <span class="title">extent_list</span>;</span> <span class="comment">/* 管理槽位到交换文件块号之间的映射关系，后面介绍 */</span></span><br><span class="line">        <span class="class"><span class="keyword">struct</span> <span class="title">swap_extent</span> *<span class="title">curr_swap_extent</span>;</span> <span class="comment">/* 管理槽位到交换文件块号之间的映射关系，后面介绍 */</span></span><br><span class="line">        <span class="keyword">unsigned</span> <span class="keyword">short</span> * swap_map; <span class="comment">/* short 数组，保存了交换映射，数组的长度和槽总数相同，每一项对应了一个槽，数组中的每项保存了共享该槽的换出页的进程数，为 0 时表示该槽未使用 */</span></span><br><span class="line">        <span class="keyword">unsigned</span> <span class="keyword">int</span> lowest_bit; <span class="comment">/* 减少扫描时间，记录了最低可用槽位的下标 */</span></span><br><span class="line">        <span class="keyword">unsigned</span> <span class="keyword">int</span> highest_bit; <span class="comment">/* 减少扫描时间，记录了最高可用槽位的下标 */</span></span><br><span class="line">        <span class="keyword">unsigned</span> <span class="keyword">int</span> cluster_next; <span class="comment">/* 现存聚集中接下来可以使用的槽位的下标 */</span></span><br><span class="line">        <span class="keyword">unsigned</span> <span class="keyword">int</span> cluster_nr; <span class="comment">/* 聚集中仍然可以使用的槽位数，当消耗了空闲槽位后，必须新建一个聚集，如果交换区不够容纳一个聚集，则会采用更细粒度分配方式 */</span></span><br><span class="line">        <span class="keyword">unsigned</span> <span class="keyword">int</span> pages; <span class="comment">/* 可用槽位数 */</span></span><br><span class="line">        <span class="keyword">unsigned</span> <span class="keyword">int</span> max;   <span class="comment">/* 最大槽位数 */</span></span><br><span class="line">        <span class="keyword">unsigned</span> <span class="keyword">int</span> inuse_pages; <span class="comment">/* 使用中的槽位数 */</span></span><br><span class="line">        <span class="keyword">int</span> next;       <span class="comment">/* 交换区列表中的下一项 */</span></span><br><span class="line">};</span><br></pre></td></tr></tbody></table></figure>
+
+<p>在上述结构中，extent_list 和 curr_swap_extent 用来管理交换区槽位与交换文件磁盘块之间的映射关系，当我们使用交换区时，不需要使用它，因为一个分区的磁盘块是线性排列的，因而槽位与交换区磁盘块的映射关系很简单，只需要知道起始块号就够了。而交换文件则复杂得多，因为一个文件的所有块在磁盘上并不一定是连续的，因此，我们需要一个链表将交换文件的各个磁盘块串联起来，就以下图为例，交换文件由 3 个部分组成，每个部分包括一串连续的磁盘块（分别包含 3，10，7 页），但是这三个部分并不是首尾相连的（它们的起始块号分别是 A，B，C）。<br><img src="/images/loading-cat.gif" data-original="https://bbm-hexo.oss-accelerate.aliyuncs.com/images/linux/exchange-file-extent-list.png" alt="exchange-file-extent-list"><br>因为当交换文件很大时，上述的链表会很长，为了减少检索时间，内核会将上次检索用到的 swap_extent 对象保存在 curr_swap_extent 中，下次检索时会从该 swap_extent 开始检索，这样通常能很快的找到目标。如果没有找到目标，内核就要挨个检索所有 swap_extent 才能找到目标磁盘块的位置。</p>
+<p>有两个用户空间工具可用于创建和启用交换区，分别是 mkswap(用于“格式化”一个交换分区/文件) 和 swapon(用于启用个交换区)，这里就不展开介绍了。</p>
+<h4 id="交换缓存"><a href="#交换缓存" class="headerlink" title="交换缓存"></a>交换缓存</h4><p>在交换子系统中，内核使用了另一个缓存，称为交换缓存，该缓存在选择换出页与实际执行页交换之间充当一个协调者的角色。乍看之下，这一层好像很奇怪，不知道它的意义是什么，我将以下图来介绍内存页换入换出的过程，介绍完大家就明白交换缓存的意义了。<br><img src="/images/loading-cat.gif" data-original="https://bbm-hexo.oss-accelerate.aliyuncs.com/images/linux/swap-cache.png" alt="swap-cache"><br>先说说物理内存换出的过程，首先内核会在一定的条件下才会触发页面回收过程，就像内核进行页缓存的回写一样，分为周期性触发和主动触发。这个过程我们下一小节就介绍，这里明白内核会在一定是时机才触发页面回收的逻辑就够了。</p>
+<p>当页面回收进行时，内核通过一定的策略选择了一些页要进行回收，这时候交换缓存的意义并不大，因为交换缓存是换出页与实际回写过程之间的协调者，所以在交换缓存负责了空闲交换槽的分配，这设计到有聚集优先使用聚集，无聚集则按页进行交换，这个过程又涉及到查找页对应的磁盘块位置，最后内核通过逆向映射（还记得吗，内存页指向了所处的地址空间对象，地址空间对象中的优先树记录了共享某一页的进程集）会找到所有使用该内存页的进程，然后修改它们页表，标记该页已被换出，并且记录该内存页所处交换区的位置，内核通过一个交换区标识符和一个交换区内偏移来记录该页该页在交换区中的位置。<br><img src="/images/loading-cat.gif" data-original="https://bbm-hexo.oss-accelerate.aliyuncs.com/images/linux/swap-zone-position.png" alt="swap-zone-position"><br>而当交换区的数据换入物理内存时，交换缓存的意义就显示出来了，如果之前换出的页由多个进程同时使用，它们的页表中都会记录物理内存在交换区中的位置。当其中某一个进程 A 要访问该页的数据时，该页被换入，该进程对应的页表项将改为该页当前物理内存地址。而其他进程 B，C 的页表中仍然会指向交换区中的位置，即使该交换区中的内容已经换入到物理内存中，想一想这也是为了性能考虑，因为其他进程 B C 目前不一定需要该内存数据，所以没必要一同修改所有共享该内存的进程页表。回到刚才的话题，既然其他进程 B C 的页表并没有修改，那么当它们也需要该内存数据时，岂不是又要从交换区读了吗。实际上，它们会先去交换缓存中查找一下，因为之前的进程 A 已经将交换区的数据换入到物理内存中了，那么从该内存页也会保存在交换缓存中，这样在 B C 需要该内存页时，可以从交换缓存中直接获取，而不必重新从交换区中读取，而交换缓存以基数树的结构保存了从交换区地址到内存页的映射关系。下图就概述了这一过程。<br><img src="/images/loading-cat.gif" data-original="https://bbm-hexo.oss-accelerate.aliyuncs.com/images/linux/swap-cache-example.png" alt="swap-cache-example"></p>
+<h4 id="何时发起内存回收"><a href="#何时发起内存回收" class="headerlink" title="何时发起内存回收"></a>何时发起内存回收</h4><p>在换出内存页之前，内核会检查内存的使用情况，确定可用内存容量是否较低。与同步页的方法相似，内核通过如下两种机制来检查内存容量是否过低。</p>
+<ol>
+<li>一个周期性的守护进程(kswapd)在后台运行，每一个 NUMA 节点都由一个专门对应的 kswapd 进程负责，该进程不断检查当前的内存使用情况，以便在达到特定的阈值时发起页的换出操作。通过该方法，可以确保不会出现突然需要换出大量页的情况。这种情况将导致系统出现很长的等待时间，必须不惜一切代价防止它的发生。</li>
+<li>但内核在某些情况下，必须能够处理突发的严重内存不足，例如在通过伙伴系统分配大块内存时，或创建缓冲区时。如果没有足够的物理内存可用来满足对内存的请求，内核必须尽快换出页，以期释放一些内存空间。在紧急情况下的换出操作，属于直接回收(direct reclaim)的一部分。</li>
+</ol>
+<blockquote>
+<p>在 NUMA 机器上，所有处理器对内存的共享并不是一致的，对每个 NUMA 节点来说，都有一个单独的 kswapd 守护进程。每个守护进程负责一个 NUMA 结点上所有的内存域。在非 NUMA 系统上，只有一个 kswapd 实例，负责系统中所有的内存域。回想一下，IA-32 可以有最多3个内存域: DMA内存域、普通内存域、高端内存域。<br>如果内核无法满足对内存的请求，甚至在换出页之后也无法满足，那么虚拟内存子系统只有一个选择，即通过 OOM (out of memory，内存不足)killer 来结束一个进程。虽然 OOM killer 有时候可能导致严重的损失，但总比系统完全崩溃要好。如果在内存不足的情况下不采取措施，很可能导致系统崩溃。</p>
+</blockquote>
+<p>现在，我们有两个问题，kswapd 守护进程开始工作的阈值是什么？在什么条件下内核会进行直接内存回收？要解释这两个问题，我们必须先了解内存水位线的概念，我们知道在每个 NUMA 节点上的内存是分区的，每个区的大小都各不一样，内核对每个区针对该区的大小，都设定了 3 个水位线水位线，high，low，min。这些标记的含义分别为：剩余内存在 high 以上表示内存剩余较多，目前内存使用压力不大；high-low 的范围表示目前剩余内存存在一定压力；low-min 表示内存开始有较大使用压力，剩余内存不多了；min 是最小的水位标记，当剩余内存达到这个状态时，就说明内存面临很大压力。小于 min 这部分内存，内核是保留给特定情况下（内核自己使用，防止系统崩溃）使用的，一般不会分配给用户进程。内存回收行为就是基于剩余内存的水位标记进行决策的，当任意内存区进行内存分配时发现剩余内存低于 <code>watermark[low]</code> 的时候，会唤醒内核的 kswapd 进程，它会以 HZ/10 为周期触发内存回收工作。直到所有内存区剩余内存达到 <code>watermark[high]</code> 的时候停止。如果内存消耗导致剩余内存达到了或超过了 <code>watermark[min]</code> 时，就会触发直接回收（direct reclaim）。无论是周期性回收还是直接回收，都是殊途同归下层都会走到同一块逻辑，对每个内存区进行页回收，这里为了简化逻辑我们将在后文中着重介绍内存区的回收，而淡化其他部分的内容。</p>
+<p>我们可以通过 <code>cat /proc/zoneinfo</code> 查看每个分区的水分线信息，水位线的单位是页。</p>
+<figure class="highlight bash"><table><tbody><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br></pre></td><td class="code"><pre><span class="line">cat /proc/zoneinfo</span><br><span class="line">Node 0，zone      DMA</span><br><span class="line">  ...</span><br><span class="line">  pages free     3963</span><br><span class="line">        min      8</span><br><span class="line">        low      11</span><br><span class="line">        high     14</span><br><span class="line">Node 0，zone    DMA32</span><br><span class="line">  pages free     32754</span><br><span class="line">        min      414</span><br><span class="line">        low      615</span><br><span class="line">        high     816</span><br><span class="line">Node 0，zone   Normal</span><br><span class="line">  pages free     411033</span><br><span class="line">        min      16473</span><br><span class="line">        low      24467</span><br><span class="line">        high     32461</span><br></pre></td></tr></tbody></table></figure>
+
+<p>各个内存区的水位线是如何计算的呢？首先内核有一个最小空闲内存的配置项（/proc/sys/vm/min_free_kbytes），它决定了所有内存区的 min 水位线总和，各个内存区按照内存区的大小均匀的分配。</p>
+<figure class="highlight bash"><table><tbody><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">cat /proc/sys/vm/min_free_kbytes</span><br><span class="line">67584 // 16896 页，结合上面各个区的 min 水位线，你会发现各个区的 min 水位线之后基本等于 min_free_kbytes</span><br></pre></td></tr></tbody></table></figure>
+
+<p>在我的例子中，DMA32 和 Normal 的 low 和 high 水位线大约分别是 min 水位线的 1.5 倍和 2 倍，而 DMA 区的比例更低一点。low 和 high 水位线的计算方式可能不同版本下计算方式有些不同，但是 min 水位线的计算方式一般没怎么变过。</p>
+<h4 id="选择要回收的页"><a href="#选择要回收的页" class="headerlink" title="选择要回收的页"></a>选择要回收的页</h4><p>前面讨论了内核什么条件下会考虑进行内存回收，接下来我们讨论一下内核如何决策回收哪些页。为了保证用最低成本给系统带来最大收益的前提下，我们应该换出哪些页呢？内核实现了一种粗粒度的 LRU 方法，而且使用硬件特性来加速这个过程，即在访问页之后设置一个访问位，虽然该特性并不是在所以体系结构上都可用，但是我们可以毫不费力地进行仿真。</p>
+<p>内核对 LRU 的实现基于两个链表，分别称为活动链表和惰性链表(系统中的每个内存域都有这样的两个链表)。顾名思义，所有使用中的页在一个链表上，而所有惰性页则保存在另一个链表上。为在两个链表之间管理内存页，内核需要定期对它们进行均衡，通过上述访问位来确定一页是活动的还是惰性的，换言之，我们通过该页是否经常被系统中的应用程序访问来判定该页是不是活跃的，如果该页没有被置位，则说明是惰性的，它需要被移到惰性链表，而如果页被置位，说明它近期被访问过，则应该移到活动链表。随着时间的推移，最不活跃的页会处于惰性链表的尾端，在出现内存不足时，内核会换出这些页，因为这些页从出生到被换出时，一直都很少被使用，所以根据 LRU 的原理，换出这些页对系统的破坏是最小的。</p>
+<p>前面我们说过内核中每个 NUMA 节点都有一个 kswapd 进程管理其页回收的工作，对于每一个 NUMA 节点的每个内存区都有 2 条 LRU 链表（早期的 Linux 是这样），一条对应的是活跃内存，另一条对应的是不活跃内存，它们都采用 FIFO 的形式进行管理，在 CPU 访问一个内存页时会设置该页的一个标志，这时候我们称该页为活跃的页。在介绍这两个 LRU 链表的交互之前，我打算先介绍一下新申请的内存页如何加入到这两个链表中。因为内存的申请是十分频繁的，如果我们在每次拿到一个新的内存页时就将其加入到 LRU 链表中，势必会造成”热点”问题（锁繁忙）。所以内核采用了一种缓存的方式，来处理新加入的内存页，在每个 CPU 上申请到一个新的内存页时，会先将新页放在该 CPU 的 LRU 缓存中，而且新页默认是不活跃的，只有当 CPU 使用到它时才会认为该页是活跃度。所以，对于每个 CPU 来说都有两个 LRU 缓存，当 LRU 缓存区满了的时候（14 个就满了），才将这个 LRU 缓存中的页加入到该内存区对应的 LRU 链表中，这极大地减少了锁的开销。<br><img src="/images/loading-cat.gif" data-original="https://bbm-hexo.oss-accelerate.aliyuncs.com/images/linux/lru-link-add-new-page.png" alt="lru-link-add-new-page"><br>理解了 LRU 链表中的页是如何添加的之后，我们再来看看 LRU 链表的页是如何在活跃状态和不活跃状态间切换的。这里内核不仅追踪了一个页是否近期被使用过，还追踪了一个页近期被访问的频繁程度。因为只有少数的体系结构支持页引用计数器，所以内核在这里对每个页使用了两个页标志 referenced 和 active。它们一个表示当前的活跃程度，一个表示页当前是否被引用过。<br><img src="/images/loading-cat.gif" data-original="https://bbm-hexo.oss-accelerate.aliyuncs.com/images/linux/lru-status-change.png" alt="lru-status-change"></p>
+<ul>
+<li>active 标志表示了该页是否活跃，活跃的页处于活跃 LRU 链表中，不活跃的页处于惰性 LRU 链表中</li>
+<li>每当 CPU 访问到一个页时，会设置其 referenced 标志，负责该工作的是 mark_page_accessed</li>
+<li>内核会每隔一段时间会清除 referenced 标志，该工作是由 page_referenced 负责</li>
+<li>在每次进行 mark_page_accessed 时，它会先查看一下 referenced 表示是否已经被设置，如果已经置位，说明 page_referenced 还没来得及将其清零，也就是说该页被访问的频率比 referenced 被清零的频率更高，换句话说该页经常被访问。这时候如果该页处于惰性列表中，就会将该页的 active 置位，并移到活跃链表中，此外还会清除 referenced 标志。</li>
+<li>反过来，如果一个页在活跃链表，而清零 referenced 的频率高于 CPU 访问该页的频率（置位 referenced 的频率），换句话说，当 page_referenced 执行时，如果一个页的 referenced 已经为 0 了并且处于活跃链表中，那么就会将它移到惰性链表中，active 置位 0</li>
+</ul>
+<p>如果内存页的访问是稳定的，那么 mark_page_accessed 和 page_referenced 的执行就是均匀的，因而各个内存页会比较稳定的保持在 LRU 链表上，上述的算法也被称为”2 次机会 LRU”，因为无论从活跃链表移动到惰性链表，还是反过来从惰性链表移动到活跃链表，都需要连续的两次 page_referenced 检查，当连续两次 page_referenced 检查时 referenced 都为 1 则会从惰性链表移动到活跃链表的头部，反之如果两次 page_referenced 检查时，referenced 都为 0 就会从活跃链表移动到惰性链表的头部。显然，Linux 的这两条 LRU 链表并不是按照严格的时间顺序来排列的，所以说这是一种伪 LRU 算法，之所以这么做，是因为系统中页的数量可能会非常多，如果为每个页都单独维护它的活跃度，效率会很低，而内存处理过程需要效率要尽可能的高，所以 Linux 使用了上述方案来维护页的活跃程度。</p>
+<p>早期的 Linux 实现中，每个 zone 中有 active 和 inactive 两个链表，每个链表上存放的页面不区分类型。但是因为文件缓存有现成的后备存储器，而匿名内存需要占用交换区空间，所以内核后来确立了优先回收 page cache 的策略，所以后来的 Linux 版本中将 LRU 链表拓展成了 4 条，它们分别是 LRU_INACTIVE_ANON，LRU_ACTIVE_ANON，LRU_INACTIVE_FILE 和 LRU_ACTIVE_FILE，每个内存区都会对应这样的 4 条 LRU 链表。通过 <code>/proc/zoneinfo</code> 就能看到每个内存区的 4 条链表的长度。</p>
+<figure class="highlight bash"><table><tbody><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line">cat /proc/zoneinfo</span><br><span class="line">Node 0，zone   Normal</span><br><span class="line">  pages free     411033</span><br><span class="line">        min      16473</span><br><span class="line">        low      24467</span><br><span class="line">        high     32461</span><br><span class="line">      nr_free_pages 411033</span><br><span class="line">      nr_zone_inactive_anon 459589</span><br><span class="line">      nr_zone_active_anon 4926141</span><br><span class="line">      nr_zone_inactive_file 294609</span><br><span class="line">      nr_zone_active_file 1401333</span><br></pre></td></tr></tbody></table></figure>
+
+<p>此外为了能够让用户控制页面回收时释放页缓存和释放匿名内存的比例，内核还提供了一个配置项在 <code>/proc/sys/vm/swappiness</code>，当它越大时，使用交换区的积极性就越高，默认值是 60，如果该值为 0，那么除非没有文件页缓存可以回收，否则不会进行页交换，而当该值为 100 时，页缓存和匿名内存会尽可能等比例的回收。</p>
+<figure class="highlight bash"><table><tbody><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">cat /proc/sys/vm/swappiness</span><br><span class="line">60</span><br></pre></td></tr></tbody></table></figure>
+
+<p>就像前面所说的，系统中的页数量可能非常大，所以上述的 LRU 链表也会非常长，每次扫描要回收的页时如果遍历整个链表，显然会花费很多时间，而且在内存比较充足的时候没必要进行大规模的回收，但是如果内存十分紧张，就有必要多扫描一些。为了满足各种内存回收的场景，内核为内存回收过程定义了一个优先级 priority，priority 越趋向于 0 说明优先级越高，扫描的页数量就越多（注意扫描页数不等于回收页数，只有扫描到满足条件的页时，该页才会回收），默认的优先级是 12，如内存压力不是很大时就会以默认优先级进行内存回收。而当内存严重不足，比如当内存低于 min 水位线时，就会以高优先级进行内存回收，这时候会扫描整个 LRU 链表。那么根据 priority 怎么计算出要扫描多少页呢？ 实际上，扫描的页数 = (LRU 长度 &gt;&gt; priority) + 1，之所以加 1 是为了防止扫描页数为 0，除此之外在计算每个 LRU 链表的扫描页数时还要考虑 swappiness 参数，它会控制匿名内存 LRU 和页缓存 LRU 扫描页数的比例。</p>
+<p>除了 priority 和 swappiness 所决定的扫描页数外，在进行内存回收时我们还要定义一个回收目标，也就是目标回收页数。在进行周期性回收时，目标回收页数就是当前空闲页距离 high 水位线的差值，而在进行伙伴系统分配内存时如果发现内存不足，则会进行直接内存回收，我们知道在伙伴系统申请页时一次会申请 <code>2 ^ order</code> 个连续的页，所以当它发现内存不足时，内核会试图回收 <code>2 ^ (order + 1)</code>，如果每次仅回收 <code>2^order</code> 个页框，满足于本次内存分配(内存分配失败时才会导致内存回收)，那么下次内存分配时又会导致内存回收，影响效率，所以，每次 zone 的内存回收，都是尽量回收更多页框，制定回收的目标是 <code>2^(order+1)</code> 个页框，比要求的 <code>2^order</code> 多了一倍。但是当非活动 LRU 链表中的数量不满足这个标准时，则取消这种状态的判断。Zone 的内存回收之后，往往还会伴随着 Zone 的内存压缩（内存碎片的整理），这样伙伴系统一般就能申请到连续的 <code>2 ^ order</code> 个页了。</p>
+<p>最后，我们总结一下从页面回收选择到实际页面回收的完整工作流程：</p>
+<ol>
+<li>根据 priority 和 swappiness 计算每个 LRU 链表要扫描的页数量。</li>
+<li>以活动匿名页 LRU 链表、非活动匿名页 LRU 链表、活动文件页 LRU 链表、非活动文件页 LRU 链表的顺序作为一轮扫描，每次每个 LRU 链表扫描 32 个页框<ul>
+<li>活动匿名页 LRU 链表并不是每次都会进行扫描，它只在非活动匿名页 LRU 链表的页数量小于其目标扫描数量时才会进行</li>
+<li>活动 LRU 链表在进行扫描前，会先把本 CPU 对应的 LRU 缓存中的数据添加到 LRU 链表中，然后从后往前进行扫描，如果该页近期被访问过（referenced 标志）则将其移动到链表头，否则将其移动到非活跃链表的头部</li>
+<li>非活跃 LRU 链表在进行扫描前，也会把本 CPU 对应的 LRU 缓存中的数据添加到 LRU 链表中，然后从后往前扫描，如果该页近期被访问过（referenced 标志）则将其移动到链表头，否则将进行一定的检查，比如该页有没有被锁定（memory lock 不允许回收），如果检查通过就将回收该页</li>
+</ul>
+</li>
+<li>如果未达到目标回收页并且每个 LRU 链表的目标扫描数未达到，则重复第 2 步，而如果达到了目标回收页数，在有些情况下会直接进入第 4 步，而有的时候会回到第 2 步，直到达到目标扫描页数，这里我不打算深入介绍其中的细节，因为它不影响我们理解内存回收的大致流程。</li>
+<li>如果当前回写的页过多，则睡眠一段时间，防止堆积过多回写请求</li>
+</ol>
+<p>简单的讲，选择回收页的过程就是从 LRU 链表中按照从后往前的顺序，不断小批次的扫描内存页，直到满足回收目标（priority、swappiness 和 order 决定）。在这个过程中，如果活跃 LRU 链表中的页不在活跃，就移到非活跃链表，否则移动到活跃 LRU 头部，如果非活跃链表中的页重新变得活跃，就移到活跃链表头部，否则很可能就会被回收。</p>
+<h4 id="处理页面"><a href="#处理页面" class="headerlink" title="处理页面"></a>处理页面</h4><p>当我们要开始回收一个页面时，具体的工作流程是怎么样的呢？</p>
+<ol>
+<li>首先内核会检查该页是否正在进行回写并且没有回写完，<ul>
+<li>如果确实没回写完，会将其重新放回非活跃 LRU 链表的头部，之所以放到头部是因为回写过程可能很慢，所以希望近期先别扫描到该页</li>
+<li>这里大家可能有疑问那回写完成后，我们怎么才能快速的释放呢？ 实际上在回写结束后，负责回写的代码会检查该页是否是因为内存回收而回写的（reclaim 标志），如果是的话，则将其移动到非活跃 LRU 链表的尾部，这样它就会很快得到回收了</li>
+</ul>
+</li>
+<li>如果该页近期被访问过，页有可能在被加入待回收列表后到真正回收的过程中又被访问了（referenced 标志等），那么很可能不会回收该页了，之后重新放回活跃 LRU 链表头部</li>
+<li>如果该页不是页缓存，则交给交换缓存，那里负责匿名内存的交换工作。当一个非文件页（匿名页）加入 swap cache 时，主要会做如下几件事：<ol>
+<li>首先，分配一个 swap 类型的页表项，将所有映射了此页的进程页表项设置为这个 swap 类型的页表项</li>
+<li>其次，标记此页是一个脏页，这样后面就会通过判断这个进行异步回写了</li>
+<li>最后，将此页的 mapping 指向 swap 分区的 address_space，这样在进行异步回写时，就能将此页异步回写到 swap 分区中</li>
+</ol>
+</li>
+<li>对于页缓存来说，则没有这一步加入到 swap cache 中，因为每个文件都有自己的 address_space，一个新的文件页（页缓存）就已经有对应文件的 address_space 了</li>
+<li>如果有进程的页表映射了此页，则直接 unmap 取消映射关系，如果是非文件页，那么映射了此非文件页的页表项被设置为之前分配的 swap 类型的页表项，如果是文件页，则清空页表项</li>
+<li>如果页为脏页，则对此页进行异步回写，这就是为什么在交换缓存时要将交换的页置为脏页，因为这样才能在这第 5 步中进行回写，然后对脏页设置 reclaim 标志，这样在页释放结束后就会自动回到非活跃 LRU 链表的末尾，并快速的被回收，而干净的页就可以直接释放了</li>
+<li>如果该内存页回写完了，就将其各种管理数据中清除，比如 swap cache，page cache，buffer_heads（块缓存，缓冲区，记录了与内存页对应的磁盘位置）等，然后物理内存归还给伙伴系统</li>
+</ol>
+<p>下面我们默认此页能够回收，忽略回收检查，并且默认没有进程在此期间访问页，将页分为干净文件页，脏文件页，非文件页描述一下回收过程(非文件页只要加入到 swap cache 中就会被设置为脏页)：</p>
+<p>干净文件页回收过程：<br><img src="/images/loading-cat.gif" data-original="https://bbm-hexo.oss-accelerate.aliyuncs.com/images/linux/clear-file-page.png" alt="clear-file-page"><br>可以看到，对于干净文件页，由于文件页不加入 swap cache，只需要进行一个 unmap 操作，就可以直接进行回收了，这种页回收效率是最高的。</p>
+<p>对于脏文件页：<br><img src="/images/loading-cat.gif" data-original="https://bbm-hexo.oss-accelerate.aliyuncs.com/images/linux/dirty-file-page.png" alt="dirty-file-page"><br>可以看到对于脏文件页，待其回写完成后，内核进行一次内存回收时，如果扫描到此页，只需要直接将其释放就可以了。注意：只有 kswapd 内核线程能够对脏文件页进行回写操作，并且回写完成后并不会主动要求内核进行一次内存回收，也有可能回写完成后，zone 的内存足够了，就不进行内存回收了。</p>
+<p>再看看非文件页的回收流程：<br><img src="/images/loading-cat.gif" data-original="https://bbm-hexo.oss-accelerate.aliyuncs.com/images/linux/anno-page.png" alt="anno-page"><br>其实很简单，对于脏页，在回写之后的下次内存回收时，就可以将其回收，而对于干净的页，在本次内存回收时，就可以将其回收。而当非文件页加入 swap cache 后，就会被设置为脏页(dirty 标志)。</p>
+<p>总结一下，非文件页相对于文件页来说，在内存回收处理过程中有以下区别：</p>
+<ol>
+<li>一般回收的非文件页在非活动匿名页 LRU 链表中，而回收的文件页在非活动文件页 LRU 链表中。</li>
+<li>非文件页回写前必须要加入 swap cache，并会生成一个以页槽号为偏移量的 swap 类型的页表项；而文件页不会加入 swap cache，并且没有 swap 类型的页表项</li>
+<li>unmap时，映射了非文件页的进程页表项会被设置为 swap 类型的页表项，而映射了文件页的进程页表项则直接清空</li>
+<li>非文件页在有进程映射了的情况下，一定要进行回写后才能回收；而文件页即使没有进程映射的情况下，只要是脏页，回收时都要回写</li>
+<li>非文件页没有 buffer_heads（块缓存），不需要对 buffer_heads 进行回收，而文件页回写完后进行需要进行 buffer_heads 的回收</li>
+</ol>
+<blockquote>
+<p>在这里，我们介绍一下内存回收隔离区概念，因为后面的介绍中会用到它。我们知道 LRU 链表是内核中的一个热点数据，这个数据的修改势必需要用到锁，这就面临了一个问题，因为内存回收的过程可能会扫描很多页，那么就会持有很长时间的锁，为了解决这个问题，内核无论是扫描活跃 LRU 链表还是扫描非活跃 LRU 链表时，对于要检查的页都会先将其从 LRU 链表中摘除，放在一个隔离区中，然后放弃全局 LRU 链表的锁，然后继续在隔离区上处理这些页，因为这些页在隔离区中而不在 LRU 链表中，所以内核的其他部分都不能访问它们。当处理完时，这些页有的重新回到 LRU 链表，有的会被释放，这一点就和前面我们介绍的一样。</p>
+</blockquote>
+<p>现在再说说在回写过程中，又有进程映射了此页怎么办？</p>
+<ol>
+<li>内核会通过 page-&gt;_count 来描述当前有多少进程或者模块在引用该页，当有任何模块或进程使用该页时此页的 page-&gt;_count 就会 ++，这里我们假设一个场景，有 10 个进程映射了一个非文件页，没有其他模块引用此非文件页，那么此页的 page-&gt;_count 就为 10。</li>
+<li>然后此页在非活动匿名页 LRU 链表中被内存回收扫描到，内核打算对此页进行回收，第一件做的事情，将此页从 LRU 链表隔离出来，内存回收模块持有该页，这里 page-&gt;_count++(就等于11)。</li>
+<li>然后内存回收模块会将此页加入到 swap cache 中，swap cache 模块也持有该页，page-&gt;_count++(现在等于12了)。</li>
+<li>最后要对此页进行 unmap，由于有 10 个进程映射了此页，所以 unmap 后，此页的 page-&gt;_count -= 10，现在 page-&gt;_count 就剩 2 了<ul>
+<li>如果此页是干净页，那么如之前说的，回收时判断 <strong>page-&gt;_count == 2</strong> 的可以进行回收。</li>
+<li>如果此页是脏页，那么就回写，然后将此页放回到非活动匿名页 LRU 链表，这时 page-&gt;_count 会减1，因为它已经从内存回收的隔离区移出(这时候就为 1 了，这里为 1 是因为 swap cache 仍在引用此页)。</li>
+</ul>
+</li>
+<li>之后回写完成再被扫描到时，一样会进行隔离，那么 page-&gt;_count++(现在为 2 了)，最后一样可以通过 page-&gt;_count == 2 判断此页能够释放。</li>
+<li>如果在回写过程中，有进程又映射了此页，因为映射此页那么 page-&gt;_count 就会增加，在回写完成后的回收时就会发现 page-&gt;_count &gt; 2，这时候内核就能感知道有进程又映射了此页，内核随后会将此页移动到活动匿名页 LRU 链表中。</li>
+<li>而对于文件页，即使没有进程映射它，它的 page-&gt;_count 就为1，因为它自出身一来，就被对应文件的 page cache（页缓存模块）引用了。并且因为文件页不需要加入到 swap cache，实际上在内存回收过程中，当没有进程映射此文件页时，它的 page-&gt;_count 一样为 2（页缓存模块和内存回收隔离区两处引用）。</li>
+<li>综上所述，在回写结束后，只要判断一个页的当前引用数为 2 则说明该页可以释放了，无论是匿名内存（内存回收隔离区和 swap cache 引用到该页）还是页缓存（内存回收隔离区和页缓存模块引用到该页）。</li>
+</ol>
+<h4 id="交换令牌"><a href="#交换令牌" class="headerlink" title="交换令牌"></a>交换令牌</h4><p>前面我们提到过页颠簸问题，而 “2 次机会” 的 LRU 能缓解该情况的发生，这里我们介绍能够缓解页颠簸的另一个机制————交换令牌。该方法既简单又好用，内核会向当前换入页的进程颁发一个所谓的交换令牌，且整个系统内只颁发一枚。交换令牌的好处在于，持有该令牌的进程，它的内存不会被回收，或至少可以尽可能避免被回收。这使得该进程换入的页可以保留在那内存中，增加了该进程完成工作的可能性。</p>
+<p>交换令牌通过一个全局指针实现，该指针指向当前应用令牌的进程的 mm_struct （内存管理器）实例，实际上，内存区可能在几个进程间共享，而交换令牌是关联到某个特定内存区的，并非某个具体的进程。在这种意义上讲，交换令牌可能同时属于多个进程。但为简化阐述，这里假定只有一个进程关联到交换令牌所属的内存区。</p>
+<p>内核会为每个进程维护一个交换令牌优先级变量（注意：这不是进程调度的优先级）和一个上次等待交换令牌的时长的变量，当一个进程换入一个页后，如果发现当前没人持有交换令牌，很自然地它就会获得令牌。如果当前换入页的进程，就是持有交换令牌的进程，那么它的优先级就会增加。而如果当前换入页的进程不是持有交换令牌的进程的话，会检查它的等待令牌时间，如果当前进程的等待令牌时间大于上次等待令牌的时间的话，则优先级 + 1（如果一个进程一直获得不到令牌，那么最后每次检查时，当前等待时间都会大于上次等待时间，这时候该进程的优先级会越来越大），否则优先级 -1（如果一个进程原来是令牌持有者，不过后来被其他进程夺走了令牌，那么在最初的一段时间里，它的优先级可能会先减小，因为令牌被夺走时进程的优先级不变，所以要先进行减权，当达到上次获得令牌的等待时间后才会开始加权，增加优先级），最后比较当前进程的优先级和持有令牌的进程的优先级，谁的优先级大谁将持有令牌。</p>
+<h4 id="处理缺页异常"><a href="#处理缺页异常" class="headerlink" title="处理缺页异常"></a>处理缺页异常</h4><p>接下来说一下内存重新换入的机制（缺页异常），Linux 运行的所有体系结构都支持缺页异常的概念，当访问虚拟地址间中的一页，但该页不在物理内存中的时候，将触发缺页异常。缺页异常通知内核从交换区和其他的后备存储器读取缺失的数据。当然，也可能会出现要先删除其他页，以便为新数据腾出空间的情况。</p>
+<p>缺页处理分为两个部分。首先，必须使用与处理器相关性较强的代码(汇编语言)来截获该缺页异常，并查询相关的数据。其次，使用系统无关代码进一步处理该异常。由于内核在管理进程时所采用的优化，因而只在后备存储器中查找相关页并将其加载到物理内存是不够的，因为缺页异常可能是由其他原因触发的。例如，这可能涉及写时复制页，这些页仅在进程分裂后执行第一次写访问时，才会进行复制。在按需换页时也会发生缺页异常，按需换页法是指映射的页仅在实际需要时才加载。但这里我们将忽略这些特殊的缺页异常处理问题，而是专注于介绍交换区的页重新加载到物理内存的情况。</p>
+<p>在进行换入时，内核首先要检查所请求的页是否已经在交换缓存中，如果确实如此的话，则可以直接获取到对应的物理页编号，而不用从硬盘中读取数据。如果该页不在交换缓存中，内核就必须从硬盘中读取数据。这里要先为该数据分配一块新的物理内存，容纳从交换区或者后备存储器中读入的数据。如果没有足够的物理内存可用，内核会试图换出其他页来提供新的内存。如果该过程失败，将导致换入失败，高层代码将通知 OOM Killer 关闭系统中具有相当大量内存，但是优先度较低的进程，来获得空闲内存。如果换入成功，内核会将该页添加到交换缓存中，并将其添加到 LRU 缓存中。接下来数据才开始从硬盘拷贝到物理内存中。</p>
+<p>这里内核需要完成的工作不止是从交换区中查找到目标页。因为将磁头移动到一个新位置(磁盘寻道)，会进一步拖低效率，所以内核使用了预读机制来预测接下来将需要哪些页，然后将这些页一并进行读取。还记刚刚提过的聚集方案吗，物理内存的换出一般都是成组地写入一段连续的硬盘中，而在读取连续页时，磁头在理论上只需要单向移动，而无须来回跳转，这样效率就会得到进一步的提高。通常它将预读 2 ^ page_cluster 页，在小于 16 MB 内存的系统上默认是 4 页，而更大内存的系统默认是 8 页，不过该配置也是可以修改的，它位于 <code>/proc/sys/vm/page-cluster</code>。值得一提的是，如果预读区域已经是交换区的边界或者预读区域没有数据，则不会进行预读。</p>
+<figure class="highlight bash"><table><tbody><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">cat /proc/sys/vm/page-cluster</span><br><span class="line">3 // 2 ^ 3 = 8</span><br></pre></td></tr></tbody></table></figure>
+
+<h4 id="缩减内核缓存"><a href="#缩减内核缓存" class="headerlink" title="缩减内核缓存"></a>缩减内核缓存</h4><p>换出属于用户空间应用程序的页，并不是内核释放内存空间的唯一方法，缩减大量缓存，通常也会有很好的成效。很显然，这里内核也需要判断从缓存移除哪些数据比较合适，从而在不过度损害系统性能的情况下能够将用于这些数据的内存空间缩减，在这个过程中内核必须均衡利弊。因为内核缓存通常不是特别大，所以仅在万不得已时，内核才考虑缩减缓存。</p>
+<p>我们前面已经介绍过，内核在很多领域提供了各种缓存（比如，slab 缓存，目录项缓存等）。这使得很难定义一个一般性的方案并据此缩减缓存，因为很难评估各种缓存所包含的数据的重要性。为此，用于缩减各种缓存的方法是针对各个子系统分别实现的，因为各种缓存的结构有很大的不同，很难采用一种通用的缓存收缩算法。不过好在内核提供了一种通用框架，来管理各种缓存收缩方法。用于缩减缓存的函数在内核中称为收缩器(shrinker)，可以动态注册，在缺乏内存时，内核将调用所有注册的收缩器来释放缓存。</p>
+<h2 id="参考内容"><a href="#参考内容" class="headerlink" title="参考内容"></a>参考内容</h2><p>[1]《Linux内核设计与实现》<br>[2]《Linux系统编程》<br>[3]《深入理解Linux内核》<br>[4]《深入Linux内核架构》<br>[5] <span class="exturl" data-url="aHR0cHM6Ly93d3cuY25ibG9ncy5jb20vaGF6aXIvcC9saW51eF9rZXJuZWxfcGlkLmh0bWw=" title="https://www.cnblogs.com/hazir/p/linux_kernel_pid.html">Linux 内核进程管理之进程ID<i class="fa fa-external-link"></i></span><br>[6] <span class="exturl" data-url="aHR0cDovL3NlcnZlci41MWN0by5jb20vc0NvbGxlZ2UtMTk4ODQwLmh0bQ==" title="http://server.51cto.com/sCollege-198840.htm">服务器三大体系SMP、NUMA、MPP介绍<i class="fa fa-external-link"></i></span><br>[7] <span class="exturl" data-url="aHR0cHM6Ly96aHVhbmxhbi56aGlodS5jb20vcC82ODQ2NTk1Mg==" title="https://zhuanlan.zhihu.com/p/68465952">Linux中的物理内存管理 [一]<i class="fa fa-external-link"></i></span><br>[8] <span class="exturl" data-url="aHR0cDovL3d3dy52b2lkY24uY29tL2FydGljbGUvcC1haGZtZWNuei1icnEuaHRtbA==" title="http://www.voidcn.com/article/p-ahfmecnz-brq.html">Linux内核中的page migration和compaction机制简介<i class="fa fa-external-link"></i></span><br>[9] <span class="exturl" data-url="aHR0cHM6Ly9ibG9nLmNzZG4ubmV0L21hY3Jvc3NkemgvYXJ0aWNsZS9kZXRhaWxzLzU5NTQ3NjM=" title="https://blog.csdn.net/macrossdzh/article/details/5954763">物理地址、虚拟地址（线性地址）、逻辑地址以及MMU的知识<i class="fa fa-external-link"></i></span><br>[10] <span class="exturl" data-url="aHR0cHM6Ly9iYWlrZS5iYWlkdS5jb20vaXRlbS/pgLvovpHlnLDlnYA=" title="https://baike.baidu.com/item/逻辑地址">逻辑地址<i class="fa fa-external-link"></i></span><br>[11] <span class="exturl" data-url="aHR0cHM6Ly9ibG9nLmNzZG4ubmV0L3l3Zjg2MTAyOS9hcnRpY2xlL2RldGFpbHMvNjExNDc5NA==" title="https://blog.csdn.net/ywf861029/article/details/6114794">linux内核学习笔记-struct vm_area_struct<i class="fa fa-external-link"></i></span><br>[12] <span class="exturl" data-url="aHR0cDovL2xpdWp1bm1pbmcudG9wLzIwMTcvMDkvMDMvTGludXjkuK3ljL/lkI3pobXnmoTlj43lkJHmmKDlsIQvI+WPjeWQkeaYoOWwhOeahOW8leWFpQ==" title="http://liujunming.top/2017/09/03/Linux中匿名页的反向映射/#反向映射的引入">Linux中匿名页的反向映射<i class="fa fa-external-link"></i></span><br>[13] <span class="exturl" data-url="aHR0cHM6Ly9ibG9nLmNzZG4ubmV0L3NvZGF3YXRlcmVyL2FydGljbGUvZGV0YWlscy81MzQ1NjUxNg==" title="https://blog.csdn.net/sodawaterer/article/details/53456516">系统调用过程详解<i class="fa fa-external-link"></i></span><br>[14] <span class="exturl" data-url="aHR0cDovL3d3dy52b2lkY24uY29tL2FydGljbGUvcC1vZGJpamxwcy1ib2IuaHRtbA==" title="http://www.voidcn.com/article/p-odbijlps-bob.html">再谈Linux内核中的RCU机制<i class="fa fa-external-link"></i></span><br>[15] <span class="exturl" data-url="aHR0cHM6Ly9qYW1pbnpoYW5nLmdpdGh1Yi5pby9uZXR3b3JrL3RoZS1kaWZmZXJlbmNlLWJldHdlZW4tdW5peC1kb21haW4tc29ja2V0LWFuZC10Y3AtaXAtc29ja2V0Lw==" title="https://jaminzhang.github.io/network/the-difference-between-unix-domain-socket-and-tcp-ip-socket/">Unix domain socket 和 TCP/IP socket 的区别<i class="fa fa-external-link"></i></span><br>[16] <span class="exturl" data-url="aHR0cHM6Ly93d3cuaWxpbnV4a2VybmVsLmNvbS9maWxlcy9MaW51eC5HZW5lcmljLkJsb2NrLkxheWVyLnBkZg==" title="https://www.ilinuxkernel.com/files/Linux.Generic.Block.Layer.pdf">Linux通用块设备层<i class="fa fa-external-link"></i></span><br>[17] <span class="exturl" data-url="aHR0cHM6Ly9ibG9nLmNzZG4ubmV0L1l1WmhpSHVpX05vMS9hcnRpY2xlL2RldGFpbHMvNTAyNTY3MTM=" title="https://blog.csdn.net/YuZhiHui_No1/article/details/50256713">ext2文件系统结构分析<i class="fa fa-external-link"></i></span><br>[18] <span class="exturl" data-url="aHR0cHM6Ly9ibG9nLjUxY3RvLmNvbS9ndW9kb25nODEwLzExNzY0Mjc=" title="https://blog.51cto.com/guodong810/1176427">linux ACL权限规划：getfacl,setfacl使用<i class="fa fa-external-link"></i></span><br>[18] <span class="exturl" data-url="aHR0cHM6Ly9ibG9nLmNzZG4ubmV0L3lhbmdfeXVsZWkvYXJ0aWNsZS9kZXRhaWxzLzQ2MzcxOTc1" title="https://blog.csdn.net/yang_yulei/article/details/46371975">查找——图文翔解RadixTree（基数树）<i class="fa fa-external-link"></i></span><br>[19] <span class="exturl" data-url="aHR0cDovL3JvdXgudG9wLzIwMTcvMTAvMjgvcGFnZSUyMGNhY2hlJUU1JTkyJThDYWRkcmVzc19zcGFjZS8=" title="http://roux.top/2017/10/28/page%20cache%E5%92%8Caddress_space/">页缓存page cache和地址空间address_space<i class="fa fa-external-link"></i></span><br>[20] <span class="exturl" data-url="aHR0cHM6Ly9ibG9nLmNzZG4ubmV0L2Fya2JsdWUvYXJ0aWNsZS9kZXRhaWxzLzQ1Nzk2NTUx" title="https://blog.csdn.net/arkblue/article/details/45796551">rocketmq使用的系统参数（dirty_background_ration dirty_ratio）<i class="fa fa-external-link"></i></span><br>[21] <span class="exturl" data-url="aHR0cHM6Ly96aHVhbmxhbi56aGlodS5jb20vcC83MzUzOTMyOA==" title="https://zhuanlan.zhihu.com/p/73539328">Linux内存调节之zone watermark<i class="fa fa-external-link"></i></span><br>[22] <span class="exturl" data-url="aHR0cHM6Ly9ibG9nLmNzZG4ubmV0L3JlbndvdGFvMjAwOS9hcnRpY2xlL2RldGFpbHMvNTE5NzkzNDM=" title="https://blog.csdn.net/renwotao2009/article/details/51979343">Linux的内存回收和交换<i class="fa fa-external-link"></i></span><br>[23] <span class="exturl" data-url="aHR0cHM6Ly96aHVhbmxhbi56aGlodS5jb20vcC83MDk2NDE5NQ==" title="https://zhuanlan.zhihu.com/p/70964195">Linux中的内存回收[一]<i class="fa fa-external-link"></i></span><br>[24] <span class="exturl" data-url="aHR0cHM6Ly93d3cuY25ibG9ncy5jb20vdG9saW1pdC9wLzU0MzUwNjguaHRtbA==" title="https://www.cnblogs.com/tolimit/p/5435068.html">linux内存源码分析 - 内存回收(整体流程)<i class="fa fa-external-link"></i></span><br>[25] <span class="exturl" data-url="aHR0cHM6Ly9ibG9nLmNzZG4ubmV0L2xpX3dlbjAxL2FydGljbGUvZGV0YWlscy84MjY1OTQwNg==" title="https://blog.csdn.net/li_wen01/article/details/82659406">Linux 软中断机制分析<i class="fa fa-external-link"></i></span><br>[26] <span class="exturl" data-url="aHR0cHM6Ly9ibG9nLmNzZG4ubmV0L0RMVVRCcnVjZVpoYW5nL2FydGljbGUvZGV0YWlscy85OTE5NDUz" title="https://blog.csdn.net/DLUTBruceZhang/article/details/9919453">对 jiffies 溢出、回绕及 time_after 宏的理解<i class="fa fa-external-link"></i></span><br>[27] <span class="exturl" data-url="aHR0cHM6Ly9naXRodWIuY29tL2NhaXNhbi9teWJsb2cvYmxvYi9tYXN0ZXIvbGVhcm4tbGludXgtbmV0d29yay1uYW1lc3BhY2UubWQ=" title="https://github.com/caisan/myblog/blob/master/learn-linux-network-namespace.md">learn-linux-network-namespace<i class="fa fa-external-link"></i></span><br>[28] <span class="exturl" data-url="aHR0cHM6Ly96aC53aWtpcGVkaWEub3JnL3dpa2kvJUU2JTk4JUJFJUU1JUJDJThGJUU2JThCJUE1JUU1JUExJTlFJUU5JTgwJTlBJUU3JTlGJUE1" title="https://zh.wikipedia.org/wiki/%E6%98%BE%E5%BC%8F%E6%8B%A5%E5%A1%9E%E9%80%9A%E7%9F%A5">显式拥塞通知<i class="fa fa-external-link"></i></span><br>[29] <span class="exturl" data-url="aHR0cHM6Ly93d3cuY25raXJpdG8ubW9lL3RjcC10YWxrLw==" title="https://www.cnkirito.moe/tcp-talk/">聊聊 TCP 长连接和心跳那些事<i class="fa fa-external-link"></i></span><br>[30] <span class="exturl" data-url="aHR0cHM6Ly9qdWVqaW4uaW0vcG9zdC81OThiYTFkMDZmYjlhMDNjNGQ2NDY0YWI=" title="https://juejin.im/post/598ba1d06fb9a03c4d6464ab">关于 TCP/IP，必知必会的十个问题<i class="fa fa-external-link"></i></span><br>[31] <span class="exturl" data-url="aHR0cHM6Ly9ibG9nLmNzZG4ubmV0L2Z3MDEyNC9hcnRpY2xlL2RldGFpbHMvNzQ1MjY5NQ==" title="https://blog.csdn.net/fw0124/article/details/7452695">TCP协议三次握手连接四次握手断开和DOS攻击<i class="fa fa-external-link"></i></span><br>[32] <span class="exturl" data-url="aHR0cHM6Ly9jb29sc2hlbGwuY24vYXJ0aWNsZXMvMTE1NjQuaHRtbA==" title="https://coolshell.cn/articles/11564.html">TCP 的那些事儿（上）<i class="fa fa-external-link"></i></span><br>[33] <span class="exturl" data-url="aHR0cHM6Ly9jb29sc2hlbGwuY24vYXJ0aWNsZXMvMTE2MDkuaHRtbA==" title="https://coolshell.cn/articles/11609.html">TCP 的那些事儿（下）<i class="fa fa-external-link"></i></span></p>
+
+    </div>
+
+    
+    
+    
+
+      
+        <div id="wechat_subscriber" style="display: block; padding: 10px 0; margin: 20px auto; width: 100%; text-align: center">
+  <img id="wechat_subscriber_qcode" src="/images/qrcode_for_wechat.jpg" alt="贝克街的流浪猫 wechat" style="width: 400px; max-width: 100%;">
+  <div></div>
+</div>
+
+      
+        <div class="reward-container">
+  <div>您的打赏将鼓励我继续分享!</div>
+  <button disable="enable" onclick="var qr = document.getElementById(&quot;qr&quot;); qr.style.display = (qr.style.display === 'none') ? 'block' : 'none';">
+    打赏
+  </button>
+  <div id="qr" style="display: none;">
+      
+      <div style="display: inline-block;">
+        <img src="/images/wechat.jpg" alt="贝克街的流浪猫 微信支付">
+        <p>微信支付</p>
+      </div>
+      
+      <div style="display: inline-block;">
+        <img src="/images/alipay.jpg" alt="贝克街的流浪猫 支付宝">
+        <p>支付宝</p>
+      </div>
+
+  </div>
+</div>
+
+        
+
+<div>
+<ul class="post-copyright">
+  <li class="post-copyright-author">
+    <strong>本文作者： </strong>贝克街的流浪猫
+  </li>
+  <li class="post-copyright-link">
+    <strong>本文链接：</strong>
+    <a href="https://www.beikejiedeliulangmao.top/linux/cache-and-swap/" title="Linux 缓存与页交换">https://www.beikejiedeliulangmao.top/linux/cache-and-swap/</a>
+  </li>
+  <li class="post-copyright-license">
+    <strong>版权声明： </strong>本博客所有文章除特别声明外，均采用 <span class="exturl" data-url="aHR0cHM6Ly9jcmVhdGl2ZWNvbW1vbnMub3JnL2xpY2Vuc2VzL2J5LW5jLXNhLzQuMC9udWxs"><i class="fa fa-fw fa-creative-commons"></i>BY-NC-SA</span> 许可协议，转载请注明出处！
+  </li>
+  <li class="post-copyright-license">
+    <strong>创作声明： </strong>本文基于上述所有参考内容进行创作，其中可能涉及复制、修改或者转换，图片均来自网络，如有侵权请联系我，我会第一时间进行删除。
+  </li>
+</ul>
+</div>
+
+
+      <footer class="post-footer">
+          <div class="post-tags">
+              <a href="/tags/OperatingSystem/" rel="tag"># OperatingSystem</a>
+              <a href="/tags/Unix/" rel="tag"># Unix</a>
+              <a href="/tags/Linux/" rel="tag"># Linux</a>
+              <a href="/tags/Kernel/" rel="tag"># Kernel</a>
+              <a href="/tags/PageCache/" rel="tag"># PageCache</a>
+              <a href="/tags/BlockCache/" rel="tag"># BlockCache</a>
+              <a href="/tags/PageSwap/" rel="tag"># PageSwap</a>
+          </div>
+
+        
+
+          <div class="post-nav">
+            <div class="post-nav-next post-nav-item">
+                <a href="/linux/interrupt/" rel="next" title="Linux 中断">
+                  <i class="fa fa-chevron-left"></i> Linux 中断
+                </a>
+            </div>
+
+            <span class="post-nav-divider"></span>
+
+            <div class="post-nav-prev post-nav-item">
+                <a href="/linux/file-system/" rel="prev" title="Linux Ext 文件系统">
+                  Linux Ext 文件系统 <i class="fa fa-chevron-right"></i>
+                </a>
+            </div>
+          </div>
+      </footer>
+    
+  </article>
+  
+  
+  
+
+  </div>
+
+
+          </div>
+          
+    <div class="comments" id="gitalk-container"></div>
+
+        </div>
+          
+  
+  <div class="toggle sidebar-toggle">
+    <span class="toggle-line toggle-line-first"></span>
+    <span class="toggle-line toggle-line-middle"></span>
+    <span class="toggle-line toggle-line-last"></span>
+  </div>
+
+  <aside class="sidebar">
+    <div class="sidebar-inner">
+
+      <ul class="sidebar-nav motion-element">
+        <li class="sidebar-nav-toc">
+          文章目录
+        </li>
+        <li class="sidebar-nav-overview">
+          站点概览
+        </li>
+      </ul>
+
+      <!--noindex-->
+      <div class="post-toc-wrap sidebar-panel">
+          <div class="post-toc motion-element"><ol class="nav"><li class="nav-item nav-level-2"><a class="nav-link" href="#%E5%BC%95%E8%A8%80"><span class="nav-number">1.</span> <span class="nav-text">引言</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E7%BC%93%E5%AD%98%E4%B8%8E%E9%A1%B5%E4%BA%A4%E6%8D%A2"><span class="nav-number">2.</span> <span class="nav-text">缓存与页交换</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#%E9%A1%B5%E7%BC%93%E5%AD%98%E5%92%8C%E5%9D%97%E7%BC%93%E5%AD%98"><span class="nav-number">2.1.</span> <span class="nav-text">页缓存和块缓存</span></a><ol class="nav-child"><li class="nav-item nav-level-4"><a class="nav-link" href="#%E9%A1%B5%E7%BC%93%E5%AD%98"><span class="nav-number">2.1.1.</span> <span class="nav-text">页缓存</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#%E5%9D%97%E7%BC%93%E5%AD%98"><span class="nav-number">2.1.2.</span> <span class="nav-text">块缓存</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#%E5%9C%B0%E5%9D%80%E7%A9%BA%E9%97%B4"><span class="nav-number">2.1.3.</span> <span class="nav-text">地址空间</span></a></li></ol></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E6%95%B0%E6%8D%AE%E5%90%8C%E6%AD%A5"><span class="nav-number">2.2.</span> <span class="nav-text">数据同步</span></a><ol class="nav-child"><li class="nav-item nav-level-4"><a class="nav-link" href="#pdflush-%E6%9C%BA%E5%88%B6"><span class="nav-number">2.2.1.</span> <span class="nav-text">pdflush 机制</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#%E5%91%A8%E6%9C%9F%E6%80%A7%E5%9B%9E%E5%86%99"><span class="nav-number">2.2.2.</span> <span class="nav-text">周期性回写</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#%E5%BC%BA%E5%88%B6%E5%9B%9E%E5%86%99"><span class="nav-number">2.2.3.</span> <span class="nav-text">强制回写</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#%E7%B3%BB%E7%BB%9F%E8%B0%83%E7%94%A8%E5%90%8C%E6%AD%A5"><span class="nav-number">2.2.4.</span> <span class="nav-text">系统调用同步</span></a></li></ol></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E9%A1%B5%E9%9D%A2%E5%9B%9E%E6%94%B6%E5%92%8C%E9%A1%B5%E4%BA%A4%E6%8D%A2"><span class="nav-number">2.3.</span> <span class="nav-text">页面回收和页交换</span></a><ol class="nav-child"><li class="nav-item nav-level-4"><a class="nav-link" href="#%E7%AE%A1%E7%90%86%E4%BA%A4%E6%8D%A2%E5%8C%BA"><span class="nav-number">2.3.1.</span> <span class="nav-text">管理交换区</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#%E4%BA%A4%E6%8D%A2%E7%BC%93%E5%AD%98"><span class="nav-number">2.3.2.</span> <span class="nav-text">交换缓存</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#%E4%BD%95%E6%97%B6%E5%8F%91%E8%B5%B7%E5%86%85%E5%AD%98%E5%9B%9E%E6%94%B6"><span class="nav-number">2.3.3.</span> <span class="nav-text">何时发起内存回收</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#%E9%80%89%E6%8B%A9%E8%A6%81%E5%9B%9E%E6%94%B6%E7%9A%84%E9%A1%B5"><span class="nav-number">2.3.4.</span> <span class="nav-text">选择要回收的页</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#%E5%A4%84%E7%90%86%E9%A1%B5%E9%9D%A2"><span class="nav-number">2.3.5.</span> <span class="nav-text">处理页面</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#%E4%BA%A4%E6%8D%A2%E4%BB%A4%E7%89%8C"><span class="nav-number">2.3.6.</span> <span class="nav-text">交换令牌</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#%E5%A4%84%E7%90%86%E7%BC%BA%E9%A1%B5%E5%BC%82%E5%B8%B8"><span class="nav-number">2.3.7.</span> <span class="nav-text">处理缺页异常</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#%E7%BC%A9%E5%87%8F%E5%86%85%E6%A0%B8%E7%BC%93%E5%AD%98"><span class="nav-number">2.3.8.</span> <span class="nav-text">缩减内核缓存</span></a></li></ol></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E5%8F%82%E8%80%83%E5%86%85%E5%AE%B9"><span class="nav-number">3.</span> <span class="nav-text">参考内容</span></a></li></ol></div>
+      </div>
+      <!--/noindex-->
+
+      <div class="site-overview-wrap sidebar-panel">
+        <div class="site-author motion-element" itemprop="author" itemscope="" itemtype="http://schema.org/Person">
+    <img class="site-author-image" itemprop="image" alt="贝克街的流浪猫" src="/images/avatar.jpg">
+  <p class="site-author-name" itemprop="name">贝克街的流浪猫</p>
+  <div class="site-description" itemprop="description">贝贝猫</div>
+</div>
+<div class="site-state-wrap motion-element">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+          <a href="/archives/">
+        
+          <span class="site-state-item-count">120</span>
+          <span class="site-state-item-name">日志</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-categories">
+            <a href="/categories/">
+          
+        <span class="site-state-item-count">24</span>
+        <span class="site-state-item-name">分类</span></a>
+      </div>
+      <div class="site-state-item site-state-tags">
+            <a href="/tags/">
+          
+        <span class="site-state-item-count">158</span>
+        <span class="site-state-item-name">标签</span></a>
+      </div>
+  </nav>
+</div>
+  <div class="feed-link motion-element">
+    <a href="/atom.xml" rel="alternate">
+      <i class="fa fa-rss"></i>RSS
+    </a>
+  </div>
+  <div class="links-of-author motion-element">
+      <span class="links-of-author-item">
+        <span class="exturl" data-url="aHR0cHM6Ly9naXRodWIuY29tL0JlaUtlSmllRGVMaXVMYW5nTWFv" title="GitHub → https://github.com/BeiKeJieDeLiuLangMao"><i class="fa fa-fw fa-github"></i></span>
+      </span>
+      <span class="links-of-author-item">
+        <span class="exturl" data-url="aHR0cHM6Ly96aHVhbmxhbi56aGlodS5jb20vY18xMTY3NDI5NTg4NzExMzM3OTg1" title="知乎 → https://zhuanlan.zhihu.com/c_1167429588711337985"><i class="fa fa-fw fa-book"></i></span>
+      </span>
+      <span class="links-of-author-item">
+        <span class="exturl" data-url="bWFpbHRvOjUxNzM3NTY4NUBxcS5jb20=" title="E-Mail → mailto:517375685@qq.com"><i class="fa fa-fw fa-envelope"></i></span>
+      </span>
+      <span class="links-of-author-item">
+        <span class="exturl" data-url="aHR0cHM6Ly9zdGFja292ZXJmbG93LmNvbS91c2Vycy84NzgyOTY0L3lhbmctY2hlbj90YWI9cHJvZmlsZQ==" title="StackOverflow → https://stackoverflow.com/users/8782964/yang-chen?tab=profile"><i class="fa fa-fw fa-stack-overflow"></i></span>
+      </span>
+  </div>
+
+
+
+      </div>
+        <div class="back-to-top motion-element">
+          <i class="fa fa-arrow-up"></i>
+          <span>0%</span>
+        </div>
+
+    </div>
+  </aside>
+  <div id="sidebar-dimmer"></div>
+
+
+      </div>
+    </main>
+
+    <footer class="footer">
+      <div class="footer-inner">
+        
+  <div class="beian"><span class="exturl" data-url="aHR0cDovL3d3dy5iZWlhbi5taWl0Lmdvdi5jbg==">辽ICP备19017854号 </span>
+  </div>
+
+<div class="copyright">
+  
+  © 2019 – 
+  <span itemprop="copyrightYear">2021</span>
+  <span class="with-love">
+    <i class="fa fa-heart"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">贝克街的流浪猫</span>
+    <span class="post-meta-divider">|</span>
+    <span class="post-meta-item-icon">
+      <i class="fa fa-area-chart"></i>
+    </span>
+      <span class="post-meta-item-text">站点总字数：</span>
+    <span title="站点总字数">1.5m</span>
+    <span class="post-meta-divider">|</span>
+    <span class="post-meta-item-icon">
+      <i class="fa fa-coffee"></i>
+    </span>
+      <span class="post-meta-item-text">站点阅读时长 ≈</span>
+    <span title="站点阅读时长">22:36</span>
+</div>
+
+        
+<div class="busuanzi-count">
+  <script async="" src="https://busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js"></script>
+    <span class="post-meta-item" id="busuanzi_container_site_uv" style="display: none;">
+      <span class="post-meta-item-icon">
+        <i class="fa fa-user"></i>
+      </span>
+      <span class="site-uv" title="总访客量">
+        贝贝猫有
+        <span id="busuanzi_value_site_uv"></span>
+        位同学
+      </span>
+    </span>
+    <span class="post-meta-divider">|</span>
+    <span class="post-meta-item" id="busuanzi_container_site_pv" style="display: none;">
+      <span class="post-meta-item-icon">
+        <i class="fa fa-eye"></i>
+      </span>
+      <span class="site-pv" title="总访问量">
+        笔记被翻阅
+        <span id="busuanzi_value_site_pv"></span>
+        次
+      </span>
+    </span>
+</div>
+
+
+
+
+
+
+  
+
+
+
+
+
+
+        
+      </div>
+    </footer>
+  </div>
+
+  
+  
+  <script src="//cdn.jsdelivr.net/npm/medium-zoom@1/dist/medium-zoom.min.js"></script>
+  <script src="//cdn.jsdelivr.net/npm/pangu@4/dist/browser/pangu.min.js"></script>
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+
+
+
+
+  
+
+<script src="//cdn.jsdelivr.net/npm/instantsearch.js@2/dist/instantsearch.min.js"></script>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+  
+  <script src="//cdn.jsdelivr.net/npm/quicklink@1/dist/quicklink.umd.js"></script>
+  
+
+
+
+
+
+
+
+<script type="text/javascript" src="/bundle.js"></script><script type="text/javascript">function leancloudSelector(url) {
+    return document.getElementById(url).querySelector('.leancloud-visitors-count');
+  }
+  if (CONFIG.page.isPost) {
+    function addCount(Counter) {
+      var visitors = document.querySelector('.leancloud_visitors');
+      var url = visitors.getAttribute('id').trim();
+      var title = visitors.getAttribute('data-flag-title').trim();
+
+      Counter('get', `/classes/Counter?where=${JSON.stringify({ url })}`)
+        .then(response => response.json())
+        .then(({ results }) => {
+          if (results.length > 0) {
+            var counter = results[0];
+              leancloudSelector(url).innerText = counter.time + 1;
+            Counter('put', '/classes/Counter/' + counter.objectId, { time: { '__op': 'Increment', 'amount': 1 } })
+              .then(response => response.json())
+              .catch(error => {
+                console.log('Failed to save visitor count', error);
+              })
+          } else {
+              leancloudSelector(url).innerText = 'Counter not initialized! More info at console err msg.';
+              console.error('ATTENTION! LeanCloud counter has security bug, see how to solve it here: https://github.com/theme-next/hexo-leancloud-counter-security. \n However, you can still use LeanCloud without security, by setting `security` option to `false`.');
+            
+          }
+        })
+        .catch(error => {
+          console.log('LeanCloud Counter Error', error);
+        });
+    }
+  } else {
+    function showTime(Counter) {
+      var visitors = document.querySelectorAll('.leancloud_visitors');
+      var entries = [...visitors].map(element => {
+        return element.getAttribute('id').trim();
+      });
+
+      Counter('get', `/classes/Counter?where=${JSON.stringify({ url: { '$in': entries } })}`)
+        .then(response => response.json())
+        .then(({ results }) => {
+          if (results.length === 0) {
+            document.querySelectorAll('.leancloud_visitors .leancloud-visitors-count').forEach(element => {
+              element.innerText = 0;
+            });
+            return;
+          }
+          for (var i = 0; i < results.length; i++) {
+            var item = results[i];
+            var url = item.url;
+            var time = item.time;
+            leancloudSelector(url).innerText = time;
+          }
+          for (var i = 0; i < entries.length; i++) {
+            var url = entries[i];
+            var element = leancloudSelector(url);
+            if (element.innerText == '') {
+              element.innerText = 0;
+            }
+          }
+        })
+        .catch(error => {
+          console.log('LeanCloud Counter Error', error);
+        });
+    }
+  }
+
+  fetch('https://app-router.leancloud.cn/2/route?appId=gmT3IkYtHVMymcwAjbwHhtiv-gzGzoHsz')
+    .then(response => response.json())
+    .then(({ api_server }) => {
+      var Counter = (method, url, data) => {
+        return fetch(`https://${api_server}/1.1${url}`, {
+          method: method,
+          headers: {
+            'X-LC-Id': 'gmT3IkYtHVMymcwAjbwHhtiv-gzGzoHsz',
+            'X-LC-Key': 'co6tpmcyS9za2D1uqQyMFtnN',
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(data)
+        });
+      };
+      if (CONFIG.page.isPost) {
+        const localhost = /http:\/\/(localhost|127.0.0.1|0.0.0.0)/;
+        if (localhost.test(document.URL)) return;
+        addCount(Counter);
+      } else if (document.querySelectorAll('.post-title-link').length >= 1) {
+        showTime(Counter);
+      }
+    });;(function(){
+      var bp = document.createElement('script');
+      var curProtocol = window.location.protocol.split(':')[0];
+      bp.src = (curProtocol === 'https') ? 'https://zz.bdstatic.com/linksubmit/push.js' : 'http://push.zhanzhang.baidu.com/push.js';
+      var s = document.getElementsByTagName("script")[0];
+      s.parentNode.insertBefore(bp, s);
+    })();;if (document.querySelectorAll('pre.mermaid').length) {
+  NexT.utils.getScript('//cdn.jsdelivr.net/npm/mermaid@8/dist/mermaid.min.js', () => {
+    mermaid.initialize({
+      theme: 'forest',
+      logLevel: 3,
+      flowchart: { curve: 'linear' },
+      gantt: { axisFormat: '%m/%d/%Y' },
+      sequence: { actorMargin: 50 }
+    });
+  }, window.mermaid);
+};window.addEventListener('load', () => {
+      quicklink({
+        timeout: 3000,
+        priority: true,
+        ignores: [uri => uri.includes('#'),uri => uri == 'https://www.beikejiedeliulangmao.top/linux/cache-and-swap/',]
+      });
+      });;NexT.utils.getScript('//cdn.jsdelivr.net/npm/gitalk@1/dist/gitalk.min.js', () => {
+    var gitalk = new Gitalk({
+      clientID: '6201d1cc2825a93aa161',
+      clientSecret: '71c60f650595a3eedba64b844f811b90acac3798',
+      repo: 'HexoBlogComment',
+      owner: 'BeiKeJieDeLiuLangMao',
+      admin: ['BeiKeJieDeLiuLangMao'],
+      id: '2b0b401ca43b00e264f1ea59d9ffe452',
+        language: 'zh-CN',
+      distractionFreeMode: 'true'
+    });
+    gitalk.render('gitalk-container');
+  }, window.Gitalk);;window.imageLazyLoadSetting = {
+                isSPA: false,
+                processImages: null,
+            };;window.addEventListener("load",function(){var t=/\.(gif|jpg|jpeg|tiff|png)$/i,r=/^data:image\/[a-z]+;base64,/;Array.prototype.slice.call(document.querySelectorAll("img[data-original]")).forEach(function(a){var e=a.parentNode;"A"===e.tagName&&(e.href.match(t)||e.href.match(r))&&(e.href=a.dataset.original)})});;!function(n){n.imageLazyLoadSetting.processImages=o;var i=n.imageLazyLoadSetting.isSPA,l=Array.prototype.slice.call(document.querySelectorAll("img[data-original]"));function o(){i&&(l=Array.prototype.slice.call(document.querySelectorAll("img[data-original]")));for(var r=0;r<l.length;r++)t=l[r],void 0,0<=(e=t.getBoundingClientRect()).bottom&&0<=e.left&&e.top<=(n.innerHeight||document.documentElement.clientHeight)&&function(t){var e,n,i,o,a=l[r];e=a,n=function(){l=l.filter(function(t){return a!==t})},i=new Image,o=e.getAttribute("data-original"),i.onload=function(){e.src=o,n&&n()},i.src=o}();var t,e}o(),n.addEventListener("scroll",function(){var t,e;t=o,e=n,clearTimeout(t.tId),t.tId=setTimeout(function(){t.call(e)},500)})}(this);</script></body></html>

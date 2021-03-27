@@ -1,0 +1,3774 @@
+<!DOCTYPE html><html lang="zh-CN"><head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 5.1.1">
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/avatar.jpg">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/avatar.jpg">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/avatar.jpg">
+  <link rel="mask-icon" href="/images/avatar.jpg" color="#222">
+  <link rel="alternate" href="/atom.xml" title="贝克街的流浪猫" type="application/atom+xml">
+  <meta http-equiv="Cache-Control" content="no-transform">
+  <meta http-equiv="Cache-Control" content="no-siteapp">
+  <meta name="google-site-verification" content="PB8pKbwvyCztAdFAxM1AdLMfqXY7wDk6xWZIy3BYn0M">
+  <meta name="baidu-site-verification" content="lHxDkbImj8">
+
+
+
+
+
+  
+  
+
+
+<script id="hexo-configurations">
+  var NexT = window.NexT || {};
+  var CONFIG = {
+    root: '/',
+    scheme: 'Gemini',
+    version: '7.5.0',
+    exturl: true,
+    sidebar: {"position":"left","display":"post","offset":12,"onmobile":false},
+    copycode: {"enable":true,"show_result":true,"style":null},
+    back2top: {"enable":true,"sidebar":true,"scrollpercent":true},
+    bookmark: {"enable":false,"color":"#222","save":"auto"},
+    fancybox: false,
+    mediumzoom: true,
+    lazyload: false,
+    pangu: true,
+    algolia: {
+      appID: 'XKULKGLQCN',
+      apiKey: '59d463bff59108a7719f93aa31f249f3',
+      indexName: 'Hexo Blog',
+      hits: {"per_page":10},
+      labels: {"input_placeholder":"文章查询","hits_empty":"很抱歉，贝贝猫没有发表关于 \"${query}\" 的文章","hits_stats":"找到了 ${hits} 篇文章，耗时 ${time} 毫秒"}
+    },
+    localsearch: {"enable":false,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false},
+    path: '',
+    motion: {"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},
+    sidebarPadding: 40
+  };
+</script>
+
+  <meta name="description" content="引言本文整理了 Linux 内核中时间管理的相关知识，其他 Linux 相关文章均收录于 <Linux系列文章>。">
+<meta property="og:type" content="article">
+<meta property="og:title" content="Linux 时间管理">
+<meta property="og:url" content="https://www.beikejiedeliulangmao.top/linux/time-management/index.html">
+<meta property="og:site_name" content="贝克街的流浪猫">
+<meta property="og:description" content="引言本文整理了 Linux 内核中时间管理的相关知识，其他 Linux 相关文章均收录于 <Linux系列文章>。">
+<meta property="og:locale" content="zh_CN">
+<meta property="og:image" content="https://www.beikejiedeliulangmao.top/images/loading-cat.gif">
+<meta property="og:image" content="https://www.beikejiedeliulangmao.top/images/loading-cat.gif">
+<meta property="og:image" content="https://www.beikejiedeliulangmao.top/images/loading-cat.gif">
+<meta property="og:image" content="https://www.beikejiedeliulangmao.top/images/loading-cat.gif">
+<meta property="og:image" content="https://www.beikejiedeliulangmao.top/images/loading-cat.gif">
+<meta property="og:image" content="https://www.beikejiedeliulangmao.top/images/loading-cat.gif">
+<meta property="og:image" content="https://www.beikejiedeliulangmao.top/images/loading-cat.gif">
+<meta property="og:image" content="https://www.beikejiedeliulangmao.top/images/loading-cat.gif">
+<meta property="og:image" content="https://www.beikejiedeliulangmao.top/images/loading-cat.gif">
+<meta property="og:image" content="https://www.beikejiedeliulangmao.top/images/loading-cat.gif">
+<meta property="article:published_time" content="2019-10-29T01:39:36.000Z">
+<meta property="article:modified_time" content="2021-01-17T04:25:40.551Z">
+<meta property="article:author" content="贝克街的流浪猫">
+<meta property="article:tag" content="OperatingSystem">
+<meta property="article:tag" content="Unix">
+<meta property="article:tag" content="Linux">
+<meta property="article:tag" content="Kernel">
+<meta property="article:tag" content="TimeManagement">
+<meta property="article:tag" content="LowFrequencyTimer">
+<meta property="article:tag" content="HighFrequencyTimer">
+<meta property="article:tag" content="DynamicTimer">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="https://www.beikejiedeliulangmao.top/images/loading-cat.gif">
+
+<link rel="canonical" href="https://www.beikejiedeliulangmao.top/linux/time-management/">
+
+
+<script id="page-configurations">
+  // https://hexo.io/docs/variables.html
+  CONFIG.page = {
+    sidebar: "",
+    isHome: false,
+    isPost: true,
+    isPage: false,
+    isArchive: false
+  };
+</script>
+
+  <title>Linux 时间管理 | 贝克街的流浪猫</title>
+  
+    <script>
+      function sendPageView() {
+        var host = window.location.hostname;
+        if (host == "localhost" && true) return;
+        var uid = localStorage.getItem('uid') || (Math.random() + '.' + Math.random());
+        localStorage.setItem('uid', uid);
+        navigator.sendBeacon('https://www.google-analytics.com/collect', new URLSearchParams({
+          v  : 1,
+          tid: 'UA-146830566-1',
+          cid: uid,
+          t  : 'pageview',
+          dp : encodeURIComponent(location.pathname)
+        }));
+      }
+      document.addEventListener('pjax:complete', sendPageView);
+      sendPageView();
+    </script>
+
+
+  <script>
+    var _hmt = _hmt || [];
+    (function() {
+      var hm = document.createElement("script");
+      hm.src = "https://hm.baidu.com/hm.js?818a8e6061ff2bd0b5531a739f216601";
+      var s = document.getElementsByTagName("script")[0];
+      s.parentNode.insertBefore(hm, s);
+    })();
+  </script>
+
+
+
+
+  <style>body {
+  background-image: url("https://www.beikejiedeliulangmao.top/images/background.jpeg") !important;
+  background-attachment: fixed !important;
+  background-repeat: no-repeat !important;
+  background-size: 100% 100% !important;
+}
+.bg_content {
+  position: fixed;
+  top: 0;
+  z-index: -1;
+  width: 100%;
+  height: 100%;
+}
+.copyright {
+  color: #000;
+}
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+  background-color: #fff;
+}
+::-webkit-scrollbar-button {
+  width: 0;
+  height: 0;
+}
+::-webkit-scrollbar-button:start:increment,
+::-webkit-scrollbar-button:end:decrement {
+  display: none;
+}
+::-webkit-scrollbar-corner {
+  display: block;
+}
+::-webkit-scrollbar-thumb {
+  border-radius: 6px;
+  background-color: rgba(0,0,0,0.4);
+}
+::-webkit-scrollbar-thumb:hover {
+  border-radius: 6px;
+  background-color: rgba(0,0,0,0.6);
+}
+::-webkit-scrollbar-track,
+::-webkit-scrollbar-thumb {
+  border-right: 1px solid transparent;
+  border-left: 1px solid transparent;
+}
+::-webkit-scrollbar-button:start {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-button:end {
+  width: 6px;
+  height: 6px;
+}
+html {
+  line-height: 1.15; 
+  -webkit-text-size-adjust: 100%; 
+}
+body {
+  margin: 0;
+}
+main {
+  display: block;
+}
+h1 {
+  font-size: 2em;
+  margin: 0.67em 0;
+}
+hr {
+  box-sizing: content-box; 
+  height: 0; 
+  overflow: visible; 
+}
+pre {
+  font-family: monospace, monospace; 
+  font-size: 1em; 
+}
+a {
+  background: transparent;
+}
+abbr[title] {
+  border-bottom: none; 
+  text-decoration: underline; 
+  text-decoration: underline dotted; 
+}
+b,
+strong {
+  font-weight: bolder;
+}
+code,
+kbd,
+samp {
+  font-family: monospace, monospace; 
+  font-size: 1em; 
+}
+small {
+  font-size: 80%;
+}
+sub,
+sup {
+  font-size: 75%;
+  line-height: 0;
+  position: relative;
+  vertical-align: baseline;
+}
+sub {
+  bottom: -0.25em;
+}
+sup {
+  top: -0.5em;
+}
+img {
+  border-style: none;
+}
+button,
+input,
+optgroup,
+select,
+textarea {
+  font-family: inherit; 
+  font-size: 100%; 
+  line-height: 1.15; 
+  margin: 0; 
+}
+button,
+input {
+
+  overflow: visible;
+}
+button,
+select {
+
+  text-transform: none;
+}
+button,
+[type='button'],
+[type='reset'],
+[type='submit'] {
+  -webkit-appearance: button;
+}
+button::-moz-focus-inner,
+[type='button']::-moz-focus-inner,
+[type='reset']::-moz-focus-inner,
+[type='submit']::-moz-focus-inner {
+  border-style: none;
+  padding: 0;
+}
+button:-moz-focusring,
+[type='button']:-moz-focusring,
+[type='reset']:-moz-focusring,
+[type='submit']:-moz-focusring {
+  outline: 1px dotted ButtonText;
+}
+fieldset {
+  padding: 0.35em 0.75em 0.625em;
+}
+legend {
+  box-sizing: border-box; 
+  color: inherit; 
+  display: table; 
+  max-width: 100%; 
+  padding: 0; 
+  white-space: normal; 
+}
+progress {
+  vertical-align: baseline;
+}
+textarea {
+  overflow: auto;
+}
+[type='checkbox'],
+[type='radio'] {
+  box-sizing: border-box; 
+  padding: 0; 
+}
+[type='number']::-webkit-inner-spin-button,
+[type='number']::-webkit-outer-spin-button {
+  height: auto;
+}
+[type='search'] {
+  outline-offset: -2px; 
+  -webkit-appearance: textfield; 
+}
+[type='search']::-webkit-search-decoration {
+  -webkit-appearance: none;
+}
+::-webkit-file-upload-button {
+  font: inherit; 
+  -webkit-appearance: button; 
+}
+details {
+  display: block;
+}
+summary {
+  display: list-item;
+}
+template {
+  display: none;
+}
+[hidden] {
+  display: none;
+}
+::selection {
+  background: #262a30;
+  color: #fff;
+}
+html,
+body {
+  height: 100%;
+}
+body {
+  background: #eee;
+  color: #555;
+  font-family: 'Monda', "PingFang SC", "Microsoft YaHei", sans-serif;
+  font-size: 1em;
+  line-height: 2;
+}
+@media (max-width: 991px) {
+  body {
+    padding-left: 0 !important;
+    padding-right: 0 !important;
+  }
+}
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+  font-family: 'Roboto Slab', 'Monda', "PingFang SC", "Microsoft YaHei", sans-serif;
+  font-weight: bold;
+  line-height: 1.5;
+  margin: 20px 0 15px;
+  padding: 0;
+}
+h1 {
+  font-size: 1.5em;
+}
+h2 {
+  font-size: 1.375em;
+}
+h3 {
+  font-size: 1.25em;
+}
+h4 {
+  font-size: 1.125em;
+}
+h5 {
+  font-size: 1em;
+}
+h6 {
+  font-size: 0.875em;
+}
+p {
+  margin: 0 0 20px 0;
+}
+a,
+span.exturl {
+  border-bottom: 1px solid #999;
+  color: #555;
+  outline: 0;
+  text-decoration: none;
+  overflow-wrap: break-word;
+  word-wrap: break-word;
+  cursor: pointer;
+}
+a:hover,
+span.exturl:hover {
+  border-bottom-color: #222;
+  color: #222;
+}
+iframe,
+img,
+video {
+  display: block;
+  margin-left: auto;
+  margin-right: auto;
+  max-width: 100%;
+}
+hr {
+  background-color: #ddd;
+  background-image: repeating-linear-gradient(-45deg, #fff, #fff 4px, transparent 4px, transparent 8px);
+  border: 0;
+  height: 3px;
+  margin: 40px 0;
+}
+blockquote {
+  border-left: 4px solid #ddd;
+  color: #666;
+  margin: 0;
+  padding: 0 15px;
+}
+blockquote cite::before {
+  content: '-';
+  padding: 0 5px;
+}
+dt {
+  font-weight: 700;
+}
+dd {
+  margin: 0;
+  padding: 0;
+}
+kbd {
+  background-color: #f5f5f5;
+  background-image: linear-gradient(#eee, #fff, #eee);
+  border: 1px solid #ccc;
+  border-radius: 0.2em;
+  box-shadow: 0.1em 0.1em 0.2em rgba(0,0,0,0.1);
+  font-family: inherit;
+  padding: 0.1em 0.3em;
+  white-space: nowrap;
+}
+.table-container {
+  -webkit-overflow-scrolling: touch;
+  overflow: auto;
+}
+table {
+  border-collapse: collapse;
+  border-spacing: 0;
+  font-size: 0.875em;
+  margin: 0 0 20px 0;
+  width: 100%;
+}
+tbody tr:nth-of-type(odd) {
+  background: #f9f9f9;
+}
+tbody tr:hover {
+  background: #f5f5f5;
+}
+caption,
+th,
+td {
+  font-weight: normal;
+  padding: 8px;
+  text-align: left;
+  vertical-align: middle;
+}
+th,
+td {
+  border: 1px solid #ddd;
+  border-bottom: 3px solid #ddd;
+}
+th {
+  font-weight: 700;
+  padding-bottom: 10px;
+}
+td {
+  border-bottom-width: 1px;
+}
+.btn {
+  background: #fff;
+  border: 2px solid #555;
+  border-radius: 2px;
+  color: #555;
+  display: inline-block;
+  font-size: 0.875em;
+  line-height: 2;
+  padding: 0 20px;
+  text-decoration: none;
+  transition-property: background-color;
+  transition-delay: 0s;
+  transition-duration: 0.2s;
+  transition-timing-function: ease-in-out;
+}
+.btn:hover {
+  background: #222;
+  border-color: #222;
+  color: #fff;
+}
+.btn + .btn {
+  margin: 0 0 8px 8px;
+}
+.btn .fa-fw {
+  text-align: left;
+  width: 1.285714285714286em;
+}
+.toggle {
+  line-height: 0;
+}
+.toggle .toggle-line {
+  background: #fff;
+  display: inline-block;
+  height: 2px;
+  left: 0;
+  position: relative;
+  top: 0;
+  transition: all 0.4s;
+  vertical-align: top;
+  width: 100%;
+}
+.toggle .toggle-line:not(:first-child) {
+  margin-top: 3px;
+}
+.toggle.toggle-arrow .toggle-line-first {
+  left: 50%;
+  top: 2px;
+  transform: rotate(45deg);
+  width: 50%;
+}
+.toggle.toggle-arrow .toggle-line-middle {
+  left: 2px;
+  width: 90%;
+}
+.toggle.toggle-arrow .toggle-line-last {
+  left: 50%;
+  top: -2px;
+  transform: rotate(-45deg);
+  width: 50%;
+}
+.toggle.toggle-close .toggle-line-first {
+  transform: rotate(-45deg);
+  top: 5px;
+}
+.toggle.toggle-close .toggle-line-middle {
+  opacity: 0;
+}
+.toggle.toggle-close .toggle-line-last {
+  transform: rotate(45deg);
+  top: -5px;
+}
+.highlight-container {
+  position: relative;
+}
+.highlight-container:hover .copy-btn,
+.highlight-container .copy-btn:focus {
+  opacity: 1;
+}
+.copy-btn {
+  color: #333;
+  cursor: pointer;
+  display: inline-block;
+  font-weight: 700;
+  line-height: 1.6;
+  opacity: 0;
+  outline: 0;
+  padding: 2px 6px;
+  position: absolute;
+  transition: opacity 0.3s ease-in-out;
+  vertical-align: middle;
+  white-space: nowrap;
+  -moz-user-select: none;
+  -ms-user-select: none;
+  -webkit-user-select: none;
+  user-select: none;
+  background-color: #eee;
+  background-image: linear-gradient(#fcfcfc, #eee);
+  border: 1px solid #d5d5d5;
+  border-radius: 3px;
+  font-size: 0.8125em;
+  right: 4px;
+  top: 8px;
+}
+.highlight,
+pre {
+  background: #f7f7f7;
+  color: #4d4d4c;
+  line-height: 1.6;
+  margin: 0 auto 20px;
+}
+pre,
+code {
+  font-family: 'PT Mono', consolas, Menlo, monospace, "PingFang SC", "Microsoft YaHei";
+}
+code {
+  background: #eee;
+  border-radius: 3px;
+  color: #555;
+  padding: 2px 4px;
+  overflow-wrap: break-word;
+  word-wrap: break-word;
+}
+.highlight *::selection {
+  background: #d6d6d6;
+}
+.highlight pre {
+  border: 0;
+  margin: 0;
+  padding: 0;
+}
+.highlight table {
+  border: 0;
+  margin: 0;
+  width: auto;
+}
+.highlight tr:first-child pre {
+  padding-top: 10px;
+}
+.highlight tr:last-child pre {
+  padding-bottom: 10px;
+}
+.highlight td {
+  border: 0;
+  padding: 0;
+}
+.highlight figcaption {
+  background: #eee;
+  color: #4d4d4c;
+  font-size: 0.875em;
+  line-height: 1.2;
+  padding: 0.5em;
+}
+.highlight figcaption::before,
+.highlight figcaption::after {
+  content: ' ';
+  display: table;
+}
+.highlight figcaption::after {
+  clear: both;
+}
+.highlight figcaption a {
+  color: #4d4d4c;
+  float: right;
+}
+.highlight figcaption a:hover {
+  border-bottom-color: #4d4d4c;
+}
+.highlight .gutter pre {
+  background: #eff2f3;
+  color: #869194;
+  padding-left: 10px;
+  padding-right: 10px;
+  text-align: right;
+  -moz-user-select: none;
+  -ms-user-select: none;
+  -webkit-user-select: none;
+  user-select: none;
+}
+.highlight .code pre {
+  background: #f7f7f7;
+  padding-left: 10px;
+  width: 100%;
+}
+.gist table {
+  width: auto;
+}
+.gist table td {
+  border: 0;
+}
+pre {
+  overflow: auto;
+  padding: 10px;
+}
+pre code {
+  background: none;
+  color: #4d4d4c;
+  font-size: 0.875em;
+  padding: 0;
+  text-shadow: none;
+}
+pre .deletion {
+  background: #fdd;
+}
+pre .addition {
+  background: #dfd;
+}
+pre .meta {
+  color: #eab700;
+  -moz-user-select: none;
+  -ms-user-select: none;
+  -webkit-user-select: none;
+  user-select: none;
+}
+pre .comment {
+  color: #8e908c;
+}
+pre .variable,
+pre .attribute,
+pre .tag,
+pre .name,
+pre .regexp,
+pre .ruby .constant,
+pre .xml .tag .title,
+pre .xml .pi,
+pre .xml .doctype,
+pre .html .doctype,
+pre .css .id,
+pre .css .class,
+pre .css .pseudo {
+  color: #c82829;
+}
+pre .number,
+pre .preprocessor,
+pre .built_in,
+pre .builtin-name,
+pre .literal,
+pre .params,
+pre .constant,
+pre .command {
+  color: #f5871f;
+}
+pre .ruby .class .title,
+pre .css .rules .attribute,
+pre .string,
+pre .symbol,
+pre .value,
+pre .inheritance,
+pre .header,
+pre .ruby .symbol,
+pre .xml .cdata,
+pre .special,
+pre .formula {
+  color: #718c00;
+}
+pre .title,
+pre .css .hexcolor {
+  color: #3e999f;
+}
+pre .function,
+pre .python .decorator,
+pre .python .title,
+pre .ruby .function .title,
+pre .ruby .title .keyword,
+pre .perl .sub,
+pre .javascript .title,
+pre .coffeescript .title {
+  color: #4271ae;
+}
+pre .keyword,
+pre .javascript .function {
+  color: #8959a8;
+}
+.blockquote-center {
+  border-left: none;
+  margin: 40px 0;
+  padding: 0;
+  position: relative;
+  text-align: center;
+}
+.blockquote-center::before,
+.blockquote-center::after {
+  background-repeat: no-repeat;
+  background-size: 22px 22px;
+  content: ' ';
+  display: block;
+  height: 24px;
+  opacity: 0.2;
+  position: absolute;
+  width: 100%;
+}
+.blockquote-center::before {
+  background-image: url("../images/quote-l.svg");
+  background-position: 0 -6px;
+  border-top: 1px solid #ccc;
+  top: -20px;
+}
+.blockquote-center::after {
+  background-image: url("../images/quote-r.svg");
+  background-position: 100% 8px;
+  border-bottom: 1px solid #ccc;
+  bottom: -20px;
+}
+.blockquote-center p,
+.blockquote-center div {
+  text-align: center;
+}
+.post-body .group-picture img {
+  border: 0;
+  margin: 0 auto;
+  padding: 0 3px;
+}
+.group-picture-row {
+  margin-bottom: 6px;
+  overflow: hidden;
+}
+.group-picture-column {
+  float: left;
+  margin-bottom: 10px;
+}
+.post-body .label {
+  display: inline;
+  padding: 0 2px;
+}
+.post-body .label.default {
+  background: #f0f0f0;
+}
+.post-body .label.primary {
+  background: #efe6f7;
+}
+.post-body .label.info {
+  background: #e5f2f8;
+}
+.post-body .label.success {
+  background: #e7f4e9;
+}
+.post-body .label.warning {
+  background: #fcf6e1;
+}
+.post-body .label.danger {
+  background: #fae8eb;
+}
+.post-body .tabs {
+  margin-bottom: 20px;
+}
+.post-body .tabs,
+.tabs-comment {
+  display: block;
+  padding-top: 10px;
+  position: relative;
+}
+.post-body .tabs ul.nav-tabs,
+.tabs-comment ul.nav-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  margin: 0;
+  margin-bottom: -1px;
+  padding: 0;
+}
+@media (max-width: 413px) {
+  .post-body .tabs ul.nav-tabs,
+  .tabs-comment ul.nav-tabs {
+    display: block;
+    margin-bottom: 5px;
+  }
+}
+.post-body .tabs ul.nav-tabs li.tab,
+.tabs-comment ul.nav-tabs li.tab {
+  background: #fff;
+  border-bottom: 1px solid #ddd;
+  border-left: 1px solid transparent;
+  border-right: 1px solid transparent;
+  border-top: 3px solid transparent;
+  flex-grow: 1;
+  list-style-type: none;
+}
+@media (max-width: 413px) {
+  .post-body .tabs ul.nav-tabs li.tab,
+  .tabs-comment ul.nav-tabs li.tab {
+    border-bottom: 1px solid transparent;
+    border-left: 3px solid transparent;
+    border-right: 1px solid transparent;
+    border-top: 1px solid transparent;
+  }
+}
+.post-body .tabs ul.nav-tabs li.tab a,
+.tabs-comment ul.nav-tabs li.tab a {
+  border-bottom: initial;
+  display: block;
+  line-height: 1.8;
+  outline: 0;
+  padding: 0.25em 0.75em;
+  text-align: center;
+  transition-delay: 0s;
+  transition-duration: 0.2s;
+  transition-timing-function: ease-out;
+}
+.post-body .tabs ul.nav-tabs li.tab a i,
+.tabs-comment ul.nav-tabs li.tab a i {
+  width: 1.285714285714286em;
+}
+.post-body .tabs ul.nav-tabs li.tab.active,
+.tabs-comment ul.nav-tabs li.tab.active {
+  border-bottom: 1px solid transparent;
+  border-left: 1px solid #ddd;
+  border-right: 1px solid #ddd;
+  border-top: 3px solid #fc6423;
+}
+@media (max-width: 413px) {
+  .post-body .tabs ul.nav-tabs li.tab.active,
+  .tabs-comment ul.nav-tabs li.tab.active {
+    border-bottom: 1px solid #ddd;
+    border-left: 3px solid #fc6423;
+    border-right: 1px solid #ddd;
+    border-top: 1px solid #ddd;
+  }
+}
+.post-body .tabs ul.nav-tabs li.tab.active a,
+.tabs-comment ul.nav-tabs li.tab.active a {
+  color: #555;
+  cursor: default;
+}
+.post-body .tabs .tab-content .tab-pane,
+.tabs-comment .tab-content .tab-pane {
+  border: 1px solid #ddd;
+  padding: 20px 20px 0 20px;
+}
+.post-body .tabs .tab-content .tab-pane:not(.active),
+.tabs-comment .tab-content .tab-pane:not(.active) {
+  display: none;
+}
+.post-body .tabs .tab-content .tab-pane.active,
+.tabs-comment .tab-content .tab-pane.active {
+  display: block;
+}
+.post-body .note {
+  margin-bottom: 20px;
+  padding: 15px;
+  position: relative;
+  border: 1px solid #eee;
+  border-left-width: 5px;
+  border-radius: 3px;
+}
+.post-body .note h2,
+.post-body .note h3,
+.post-body .note h4,
+.post-body .note h5,
+.post-body .note h6 {
+  margin-top: 0;
+  border-bottom: initial;
+  margin-bottom: 0;
+  padding-top: 0;
+}
+.post-body .note p:first-child,
+.post-body .note ul:first-child,
+.post-body .note ol:first-child,
+.post-body .note table:first-child,
+.post-body .note pre:first-child,
+.post-body .note blockquote:first-child,
+.post-body .note img:first-child {
+  margin-top: 0;
+}
+.post-body .note p:last-child,
+.post-body .note ul:last-child,
+.post-body .note ol:last-child,
+.post-body .note table:last-child,
+.post-body .note pre:last-child,
+.post-body .note blockquote:last-child,
+.post-body .note img:last-child {
+  margin-bottom: 0;
+}
+.post-body .note.default {
+  border-left-color: #777;
+}
+.post-body .note.default h2,
+.post-body .note.default h3,
+.post-body .note.default h4,
+.post-body .note.default h5,
+.post-body .note.default h6 {
+  color: #777;
+}
+.post-body .note.primary {
+  border-left-color: #6f42c1;
+}
+.post-body .note.primary h2,
+.post-body .note.primary h3,
+.post-body .note.primary h4,
+.post-body .note.primary h5,
+.post-body .note.primary h6 {
+  color: #6f42c1;
+}
+.post-body .note.info {
+  border-left-color: #428bca;
+}
+.post-body .note.info h2,
+.post-body .note.info h3,
+.post-body .note.info h4,
+.post-body .note.info h5,
+.post-body .note.info h6 {
+  color: #428bca;
+}
+.post-body .note.success {
+  border-left-color: #5cb85c;
+}
+.post-body .note.success h2,
+.post-body .note.success h3,
+.post-body .note.success h4,
+.post-body .note.success h5,
+.post-body .note.success h6 {
+  color: #5cb85c;
+}
+.post-body .note.warning {
+  border-left-color: #f0ad4e;
+}
+.post-body .note.warning h2,
+.post-body .note.warning h3,
+.post-body .note.warning h4,
+.post-body .note.warning h5,
+.post-body .note.warning h6 {
+  color: #f0ad4e;
+}
+.post-body .note.danger {
+  border-left-color: #d9534f;
+}
+.post-body .note.danger h2,
+.post-body .note.danger h3,
+.post-body .note.danger h4,
+.post-body .note.danger h5,
+.post-body .note.danger h6 {
+  color: #d9534f;
+}
+.pagination .prev,
+.pagination .next,
+.pagination .page-number,
+.pagination .space {
+  display: inline-block;
+  margin: 0 10px;
+  padding: 0 11px;
+  position: relative;
+  top: -1px;
+}
+@media (max-width: 767px) {
+  .pagination .prev,
+  .pagination .next,
+  .pagination .page-number,
+  .pagination .space {
+    margin: 0 5px;
+  }
+}
+.pagination {
+  border-top: 1px solid #eee;
+  margin: 120px 0 0;
+  text-align: center;
+}
+.pagination .prev,
+.pagination .next,
+.pagination .page-number {
+  border-bottom: 0;
+  border-top: 1px solid #eee;
+  transition-property: border-color;
+  transition-delay: 0s;
+  transition-duration: 0.2s;
+  transition-timing-function: ease-in-out;
+}
+.pagination .prev:hover,
+.pagination .next:hover,
+.pagination .page-number:hover {
+  border-top-color: #222;
+}
+.pagination .space {
+  margin: 0;
+  padding: 0;
+}
+.pagination .prev {
+  margin-left: 0;
+}
+.pagination .next {
+  margin-right: 0;
+}
+.pagination .page-number.current,
+.algolia-pagination .current .page-number {
+  background: #ccc;
+  border-top-color: #ccc;
+  color: #fff;
+}
+@media (max-width: 767px) {
+  .pagination {
+    border-top: none;
+  }
+  .pagination .prev,
+  .pagination .next,
+  .pagination .page-number {
+    border-bottom: 1px solid #eee;
+    border-top: 0;
+    margin-bottom: 10px;
+    padding: 0 10px;
+  }
+  .pagination .prev:hover,
+  .pagination .next:hover,
+  .pagination .page-number:hover {
+    border-bottom-color: #222;
+  }
+}
+.comments {
+  margin: 60px 20px 0;
+  overflow: hidden;
+}
+.comment-button-group {
+  display: flex;
+  flex-wrap: wrap-reverse;
+  justify-content: center;
+  margin: 1em 0;
+}
+.comment-button-group .comment-button {
+  margin: 0.1em 0.2em;
+}
+.comment-button-group .comment-button.active {
+  background: #222;
+  border-color: #222;
+  color: #fff;
+}
+.comment-position {
+  display: none;
+}
+.comment-position.active {
+  display: block;
+}
+.tabs-comment {
+  background: #fff;
+  margin-top: 4em;
+  padding-top: 0;
+}
+.tabs-comment .comments {
+  border: 0;
+  box-shadow: none;
+  margin-top: 0;
+  padding-top: 0;
+}
+.container {
+  min-height: 100%;
+  position: relative;
+}
+.main-inner {
+  margin: 0 auto;
+  width: calc(100% - 20px);
+}
+@media (min-width: 1200px) {
+  .main-inner {
+    width: 1160px;
+  }
+}
+@media (min-width: 1600px) {
+  .main-inner {
+    width: 73%;
+  }
+}
+.header {
+  background: transparent;
+}
+.header-inner {
+  margin: 0 auto;
+  position: relative;
+  width: calc(100% - 20px);
+}
+@media (min-width: 1200px) {
+  .header-inner {
+    width: 1160px;
+  }
+}
+@media (min-width: 1600px) {
+  .header-inner {
+    width: 73%;
+  }
+}
+.headband {
+  background: #222;
+  height: 3px;
+}
+.site-meta {
+  margin: 0;
+  text-align: center;
+}
+@media (max-width: 767px) {
+  .site-meta {
+    text-align: center;
+  }
+}
+.brand {
+  background: #222;
+  border-bottom: none;
+  color: #fff;
+  display: inline-block;
+  line-height: 1.375em;
+  padding: 0 40px;
+  position: relative;
+}
+.brand:hover {
+  color: #fff;
+}
+.site-title {
+  display: inline-block;
+  font-family: 'Monda', "PingFang SC", "Microsoft YaHei", sans-serif;
+  font-size: 1.375em;
+  font-weight: normal;
+  line-height: 1.5;
+  vertical-align: top;
+}
+.site-subtitle {
+  color: #ddd;
+  font-size: 0.8125em;
+  margin-top: 10px;
+}
+.use-motion .brand {
+  opacity: 0;
+}
+.use-motion .site-title,
+.use-motion .site-subtitle,
+.use-motion .custom-logo-image {
+  opacity: 0;
+  position: relative;
+  top: -10px;
+}
+.site-nav-toggle {
+  display: none;
+  left: 10px;
+  position: absolute;
+}
+@media (max-width: 767px) {
+  .site-nav-toggle {
+    display: block;
+  }
+}
+.site-nav-toggle .toggle {
+  background: transparent;
+  border: 0;
+  margin-top: 2px;
+  padding: 10px;
+  width: 22px;
+}
+.site-nav-toggle .toggle .toggle-line {
+  background: #555;
+  border-radius: 1px;
+}
+.site-nav {
+  display: block;
+}
+@media (max-width: 767px) {
+  .site-nav {
+    border-top: 1px solid #ddd;
+    clear: both;
+    display: none;
+    margin: 0 -10px;
+    padding: 0 10px;
+  }
+}
+.site-nav.site-nav-on {
+  display: block;
+}
+.menu {
+  margin-top: 20px;
+  padding-left: 0;
+  text-align: center;
+}
+.menu-item {
+  display: inline-block;
+  list-style: none;
+  margin: 0 10px;
+}
+@media (max-width: 767px) {
+  .menu-item {
+    margin-top: 10px;
+  }
+}
+.menu-item a,
+.menu-item span.exturl {
+  border-bottom: 0;
+  display: block;
+  font-size: 0.8125em;
+  transition-property: border-color;
+  transition-delay: 0s;
+  transition-duration: 0.2s;
+  transition-timing-function: ease-in-out;
+}
+@media (hover: none) {
+  .menu-item a:hover,
+  .menu-item span.exturl:hover {
+    border-bottom-color: transparent !important;
+  }
+}
+.menu-item .fa {
+  margin-right: 8px;
+}
+.menu-item .badge {
+  display: inline-block;
+  font-weight: 700;
+  line-height: 1;
+  margin-left: 0.35em;
+  margin-top: 0.35em;
+  text-align: center;
+  white-space: nowrap;
+}
+@media (max-width: 767px) {
+  .menu-item .badge {
+    float: right;
+    margin-left: 0;
+  }
+}
+.use-motion .menu-item {
+  opacity: 0;
+}
+.github-corner :hover .octo-arm {
+  animation: octocat-wave 560ms ease-in-out;
+}
+.github-corner svg {
+  border: 0;
+  color: #fff;
+  fill: #222;
+  position: absolute;
+  right: 0;
+  top: 0;
+  z-index: 1000;
+}
+@media (max-width: 991px) {
+  .github-corner svg {
+    color: #222;
+    fill: #fff;
+  }
+  .github-corner .github-corner:hover .octo-arm {
+    animation: none;
+  }
+  .github-corner .github-corner .octo-arm {
+    animation: octocat-wave 560ms ease-in-out;
+  }
+}
+@-moz-keyframes octocat-wave {
+  0%, 100% {
+    transform: rotate(0);
+  }
+  20%, 60% {
+    transform: rotate(-25deg);
+  }
+  40%, 80% {
+    transform: rotate(10deg);
+  }
+}
+@-webkit-keyframes octocat-wave {
+  0%, 100% {
+    transform: rotate(0);
+  }
+  20%, 60% {
+    transform: rotate(-25deg);
+  }
+  40%, 80% {
+    transform: rotate(10deg);
+  }
+}
+@-o-keyframes octocat-wave {
+  0%, 100% {
+    transform: rotate(0);
+  }
+  20%, 60% {
+    transform: rotate(-25deg);
+  }
+  40%, 80% {
+    transform: rotate(10deg);
+  }
+}
+@keyframes octocat-wave {
+  0%, 100% {
+    transform: rotate(0);
+  }
+  20%, 60% {
+    transform: rotate(-25deg);
+  }
+  40%, 80% {
+    transform: rotate(10deg);
+  }
+}
+.sidebar {
+  background: #222;
+  bottom: 0;
+  box-shadow: inset 0 2px 6px #000;
+  position: fixed;
+  top: 0;
+  z-index: 1200;
+}
+.sidebar a,
+.sidebar span.exturl {
+  border-bottom-color: #555;
+  color: #999;
+}
+.sidebar a:hover,
+.sidebar span.exturl:hover {
+  border-bottom-color: #eee;
+  color: #eee;
+}
+@media (max-width: 991px) {
+  .sidebar {
+    display: none;
+  }
+}
+.sidebar-inner {
+  color: #999;
+  padding: 20px 10px;
+  text-align: center;
+}
+.site-overview-wrap {
+  overflow-x: hidden;
+  overflow-y: auto;
+}
+.cc-license {
+  margin-top: 10px;
+  text-align: center;
+}
+.cc-license .cc-opacity {
+  border-bottom: none;
+  opacity: 0.7;
+}
+.cc-license .cc-opacity:hover {
+  opacity: 0.9;
+}
+.cc-license img {
+  display: inline-block;
+}
+.site-author-image {
+  border: 1px solid #eee;
+  display: block;
+  height: auto;
+  margin: 0 auto;
+  max-width: 120px;
+  padding: 2px;
+  border-radius: 50%;
+}
+.site-author-name {
+  color: #222;
+  font-weight: 600;
+  margin: 0;
+  text-align: center;
+}
+.site-description {
+  color: #999;
+  font-size: 0.8125em;
+  margin-top: 0;
+  text-align: center;
+}
+.links-of-author {
+  margin-top: 15px;
+}
+.links-of-author a,
+.links-of-author span.exturl {
+  border-bottom-color: #555;
+  display: inline-block;
+  font-size: 0.8125em;
+  margin-bottom: 10px;
+  margin-right: 10px;
+  vertical-align: middle;
+  transition-delay: 0s;
+  transition-duration: 0.2s;
+  transition-timing-function: ease-in-out;
+}
+.links-of-author a::before,
+.links-of-author span.exturl::before {
+  background: #0ab5cd;
+  border-radius: 50%;
+  content: ' ';
+  display: inline-block;
+  height: 4px;
+  margin-right: 3px;
+  vertical-align: middle;
+  width: 4px;
+}
+.feed-link,
+.chat {
+  margin-top: 15px;
+}
+.feed-link a,
+.chat a {
+  border: 1px solid #fc6423;
+  border-radius: 4px;
+  color: #fc6423;
+  display: inline-block;
+  padding: 0 15px;
+}
+.feed-link a .fa,
+.chat a .fa {
+  margin-right: 5px;
+}
+.feed-link a:hover,
+.chat a:hover {
+  background: #fc6423;
+  border: 1px solid #fc6423;
+  color: #fff;
+}
+.feed-link a:hover .fa,
+.chat a:hover .fa {
+  color: #fff;
+}
+.links-of-blogroll {
+  font-size: 0.8125em;
+  margin-top: 10px;
+}
+.links-of-blogroll-title {
+  font-size: 0.875em;
+  font-weight: 600;
+  margin-top: 0;
+}
+.links-of-blogroll-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.links-of-blogroll-item {
+  padding: 2px 10px;
+}
+.links-of-blogroll-item a,
+.links-of-blogroll-item span.exturl {
+  box-sizing: border-box;
+  display: inline-block;
+  max-width: 280px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+#sidebar-dimmer {
+  display: none;
+}
+@media (max-width: 767px) {
+  #sidebar-dimmer {
+    background: #000;
+    display: block;
+    height: 100%;
+    left: 100%;
+    opacity: 0;
+    position: fixed;
+    top: 0;
+    width: 100%;
+    z-index: 1100;
+  }
+  .sidebar-active + #sidebar-dimmer {
+    opacity: 0.7;
+    transform: translateX(-100%);
+    transition: opacity 0.5s;
+  }
+}
+.sidebar-nav {
+  margin: 0;
+  padding-bottom: 20px;
+  padding-left: 0;
+}
+.sidebar-nav li {
+  border-bottom: 1px solid transparent;
+  color: #555;
+  cursor: pointer;
+  display: inline-block;
+  font-size: 0.875em;
+}
+.sidebar-nav li.sidebar-nav-overview {
+  margin-left: 10px;
+}
+.sidebar-nav li:hover {
+  color: #fc6423;
+}
+.sidebar-nav .sidebar-nav-active {
+  border-bottom-color: #fc6423;
+  color: #fc6423;
+}
+.sidebar-nav .sidebar-nav-active:hover {
+  color: #fc6423;
+}
+.sidebar-panel {
+  display: none;
+}
+.sidebar-panel-active {
+  display: block;
+}
+.sidebar-toggle {
+  background: #222;
+  bottom: 45px;
+  cursor: pointer;
+  height: 14px;
+  left: 30px;
+  padding: 5px;
+  position: fixed;
+  width: 14px;
+  z-index: 1300;
+}
+@media (max-width: 991px) {
+  .sidebar-toggle {
+    left: 20px;
+    opacity: 0.8;
+    display: none;
+  }
+}
+.sidebar-toggle:hover .toggle-line {
+  background: #fc6423;
+}
+.post-toc-wrap {
+  overflow-x: hidden;
+  overflow-y: auto;
+}
+.post-toc {
+  font-size: 0.875em;
+}
+.post-toc ol {
+  list-style: none;
+  margin: 0;
+  padding: 0 2px 5px 10px;
+  text-align: left;
+}
+.post-toc ol > ol {
+  padding-left: 0;
+}
+.post-toc ol a {
+  border-bottom-color: #ccc;
+  color: #666;
+  transition-property: all;
+  transition-delay: 0s;
+  transition-duration: 0.2s;
+  transition-timing-function: ease-in-out;
+}
+.post-toc ol a:hover {
+  border-bottom-color: #000;
+  color: #000;
+}
+.post-toc .nav-item {
+  line-height: 1.8;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.post-toc .nav .nav-child {
+  display: none;
+}
+.post-toc .nav .active > .nav-child {
+  display: block;
+}
+.post-toc .nav .active-current > .nav-child {
+  display: block;
+}
+.post-toc .nav .active-current > .nav-child > .nav-item {
+  display: block;
+}
+.post-toc .nav .active > a {
+  border-bottom-color: #fc6423;
+  color: #fc6423;
+}
+.post-toc .nav .active-current > a {
+  color: #fc6423;
+}
+.post-toc .nav .active-current > a:hover {
+  color: #fc6423;
+}
+.site-state {
+  display: flex;
+  justify-content: center;
+  line-height: 1.4;
+  margin-top: 10px;
+  overflow: hidden;
+  text-align: center;
+  white-space: nowrap;
+}
+.site-state-item {
+  padding: 0 15px;
+}
+.site-state-item:not(:first-child) {
+  border-left: 1px solid #eee;
+}
+.site-state-item a {
+  border-bottom: none;
+}
+.site-state-item-count {
+  color: inherit;
+  display: block;
+  font-size: 1em;
+  font-weight: 600;
+  text-align: center;
+}
+.site-state-item-name {
+  color: #999;
+  font-size: 0.8125em;
+}
+.footer {
+  color: #999;
+  font-size: 0.875em;
+  padding: 20px 0;
+}
+.footer.footer-fixed {
+  bottom: 0;
+  left: 0;
+  position: absolute;
+  right: 0;
+}
+.footer img {
+  border: 0;
+}
+.footer-inner {
+  box-sizing: border-box;
+  margin: 0 auto;
+  text-align: center;
+  width: calc(100% - 20px);
+}
+@media (min-width: 1200px) {
+  .footer-inner {
+    width: 1160px;
+  }
+}
+@media (min-width: 1600px) {
+  .footer-inner {
+    width: 73%;
+  }
+}
+.with-love {
+  color: red;
+  display: inline-block;
+  margin: 0 5px;
+  animation: iconAnimate 1.33s ease-in-out infinite;
+}
+.powered-by,
+.theme-info {
+  display: inline-block;
+}
+@-moz-keyframes iconAnimate {
+  0%, 100% {
+    transform: scale(1);
+  }
+  10%, 30% {
+    transform: scale(0.9);
+  }
+  20%, 40%, 60%, 80% {
+    transform: scale(1.1);
+  }
+  50%, 70% {
+    transform: scale(1.1);
+  }
+}
+@-webkit-keyframes iconAnimate {
+  0%, 100% {
+    transform: scale(1);
+  }
+  10%, 30% {
+    transform: scale(0.9);
+  }
+  20%, 40%, 60%, 80% {
+    transform: scale(1.1);
+  }
+  50%, 70% {
+    transform: scale(1.1);
+  }
+}
+@-o-keyframes iconAnimate {
+  0%, 100% {
+    transform: scale(1);
+  }
+  10%, 30% {
+    transform: scale(0.9);
+  }
+  20%, 40%, 60%, 80% {
+    transform: scale(1.1);
+  }
+  50%, 70% {
+    transform: scale(1.1);
+  }
+}
+@keyframes iconAnimate {
+  0%, 100% {
+    transform: scale(1);
+  }
+  10%, 30% {
+    transform: scale(0.9);
+  }
+  20%, 40%, 60%, 80% {
+    transform: scale(1.1);
+  }
+  50%, 70% {
+    transform: scale(1.1);
+  }
+}
+.back-to-top {
+  background: #eee;
+  font-size: 12px;
+  margin: 8px -10px -20px;
+  opacity: 0;
+  text-align: center;
+  transition-delay: 0s;
+  transition-duration: 0.2s;
+  transition-timing-function: ease-in-out;
+}
+.back-to-top.back-to-top-on {
+  cursor: pointer;
+  opacity: 0.6;
+}
+.back-to-top.back-to-top-on:hover {
+  opacity: 0.8;
+}
+.post-body {
+  font-family: 'Monda', "PingFang SC", "Microsoft YaHei", sans-serif;
+  overflow-wrap: break-word;
+  word-wrap: break-word;
+}
+@media (min-width: 1200px) {
+  .post-body {
+    font-size: 1.125em;
+  }
+}
+.post-body span.exturl .fa {
+  font-size: 0.875em;
+  margin-left: 4px;
+}
+.post-body .image-caption,
+.post-body .figure .caption {
+  color: #999;
+  font-size: 0.875em;
+  font-weight: bold;
+  line-height: 1;
+  margin: -20px auto 15px;
+  text-align: center;
+}
+.post-sticky-flag {
+  display: inline-block;
+  transform: rotate(30deg);
+}
+.post-button {
+  margin-top: 40px;
+  text-align: center;
+}
+.use-motion .post-block,
+.use-motion .pagination,
+.use-motion .comments {
+  opacity: 0;
+}
+.use-motion .post-header {
+  opacity: 0;
+}
+.use-motion .post-body {
+  opacity: 0;
+}
+.use-motion .collection-header {
+  opacity: 0;
+}
+.posts-collapse {
+  margin-left: 55px;
+  position: relative;
+}
+@media (max-width: 767px) {
+  .posts-collapse {
+    margin-left: 20px;
+    margin-right: 20px;
+  }
+}
+.posts-collapse .collection-title {
+  font-size: 1.125em;
+  position: relative;
+}
+.posts-collapse .collection-title::before {
+  background: #999;
+  border: 1px solid #fff;
+  border-radius: 50%;
+  content: ' ';
+  height: 10px;
+  left: 0;
+  margin-left: -6px;
+  margin-top: -4px;
+  position: absolute;
+  top: 50%;
+  width: 10px;
+}
+.posts-collapse .collection-year {
+  margin: 60px 0;
+  position: relative;
+}
+.posts-collapse .collection-year::before {
+  background: #bbb;
+  border-radius: 50%;
+  content: ' ';
+  height: 8px;
+  left: 0;
+  margin-left: -4px;
+  margin-top: -4px;
+  position: absolute;
+  top: 50%;
+  width: 8px;
+}
+.posts-collapse .collection-header {
+  display: inline-block;
+  margin: 0 0 0 20px;
+}
+.posts-collapse .collection-header small {
+  color: #bbb;
+  margin-left: 5px;
+}
+.posts-collapse .post-header {
+  border-bottom: 1px dashed #ccc;
+  margin: 30px 0;
+  padding-left: 15px;
+  position: relative;
+  transition-property: border;
+  transition-delay: 0s;
+  transition-duration: 0.2s;
+  transition-timing-function: ease-in-out;
+}
+.posts-collapse .post-header::before {
+  background: #bbb;
+  border: 1px solid #fff;
+  border-radius: 50%;
+  content: ' ';
+  height: 6px;
+  left: 0;
+  margin-left: -4px;
+  position: absolute;
+  top: 0.75em;
+  transition-property: background;
+  width: 6px;
+  transition-delay: 0s;
+  transition-duration: 0.2s;
+  transition-timing-function: ease-in-out;
+}
+.posts-collapse .post-header:hover {
+  border-bottom-color: #666;
+}
+.posts-collapse .post-header:hover::before {
+  background: #222;
+}
+.posts-collapse .post-meta {
+  display: inline;
+  font-size: 0.75em;
+  margin-right: 10px;
+}
+.posts-collapse .post-title {
+  display: inline;
+  font-size: 1em;
+  font-weight: normal;
+  margin-bottom: 0;
+  margin-top: 0;
+}
+.posts-collapse .post-title a,
+.posts-collapse .post-title span.exturl {
+  border-bottom: none;
+  color: #666;
+}
+.posts-collapse::before {
+  background: #f5f5f5;
+  content: ' ';
+  height: 100%;
+  left: 0;
+  margin-left: -2px;
+  position: absolute;
+  top: 1.25em;
+  width: 4px;
+}
+.posts-collapse .fa-external-link {
+  font-size: 0.875em;
+  margin-left: 5px;
+}
+.post-eof {
+  background: #ccc;
+  height: 1px;
+  margin: 80px auto 60px;
+  text-align: center;
+  width: 8%;
+}
+.post-block:last-child .post-eof {
+  display: none;
+}
+.posts-expand {
+  padding-top: 40px;
+}
+@media (max-width: 767px) {
+  .posts-expand {
+    margin: 0 20px;
+  }
+}
+@media (min-width: 992px) {
+  .post-body {
+    text-align: left;
+  }
+}
+@media (max-width: 991px) {
+  .post-body {
+    text-align: left;
+  }
+}
+.post-body h2,
+.post-body h3,
+.post-body h4,
+.post-body h5,
+.post-body h6 {
+  padding-top: 10px;
+}
+.post-body h2 .header-anchor,
+.post-body h3 .header-anchor,
+.post-body h4 .header-anchor,
+.post-body h5 .header-anchor,
+.post-body h6 .header-anchor {
+  border-bottom-style: none;
+  color: #ccc;
+  float: right;
+  margin-left: 10px;
+  visibility: hidden;
+}
+.post-body h2 .header-anchor:hover,
+.post-body h3 .header-anchor:hover,
+.post-body h4 .header-anchor:hover,
+.post-body h5 .header-anchor:hover,
+.post-body h6 .header-anchor:hover {
+  color: inherit;
+}
+.post-body h2:hover .header-anchor,
+.post-body h3:hover .header-anchor,
+.post-body h4:hover .header-anchor,
+.post-body h5:hover .header-anchor,
+.post-body h6:hover .header-anchor {
+  visibility: visible;
+}
+.post-body img {
+  border: 1px solid #ddd;
+  box-sizing: border-box;
+  padding: 3px;
+}
+@media (max-width: 767px) {
+  .post-body img {
+    padding: initial;
+  }
+}
+.post-body iframe,
+.post-body img,
+.post-body video {
+  margin-bottom: 20px;
+}
+.post-body .video-container {
+  height: 0;
+  margin-bottom: 20px;
+  overflow: hidden;
+  padding-top: 75%;
+  position: relative;
+  width: 100%;
+}
+.post-body .video-container iframe,
+.post-body .video-container object,
+.post-body .video-container embed {
+  height: 100%;
+  left: 0;
+  margin: 0;
+  position: absolute;
+  top: 0;
+  width: 100%;
+}
+.post-gallery {
+  border-collapse: separate;
+  display: table;
+  table-layout: fixed;
+  width: 100%;
+}
+.post-gallery .post-gallery-img {
+  border: 0;
+  display: table-cell;
+  text-align: center;
+  vertical-align: middle;
+}
+.post-gallery .post-gallery-img img {
+  border: 0;
+  max-height: 100%;
+  max-width: 100%;
+}
+.post-gallery-row {
+  display: table-row;
+}
+.posts-expand .post-header {
+  font-size: 1.125em;
+}
+.posts-expand .post-title {
+  font-weight: 400;
+  margin: initial;
+  text-align: center;
+  overflow-wrap: break-word;
+  word-wrap: break-word;
+}
+.posts-expand .post-title-link {
+  border-bottom: none;
+  color: #555;
+  display: inline-block;
+  position: relative;
+  vertical-align: top;
+}
+.posts-expand .post-title-link::before {
+  background: #000;
+  bottom: 0;
+  content: '';
+  height: 2px;
+  left: 0;
+  position: absolute;
+  transform: scaleX(0);
+  visibility: hidden;
+  width: 100%;
+  transition-delay: 0s;
+  transition-duration: 0.2s;
+  transition-timing-function: ease-in-out;
+}
+.posts-expand .post-title-link:hover::before {
+  transform: scaleX(1);
+  visibility: visible;
+}
+.posts-expand .post-title-link .fa {
+  font-size: 0.875em;
+  margin-left: 5px;
+}
+.posts-expand .post-meta {
+  color: #999;
+  font-family: 'Monda', "PingFang SC", "Microsoft YaHei", sans-serif;
+  font-size: 0.75em;
+  margin: 3px 0 60px 0;
+  text-align: center;
+}
+.posts-expand .post-meta .post-description {
+  font-size: 0.875em;
+  margin-top: 2px;
+}
+.posts-expand .post-meta time {
+  border-bottom: 1px dashed #999;
+  cursor: pointer;
+}
+.post-meta .post-meta-item + .post-meta-item::before {
+  content: '|';
+  margin: 0 0.5em;
+}
+.post-meta-divider {
+  margin: 0 0.5em;
+}
+.post-meta-item-icon {
+  margin-right: 3px;
+}
+@media (max-width: 991px) {
+  .post-meta-item-icon {
+    display: inline-block;
+  }
+}
+@media (max-width: 991px) {
+  .post-meta-item-text {
+    display: none;
+  }
+}
+.post-nav {
+  border-top: 1px solid #eee;
+  display: table;
+  margin-top: 15px;
+  width: 100%;
+}
+.post-nav-divider {
+  display: table-cell;
+  width: 10%;
+}
+.post-nav-item {
+  display: table-cell;
+  padding: 10px 0 0 0;
+  vertical-align: top;
+  width: 45%;
+}
+.post-nav-item a {
+  border-bottom: none;
+  color: #555;
+  display: block;
+  font-size: 0.875em;
+  line-height: 1.6;
+  position: relative;
+}
+.post-nav-item a:hover {
+  border-bottom: none;
+  color: #222;
+}
+.post-nav-item a:active {
+  top: 2px;
+}
+.post-nav-item .fa {
+  font-size: 0.75em;
+  margin-right: 5px;
+}
+.post-nav-next a {
+  padding-left: 5px;
+}
+.post-nav-prev {
+  text-align: right;
+}
+.post-nav-prev a {
+  padding-right: 5px;
+}
+.post-nav-prev .fa {
+  margin-left: 5px;
+}
+.rtl.post-body p,
+.rtl.post-body a,
+.rtl.post-body h1,
+.rtl.post-body h2,
+.rtl.post-body h3,
+.rtl.post-body h4,
+.rtl.post-body h5,
+.rtl.post-body h6,
+.rtl.post-body li,
+.rtl.post-body ul,
+.rtl.post-body ol {
+  direction: rtl;
+  font-family: UKIJ Ekran;
+}
+.rtl.post-title {
+  font-family: UKIJ Ekran;
+}
+.post-tags {
+  margin-top: 40px;
+  text-align: center;
+}
+.post-tags a {
+  display: inline-block;
+  font-size: 0.8125em;
+}
+.post-tags a:not(:last-child) {
+  margin-right: 10px;
+}
+.post-widgets {
+  border-top: 1px solid #eee;
+  margin-top: 15px;
+  text-align: center;
+}
+.wp_rating {
+  height: 20px;
+  line-height: 20px;
+  margin-top: 10px;
+  padding-top: 6px;
+  text-align: center;
+}
+.social-like {
+  display: flex;
+  font-size: 0.875em;
+  justify-content: center;
+  text-align: center;
+}
+.reward-container {
+  margin: 20px auto;
+  padding: 10px 0;
+  text-align: center;
+  width: 90%;
+}
+.reward-container button {
+  background: #ff2a2a;
+  border: 0;
+  border-radius: 5px;
+  color: #fff;
+  cursor: pointer;
+  line-height: 2;
+  outline: 0;
+  padding: 0 15px;
+  vertical-align: text-top;
+}
+.reward-container button:hover {
+  background: #f55;
+}
+#qr {
+  padding-top: 20px;
+}
+#qr a {
+  border: 0;
+}
+#qr img {
+  display: inline-block;
+  margin: 0.8em 2em 0 2em;
+  max-width: 100%;
+  width: 180px;
+}
+#qr p {
+  text-align: center;
+}
+.post-copyright {
+  background: #f5f5f5;
+  border-left: 3px solid #ff2a2a;
+  list-style: none;
+  margin: 2em 0 0;
+  padding: 0.5em 1em;
+}
+.category-all-page .category-all-title {
+  text-align: center;
+}
+.category-all-page .category-all {
+  margin-top: 20px;
+}
+.category-all-page .category-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.category-all-page .category-list-item {
+  margin: 5px 10px;
+}
+.category-all-page .category-list-count {
+  color: #bbb;
+}
+.category-all-page .category-list-count::before {
+  content: ' (';
+  display: inline;
+}
+.category-all-page .category-list-count::after {
+  content: ') ';
+  display: inline;
+}
+.category-all-page .category-list-child {
+  padding-left: 10px;
+}
+.event-list {
+  padding: 0;
+}
+.event-list hr {
+  background: #222;
+  margin: 20px 0 45px 0;
+}
+.event-list hr::after {
+  background: #222;
+  color: #fff;
+  content: 'NOW';
+  display: inline-block;
+  font-weight: bold;
+  padding: 0 5px;
+  text-align: right;
+}
+.event-list .event {
+  background: #222;
+  margin: 20px 0;
+  min-height: 40px;
+  padding: 15px 0 15px 10px;
+}
+.event-list .event .event-summary {
+  color: #fff;
+  margin: 0;
+  padding-bottom: 3px;
+}
+.event-list .event .event-summary::before {
+  animation: dot-flash 1s alternate infinite ease-in-out;
+  color: #fff;
+  content: '\f111';
+  display: inline-block;
+  font-family: 'FontAwesome';
+  font-size: 10px;
+  margin-right: 25px;
+  vertical-align: middle;
+}
+.event-list .event .event-relative-time {
+  color: #bbb;
+  display: inline-block;
+  font-size: 12px;
+  font-weight: 400;
+  padding-left: 12px;
+}
+.event-list .event .event-details {
+  color: #fff;
+  display: block;
+  line-height: 18px;
+  margin-left: 56px;
+  padding-bottom: 6px;
+  padding-top: 3px;
+  text-indent: -24px;
+}
+.event-list .event .event-details::before {
+  color: #fff;
+  display: inline-block;
+  font-family: 'FontAwesome';
+  margin-right: 9px;
+  text-align: center;
+  text-indent: 0;
+  width: 14px;
+}
+.event-list .event .event-details.event-location::before {
+  content: '\f041';
+}
+.event-list .event .event-details.event-duration::before {
+  content: '\f017';
+}
+.event-list .event-past {
+  background: #f5f5f5;
+}
+.event-list .event-past .event-summary,
+.event-list .event-past .event-details {
+  color: #bbb;
+  opacity: 0.9;
+}
+.event-list .event-past .event-summary::before,
+.event-list .event-past .event-details::before {
+  animation: none;
+  color: #bbb;
+}
+@-moz-keyframes dot-flash {
+  from {
+    opacity: 1;
+    transform: scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: scale(0.8);
+  }
+}
+@-webkit-keyframes dot-flash {
+  from {
+    opacity: 1;
+    transform: scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: scale(0.8);
+  }
+}
+@-o-keyframes dot-flash {
+  from {
+    opacity: 1;
+    transform: scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: scale(0.8);
+  }
+}
+@keyframes dot-flash {
+  from {
+    opacity: 1;
+    transform: scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: scale(0.8);
+  }
+}
+ul.breadcrumb {
+  font-size: 0.75em;
+  list-style: none;
+  margin: 1em 0;
+  padding: 0 2em;
+  text-align: center;
+}
+ul.breadcrumb li {
+  display: inline;
+}
+ul.breadcrumb li + li::before {
+  content: '/\00a0';
+  font-weight: normal;
+  padding: 0.5em;
+}
+ul.breadcrumb li + li:last-child {
+  font-weight: bold;
+}
+.tag-cloud {
+  text-align: center;
+}
+.tag-cloud a {
+  display: inline-block;
+  margin: 10px;
+}
+.tag-cloud a:hover {
+  color: #222 !important;
+}
+.gt-header a,
+.gt-comments a,
+.gt-popup a {
+  border-bottom: none;
+}
+.gt-container .gt-popup .gt-action.is--active::before {
+  top: 0.7em;
+}
+.search-pop-overlay {
+  background: rgba(0,0,0,0.3);
+  display: none;
+  height: 100%;
+  left: 0;
+  overflow: hidden;
+  position: fixed;
+  top: 0;
+  width: 100%;
+  z-index: 1400;
+}
+.search-popup {
+  background: #fff;
+  border-radius: 5px;
+  color: #333;
+  display: none;
+  height: 80%;
+  left: 50%;
+  margin-left: -350px;
+  padding: 0;
+  position: fixed;
+  top: 10%;
+  width: 700px;
+  z-index: 1500;
+}
+@media (max-width: 767px) {
+  .search-popup {
+    border-radius: 0;
+    height: 100%;
+    left: 0;
+    margin: 0;
+    padding: 0;
+    top: 0;
+    width: 100%;
+  }
+}
+.search-popup .search-icon,
+.search-popup .popup-btn-close {
+  color: #999;
+  display: inline-block;
+  font-size: 18px;
+  height: 36px;
+  padding-left: 10px;
+  padding-right: 10px;
+  width: 18px;
+}
+.search-popup .popup-btn-close {
+  border-left: 1px solid #eee;
+  cursor: pointer;
+  float: right;
+}
+.search-popup .popup-btn-close:hover .fa {
+  color: #222;
+}
+.search-popup .search-header {
+  background: #f5f5f5;
+  border-top-left-radius: 5px;
+  border-top-right-radius: 5px;
+  padding: 5px;
+}
+.search-input {
+  display: inline-block;
+  width: calc(90% - 30px);
+}
+.search-input input {
+  background: transparent;
+  border: 0;
+  outline: 0;
+  padding: 5px 0;
+  width: 100%;
+}
+.search-input .ais-search-box--magnifier svg,
+.search-input .ais-search-box--reset svg {
+  display: none;
+}
+.algolia-powered {
+  float: right;
+}
+.algolia-powered img {
+  display: inline-block;
+  height: 18px;
+  vertical-align: middle;
+}
+.algolia-results {
+  height: calc(100% - 55px);
+  overflow: auto;
+  padding: 5px 30px;
+  position: relative;
+}
+.algolia-results hr {
+  margin: 10px 0;
+}
+.algolia-results .highlight {
+  color: #f00;
+  font-size: inherit;
+  font-style: normal;
+  margin: 0;
+  padding: 0 2px;
+}
+.algolia-hits {
+  margin-top: 20px;
+}
+.algolia-hit-item {
+  margin: 15px 0;
+}
+.algolia-hit-item-link {
+  border-bottom: 1px dashed #ccc;
+  display: block;
+  transition-delay: 0s;
+  transition-duration: 0.2s;
+  transition-timing-function: ease-in-out;
+}
+.algolia-pagination .pagination {
+  border-top: none;
+  margin: 40px 0;
+  opacity: 1;
+  padding: 0;
+}
+.algolia-pagination .pagination-item {
+  display: inline-block;
+}
+.algolia-pagination .page-number {
+  border-top: none;
+}
+.algolia-pagination .page-number:hover {
+  border-bottom: 1px solid #222;
+}
+.algolia-pagination .disabled-item {
+  visibility: hidden;
+}
+.header {
+  margin: 0 auto;
+  position: relative;
+  width: calc(100% - 20px);
+}
+@media (min-width: 1200px) {
+  .header {
+    width: 1160px;
+  }
+}
+@media (min-width: 1600px) {
+  .header {
+    width: 73%;
+  }
+}
+@media (max-width: 991px) {
+  .header {
+    width: auto;
+  }
+}
+.header-inner {
+  background: #fff;
+  border-radius: initial;
+  box-shadow: 0 2px 2px 0 rgba(0,0,0,0.12), 0 3px 1px -2px rgba(0,0,0,0.06), 0 1px 5px 0 rgba(0,0,0,0.12);
+  overflow: hidden;
+  padding: 0;
+  position: absolute;
+  top: 0;
+  width: 240px;
+}
+@media (min-width: 1200px) {
+  .header-inner {
+    width: 240px;
+  }
+}
+@media (max-width: 991px) {
+  .header-inner {
+    border-radius: initial;
+    position: relative;
+    width: auto;
+  }
+}
+.main::before,
+.main::after {
+  content: ' ';
+  display: table;
+}
+.main::after {
+  clear: both;
+}
+@media (max-width: 991px) {
+  .main-inner {
+    width: auto;
+  }
+}
+.content-wrap {
+  background: #fff;
+  border-radius: initial;
+  box-shadow: 0 2px 2px 0 rgba(0,0,0,0.12), 0 3px 1px -2px rgba(0,0,0,0.06), 0 1px 5px 0 rgba(0,0,0,0.12);
+  box-sizing: border-box;
+  float: right;
+  padding: 40px;
+  width: calc(100% - 252px);
+}
+@media (max-width: 991px) {
+  .content-wrap {
+    border-radius: initial;
+    padding: 20px;
+    width: 100%;
+  }
+}
+.sidebar {
+  background: #eee;
+  box-shadow: none;
+  float: left;
+  position: static;
+  width: 240px;
+}
+@media (max-width: 991px) {
+  .sidebar {
+    display: none;
+  }
+}
+.sidebar-toggle {
+  display: none;
+}
+.footer-inner {
+  padding-left: 260px;
+}
+.back-to-top {
+  left: auto;
+  right: 30px;
+}
+@media (max-width: 991px) {
+  .back-to-top {
+    right: 20px;
+  }
+}
+@media (max-width: 991px) {
+  .footer-inner {
+    padding-left: 0;
+    padding-right: 0;
+    width: auto;
+  }
+}
+.site-brand-container {
+  position: relative;
+}
+.site-meta {
+  background: #222;
+  color: #fff;
+  padding: 20px 0;
+}
+@media (max-width: 991px) {
+  .site-meta {
+    box-shadow: 0 0 16px rgba(0,0,0,0.5);
+  }
+}
+.brand {
+  background: none;
+  padding: 0;
+}
+.brand:hover {
+  color: #fff;
+}
+.site-subtitle {
+  font-weight: initial;
+  margin: 10px 10px 0;
+}
+.custom-logo-image {
+  margin-top: 20px;
+}
+@media (max-width: 991px) {
+  .custom-logo-image {
+    display: none;
+  }
+}
+.site-nav-toggle {
+  left: 20px;
+  top: 50%;
+  transform: translateY(-50%);
+}
+@media (min-width: 768px) and (max-width: 991px) {
+  .site-nav-toggle {
+    display: block;
+  }
+}
+.site-nav-toggle .toggle .toggle-line {
+  background: #fff;
+}
+.site-nav {
+  border-top: none;
+}
+@media (min-width: 768px) and (max-width: 991px) {
+  .site-nav {
+    display: none;
+  }
+}
+.menu-item-active a,
+.menu .menu-item a:hover,
+.menu .menu-item span.exturl:hover {
+  background: #f5f5f5;
+}
+.menu-item-active a::after,
+.menu .menu-item a:hover::after,
+.menu .menu-item span.exturl:hover::after {
+  background: #bbb;
+  border-radius: 50%;
+  content: ' ';
+  height: 6px;
+  margin-top: -3px;
+  position: absolute;
+  right: 15px;
+  top: 50%;
+  width: 6px;
+}
+.menu .menu-item {
+  display: block;
+  margin: 0;
+}
+.menu .menu-item a,
+.menu .menu-item span.exturl {
+  padding: 5px 20px;
+  position: relative;
+  text-align: left;
+  transition-property: background-color;
+}
+.menu .menu-item .badge {
+  background: #ccc;
+  border-radius: 10px;
+  color: #fff;
+  float: right;
+  padding: 2px 5px;
+  text-shadow: 1px 1px 0 rgba(0,0,0,0.1);
+  vertical-align: middle;
+}
+.sub-menu {
+  background: #fff;
+  border-bottom: 1px solid #ddd;
+  margin: 0;
+  padding: 6px 0;
+}
+.sub-menu .menu-item {
+  display: inline-block;
+}
+.sub-menu .menu-item a,
+.sub-menu .menu-item span.exturl {
+  margin: 5px 10px;
+  padding: initial;
+}
+.sub-menu .menu-item a:hover,
+.sub-menu .menu-item span.exturl:hover {
+  background: initial;
+  color: #fc6423;
+}
+.sub-menu .menu-item a::after,
+.sub-menu .menu-item span.exturl::after {
+  content: initial !important;
+}
+.sub-menu .menu-item-active a {
+  background: #fff;
+  border-bottom-color: #fc6423;
+  color: #fc6423;
+}
+.sub-menu .menu-item-active a:hover {
+  background: #fff;
+  border-bottom-color: #fc6423;
+}
+.sidebar {
+  bottom: auto;
+  right: auto;
+}
+.sidebar a,
+.sidebar span.exturl {
+  color: #555;
+}
+.sidebar a:hover,
+.sidebar span.exturl:hover {
+  border-bottom-color: #222;
+  color: #222;
+}
+.sidebar-inner {
+  background: #fff;
+  border-radius: initial;
+  box-shadow: 0 2px 2px 0 rgba(0,0,0,0.12), 0 3px 1px -2px rgba(0,0,0,0.06), 0 1px 5px 0 rgba(0,0,0,0.12), 0 -1px 0.5px 0 rgba(0,0,0,0.09);
+  box-sizing: border-box;
+  color: #555;
+  width: 240px;
+  opacity: 0;
+}
+.sidebar-inner.affix {
+  position: fixed;
+  top: 12px;
+}
+.sidebar-inner.affix-bottom {
+  position: absolute;
+}
+.site-state-item {
+  padding: 0 10px;
+}
+.feed-link,
+.chat {
+  border-bottom: 1px dotted #ccc;
+  border-top: 1px dotted #ccc;
+  margin-top: 10px;
+  text-align: center;
+}
+.feed-link a,
+.chat a {
+  border: 0;
+  color: #fc6423;
+  display: block;
+}
+.feed-link a:hover,
+.chat a:hover {
+  background: none;
+  border: 0;
+  color: #e34603;
+}
+.feed-link a:hover .fa,
+.chat a:hover .fa {
+  color: #e34603;
+}
+.links-of-author {
+  display: flex;
+  flex-wrap: wrap;
+  margin-top: 10px;
+  justify-content: center;
+}
+.links-of-author-item {
+  margin: 5px 0 0;
+}
+.links-of-author-item a,
+.links-of-author-item span.exturl {
+  box-sizing: border-box;
+  display: inline-block;
+  margin-bottom: 0;
+  margin-right: 0;
+  max-width: 216px;
+  overflow: hidden;
+  padding: 0 5px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.links-of-author-item a,
+.links-of-author-item span.exturl {
+  border-bottom: none;
+  display: block;
+  text-decoration: none;
+}
+.links-of-author-item a::before,
+.links-of-author-item span.exturl::before {
+  display: none;
+}
+.links-of-author-item a:hover,
+.links-of-author-item span.exturl:hover {
+  background: #eee;
+  border-radius: 4px;
+}
+.links-of-author-item .fa {
+  margin-right: 2px;
+}
+.links-of-blogroll-item {
+  padding: 0;
+}
+.content-wrap {
+  background: initial;
+  box-shadow: initial;
+  padding: initial;
+}
+.post-block {
+  background: #fff;
+  border-radius: initial;
+  box-shadow: 0 2px 2px 0 rgba(0,0,0,0.12), 0 3px 1px -2px rgba(0,0,0,0.06), 0 1px 5px 0 rgba(0,0,0,0.12);
+  padding: 40px;
+}
+.post-block + .post-block {
+  border-radius: initial;
+  box-shadow: 0 2px 2px 0 rgba(0,0,0,0.12), 0 3px 1px -2px rgba(0,0,0,0.06), 0 1px 5px 0 rgba(0,0,0,0.12), 0 -1px 0.5px 0 rgba(0,0,0,0.09);
+  margin-top: 12px;
+}
+.comments {
+  background: #fff;
+  border-radius: initial;
+  box-shadow: 0 2px 2px 0 rgba(0,0,0,0.12), 0 3px 1px -2px rgba(0,0,0,0.06), 0 1px 5px 0 rgba(0,0,0,0.12), 0 -1px 0.5px 0 rgba(0,0,0,0.09);
+  margin: auto;
+  margin-top: 12px;
+  padding: 40px;
+}
+.tabs-comment {
+  margin-top: 1em;
+}
+.posts-expand {
+  padding-top: initial;
+}
+.post-nav-divider {
+  width: 4%;
+}
+.post-nav-item {
+  width: 48%;
+}
+.post-eof {
+  display: none;
+}
+.pagination {
+  background: #fff;
+  border-radius: initial;
+  border-top: initial;
+  box-shadow: 0 2px 2px 0 rgba(0,0,0,0.12), 0 3px 1px -2px rgba(0,0,0,0.06), 0 1px 5px 0 rgba(0,0,0,0.12), 0 -1px 0.5px 0 rgba(0,0,0,0.09);
+  margin: 12px 0 0;
+  padding: 10px 0 10px;
+}
+.pagination .prev,
+.pagination .next,
+.pagination .page-number {
+  margin-bottom: initial;
+  top: initial;
+}
+.main {
+  padding-bottom: initial;
+}
+.footer {
+  bottom: auto;
+}
+.sub-menu {
+  border-bottom: initial;
+  box-shadow: 0 2px 2px 0 rgba(0,0,0,0.12), 0 3px 1px -2px rgba(0,0,0,0.06), 0 1px 5px 0 rgba(0,0,0,0.12);
+}
+.sub-menu + .content .post-block {
+  box-shadow: 0 2px 2px 0 rgba(0,0,0,0.12), 0 3px 1px -2px rgba(0,0,0,0.06), 0 1px 5px 0 rgba(0,0,0,0.12), 0 -1px 0.5px 0 rgba(0,0,0,0.09);
+  margin-top: 12px;
+}
+@media (min-width: 768px) and (max-width: 991px) {
+  .sub-menu + .content .post-block {
+    margin-top: 10px;
+  }
+}
+@media (max-width: 767px) {
+  .sub-menu + .content .post-block {
+    margin-top: 8px;
+  }
+}
+.post-body h1,
+.post-body h2 {
+  border-bottom: 1px solid #eee;
+}
+.post-body h3 {
+  border-bottom: 1px solid #eee;
+}
+.post-body h4 {
+  border-bottom: 1px dotted #eee;
+}
+@media (min-width: 768px) and (max-width: 991px) {
+  .content-wrap {
+    padding: 10px;
+  }
+  .posts-expand {
+    margin: initial;
+  }
+  .posts-expand .post-button {
+    margin-top: 20px;
+  }
+  .post-block {
+    border-radius: initial;
+    box-shadow: 0 2px 2px 0 rgba(0,0,0,0.12), 0 3px 1px -2px rgba(0,0,0,0.06), 0 1px 5px 0 rgba(0,0,0,0.12), 0 -1px 0.5px 0 rgba(0,0,0,0.09);
+    padding: 20px;
+  }
+  .post-block + .post-block {
+    margin-top: 10px;
+  }
+  .comments {
+    margin-top: 10px;
+    padding: 10px 20px;
+  }
+  .pagination {
+    margin: 10px 0 0;
+  }
+}
+@media (max-width: 767px) {
+  .content-wrap {
+    padding: 8px;
+  }
+  .posts-expand {
+    margin: initial;
+  }
+  .posts-expand .post-button {
+    margin: 12px 0;
+  }
+  .post-block {
+    border-radius: initial;
+    box-shadow: 0 2px 2px 0 rgba(0,0,0,0.12), 0 3px 1px -2px rgba(0,0,0,0.06), 0 1px 5px 0 rgba(0,0,0,0.12), 0 -1px 0.5px 0 rgba(0,0,0,0.09);
+    min-height: auto;
+    padding: 12px;
+  }
+  .post-block + .post-block {
+    margin-top: 8px;
+  }
+  .comments {
+    margin-top: 8px;
+    padding: 10px 12px;
+  }
+  .pagination {
+    margin: 8px 0 0;
+  }
+}</style><noscript>
+  <style>
+  .use-motion .brand,
+  .use-motion .menu-item,
+  .sidebar-inner,
+  .use-motion .post-block,
+  .use-motion .pagination,
+  .use-motion .comments,
+  .use-motion .post-header,
+  .use-motion .post-body,
+  .use-motion .collection-header { opacity: initial; }
+
+  .use-motion .site-title,
+  .use-motion .site-subtitle {
+    opacity: initial;
+    top: initial;
+  }
+
+  .use-motion .logo-line-before i { left: initial; }
+  .use-motion .logo-line-after i { right: initial; }
+  </style>
+</noscript>
+
+<script>function loadCss(l){var d=document,h=d.head,s=d.createElement('link');s.rel='stylesheet';s.href=l;!function e(f){if (d.body)return f();setTimeout(function(){e(f)})}(function(){h.appendChild(s);});}loadCss('/style.css');loadCss('//fonts.googleapis.com/css?family=Monda:300,300italic,400,400italic,700,700italic|Roboto Slab:300,300italic,400,400italic,700,700italic|PT Mono:300,300italic,400,400italic,700,700italic&display=swap&subset=latin,latin-ext');loadCss('//cdn.jsdelivr.net/npm/instantsearch.js@2/dist/instantsearch.min.css');loadCss('//cdn.jsdelivr.net/npm/gitalk@1/dist/gitalk.min.css');</script><noscript><link rel="stylesheet" href="/style.css"><link rel="stylesheet" href="//fonts.googleapis.com/css?family=Monda:300,300italic,400,400italic,700,700italic|Roboto Slab:300,300italic,400,400italic,700,700italic|PT Mono:300,300italic,400,400italic,700,700italic&amp;display=swap&amp;subset=latin,latin-ext"><link rel="stylesheet" href="//cdn.jsdelivr.net/npm/instantsearch.js@2/dist/instantsearch.min.css"><link rel="stylesheet" href="//cdn.jsdelivr.net/npm/gitalk@1/dist/gitalk.min.css"></noscript></head>
+
+<body itemscope="" itemtype="http://schema.org/WebPage">
+  <div class="container use-motion">
+    <div class="headband"></div>
+
+    <header class="header" itemscope="" itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-container">
+  <div class="site-meta">
+
+    <div>
+      <a href="/" class="brand" rel="start">
+        <span class="logo-line-before"><i></i></span>
+        <span class="site-title">贝克街的流浪猫</span>
+        <span class="logo-line-after"><i></i></span>
+      </a>
+    </div>
+        <h1 class="site-subtitle" itemprop="description">技术博客</h1>
+      
+  </div>
+
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="切换导航栏">
+      <span class="toggle-line toggle-line-first"></span>
+      <span class="toggle-line toggle-line-middle"></span>
+      <span class="toggle-line toggle-line-last"></span>
+    </div>
+  </div>
+</div>
+
+
+<nav class="site-nav">
+  
+  <ul id="menu" class="menu">
+        <li class="menu-item menu-item-home">
+
+    <a href="/" rel="section"><i class="fa fa-fw fa-home"></i>首页</a>
+
+  </li>
+        <li class="menu-item menu-item-tags">
+
+    <a href="/tags/" rel="section"><i class="fa fa-fw fa-tags"></i>标签</a>
+
+  </li>
+        <li class="menu-item menu-item-categories">
+
+    <a href="/categories/" rel="section"><i class="fa fa-fw fa-th"></i>分类</a>
+
+  </li>
+        <li class="menu-item menu-item-archives">
+
+    <a href="/archives/" rel="section"><i class="fa fa-fw fa-archive"></i>归档</a>
+
+  </li>
+        <li class="menu-item menu-item-about">
+
+    <a href="/about/" rel="section"><i class="fa fa-fw fa-user"></i>关于</a>
+
+  </li>
+      <li class="menu-item menu-item-search">
+        <a role="button" class="popup-trigger"><i class="fa fa-search fa-fw"></i>搜索
+        </a>
+      </li>
+  </ul>
+
+</nav>
+  <div class="site-search">
+    <div class="popup search-popup">
+    <div class="search-header">
+  <span class="search-icon">
+    <i class="fa fa-search"></i>
+  </span>
+  <div class="search-input" id="search-input"></div>
+  <span class="popup-btn-close">
+    <i class="fa fa-times-circle"></i>
+  </span>
+</div>
+<div class="algolia-results">
+  <div id="algolia-stats"></div>
+  <div id="algolia-hits"></div>
+  <div id="algolia-pagination" class="algolia-pagination"></div>
+</div>
+
+  
+</div>
+<div class="search-pop-overlay"></div>
+
+  </div>
+</div>
+    </header>
+
+    
+
+  <span class="exturl github-corner" data-url="aHR0cHM6Ly9naXRodWIuY29tL0JlaUtlSmllRGVMaXVMYW5nTWFv" title="欢迎关注我的 GitHub" aria-label="欢迎关注我的 GitHub"><svg width="80" height="80" viewBox="0 0 250 250" aria-hidden="true"><path d="M0,0 L115,115 L130,115 L142,142 L250,250 L250,0 Z"></path><path d="M128.3,109.0 C113.8,99.7 119.0,89.6 119.0,89.6 C122.0,82.7 120.5,78.6 120.5,78.6 C119.2,72.0 123.4,76.3 123.4,76.3 C127.3,80.9 125.5,87.3 125.5,87.3 C122.9,97.6 130.6,101.9 134.4,103.2" fill="currentColor" style="transform-origin: 130px 106px;" class="octo-arm"></path><path d="M115.0,115.0 C114.9,115.1 118.7,116.5 119.8,115.4 L133.7,101.6 C136.9,99.2 139.9,98.4 142.2,98.6 C133.8,88.0 127.5,74.4 143.8,58.0 C148.5,53.4 154.0,51.2 159.7,51.0 C160.3,49.4 163.2,43.6 171.4,40.1 C171.4,40.1 176.1,42.5 178.8,56.2 C183.1,58.6 187.2,61.8 190.9,65.4 C194.5,69.0 197.7,73.2 200.1,77.6 C213.8,80.2 216.3,84.9 216.3,84.9 C212.7,93.1 206.9,96.0 205.4,96.6 C205.1,102.4 203.0,107.8 198.3,112.5 C181.9,128.9 168.3,122.5 157.7,114.1 C157.9,116.9 156.7,120.9 152.7,124.9 L141.0,136.5 C139.8,137.7 141.6,141.9 141.8,141.8 Z" fill="currentColor" class="octo-body"></path></svg></span>
+
+
+    <main class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          
+
+          <div class="content">
+            
+
+  <div class="posts-expand">
+      
+  
+  
+  <article itemscope="" itemtype="http://schema.org/Article" class="post-block " lang="zh-CN">
+    <link itemprop="mainEntityOfPage" href="https://www.beikejiedeliulangmao.top/linux/time-management/">
+
+    <span hidden="" itemprop="author" itemscope="" itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.jpg">
+      <meta itemprop="name" content="贝克街的流浪猫">
+      <meta itemprop="description" content="贝贝猫">
+    </span>
+
+    <span hidden="" itemprop="publisher" itemscope="" itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="贝克街的流浪猫">
+    </span>
+      <header class="post-header">
+        <h2 class="post-title" itemprop="name headline">
+          Linux 时间管理
+        </h2>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="fa fa-calendar-o"></i>
+              </span>
+              <span class="post-meta-item-text">发表于</span>
+
+              <time title="创建时间：2019-10-29 09:39:36" itemprop="dateCreated datePublished" datetime="2019-10-29T09:39:36+08:00">2019-10-29</time>
+            </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="fa fa-folder-o"></i>
+              </span>
+              <span class="post-meta-item-text">分类于</span>
+                <span itemprop="about" itemscope="" itemtype="http://schema.org/Thing">
+                  <a href="/categories/Linux/" itemprop="url" rel="index">
+                    <span itemprop="name">Linux</span>
+                  </a>
+                </span>
+            </span>
+
+          
+            <span id="/linux/time-management/" class="post-meta-item leancloud_visitors" data-flag-title="Linux 时间管理" title="阅读次数">
+              <span class="post-meta-item-icon">
+                <i class="fa fa-eye"></i>
+              </span>
+              <span class="post-meta-item-text">阅读次数：</span>
+              <span class="leancloud-visitors-count"></span>
+            </span><br>
+            <span class="post-meta-item" title="本文字数">
+              <span class="post-meta-item-icon">
+                <i class="fa fa-file-word-o"></i>
+              </span>
+                <span class="post-meta-item-text">本文字数：</span>
+              <span>9.5k</span>
+            </span>
+            <span class="post-meta-item" title="阅读时长">
+              <span class="post-meta-item-icon">
+                <i class="fa fa-clock-o"></i>
+              </span>
+                <span class="post-meta-item-text">阅读时长 ≈</span>
+              <span>9 分钟</span>
+            </span>
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+        <h2 id="引言"><a href="#引言" class="headerlink" title="引言"></a>引言</h2><p>本文整理了 Linux 内核中时间管理的相关知识，其他 Linux 相关文章均收录于 <a href="https://www.beikejiedeliulangmao.top/categories/Linux">&lt;Linux系列文章&gt;</a>。</p>
+<a id="more"></a>
+
+<h2 id="时间管理"><a href="#时间管理" class="headerlink" title="时间管理"></a>时间管理</h2><p>到目前为止，我们已经谈论了许多关于时间相关的任务，比如延迟某一段时候后执行某个任务，又或者在超时时间内等待某一事件的到来，但是我们还没有介绍 Linux 如何管理时间的，如何实现和时间相关的工作。所以，接下来我们就来一一介绍它们。</p>
+<p>在早期的 Linux 中，时间系统中只包含一个低分辨率定时器，它会以一个固定的时钟周期工作（发出时钟中断），同时也可以预定在某个时钟周期激活指定的事件。但是这个方案有几个不好的地方：</p>
+<ol>
+<li>电力有限的设备（笔记本电脑或嵌入式设备）在无事可做时，需要尽可能少的耗电，如果运行一个周期性的时钟，那么在无事可做时，也必须提供时钟的周期性信号。但是实际上我们并不需要这些信号，可是这些信号既然来了，内核就不得不处理它们，这就导致 CPU 周期性的在低功耗模式和高功耗模式转换。</li>
+<li>面向多媒体的应用可能需要非常精确的计时功能，例如，避免视频中的跳帧，或音频播放的跳跃，这就需要我们使用高分辨率的计时设备。</li>
+</ol>
+<p>由于以上原因，经过硬件厂商和内核开发者的努力，现在 Linux 系统中一般会有两类定时器：</p>
+<ol>
+<li>经典定时器：也就是我们前面所提到的低分辨率定时器，分辨率的大小取决于底层硬件（典型的分辨率是 4 ms）。</li>
+<li>高分辨率定时器：对于面向媒体的应用，几毫秒的定时器分辨率是不够的。所以，最新的硬件提供了精确的多的计时手段，可以达到纳秒级的分辨率，它被称为高分辨率定时器。</li>
+</ol>
+<p>低分辨率定时器一般以一个固定的时钟周期发送信号，而高分辨率的时钟事件可以设定为在任意时间点发出。当我们在系统中添加一些定时任务时，就需要使用到这两种不同的定时器，假设我们使用低分辨率定时器来实现定时任务的话，这些定时任务只会在固定的周期时钟点触发，比如下图的 jiffie 1236，1237，1239 周期点，而当我们使用高分辨率定时器时，可以实现更精确地定时任务，如下图的小黑点可能是在某一指定的纳秒级时间点触发。<br><img src="/images/loading-cat.gif" data-original="https://bbm-hexo.oss-accelerate.aliyuncs.com/images/linux/different-low-high-clock.png" alt="different-low-high-clock"><br>这两种定时器在最底层还是由时钟芯片实现，芯片不仅提供了定时功能（定时事件和周期性事件），还可以用作时钟（获取当前系统时间）。例如，IA-32 系统有一个 PIT（可编程中断定时器），这是一个低分辨率定时器。而每个 CPU 上一般都会有一个该 CPU 独享的 APIC（高级可编程中断控制器），它是一个高分辨率定时器。<br><img src="/images/loading-cat.gif" data-original="https://bbm-hexo.oss-accelerate.aliyuncs.com/images/linux/clock-system.png" alt="clock-system"><br>上图展示了时间子系统中各个组件的关系，底层的硬件需要体系结构相关的代码进行封装，这样内核的其他代码才能通过一套统一的接口访问定时器的当前时间（左上角的时间源）。而时钟事件是周期性事件的基础，但是除了周期性事件之外，一些定时设备还可以在指定的时间点发送时钟事件（APIC），对于这类设备而言一般被称为单触发设备（one-shot device），高分辨率的定时任务主要是基于这类定时器（但是也不一定，如果禁用或没有这类设备）。而低分辨率定时器则是基于周期性时钟（PIT），它一般处理如下两类重要的任务：</p>
+<ol>
+<li>处理全局 jiffies 计数器，该值周期性的增长，是一件特别简单的时间基准。</li>
+<li>进行各进程的统计。</li>
+</ol>
+<p>很显然，高分辨率定时器能解决我们的前面提出的多媒体应用的问题，它们需要精确地计时功能。但是，到此为止，我们还没有说 Linux 如何解决周期性时钟的耗电问题，实际上内核支持一种叫做动态时钟的机制，它允许时钟芯片停止发送周期性时钟事件，这样 CPU 就能进入稳定的睡眠状态，我们在后面介绍这种机制的实现。</p>
+<p>接下来，我们介绍一下 Linux 中的时间系统。下图提供了 Linux 的通用时间系统的概览。<br><img src="/images/loading-cat.gif" data-original="https://bbm-hexo.oss-accelerate.aliyuncs.com/images/linux/general-time-system.png" alt="general-time-system"><br>在内核中，有两种时钟类型：</p>
+<ol>
+<li>全局时钟：负责提供周期时钟，主要用于更新 jiffies 值，在 IA-32 系统上一般由 PIT 实现。因为周期性时钟事件在每个 CPU 上都会触发，但是我们只需要选择其中一个 CPU 来修正全局时钟（jiffies）即可。</li>
+<li>局部时钟：每个 CPU 自己维护的本地时钟，用于统计进程的运行时间等，提供高分辨率计时器。</li>
+</ol>
+<p>通用时间模型使用了一个 64 位的量来表示时间值（单位纳秒），这在 64 位体系结构上很好实现，但是在 32 位体系结构中就不是那么方便，内核需要将两个 32 位的值连在一起，而且还要面临字节序的问题。</p>
+<p>在系统中，可能存在多个时间源（只读的方式查看当前时间，时间是由时钟源设备在硬件层面维护的），每个时钟源的精度可能各不相同，例如 IA-32 的体系结构上，TSC（时间戳计数器）是最精确的时钟源设备，所以内核一般会使用它。</p>
+<figure class="highlight bash"><table><tbody><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">cat /sys/devices/system/clocksource/clocksource0/available_clocksource</span><br><span class="line">tsc hpet acpi_pm // 时钟源列表</span><br><span class="line"></span><br><span class="line">cat /sys/devices/system/clocksource/clocksource0/current_clocksource</span><br><span class="line">tsc // 我们可以看到系统使用的时钟源是 tsc</span><br></pre></td></tr></tbody></table></figure>
+
+<p>除了时间源之外，别忘了还有时钟事件设备，我们可以在 <code>/sys/devices/system/clockevents</code> 目录中查看各个 CPU 使用的时钟事件设备，它们可能有的精度比较高，有的比较低。而且它们还可以在周期性事件模式和单触发时间模式中切换，通过 <code>cat /proc/timer_list</code> 可以确认每个设备的模式。</p>
+<figure class="highlight bash"><table><tbody><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br></pre></td><td class="code"><pre><span class="line">ls /sys/devices/system/clockevents</span><br><span class="line">broadcast  clockevent0  clockevent1 // 广播设备用于省电模式，后面再介绍</span><br><span class="line"></span><br><span class="line">cat /sys/devices/system/clockevents/clockevent0/lapic</span><br><span class="line">lapic // cpu 0 使用了本地 APIC 设备</span><br><span class="line"></span><br><span class="line">cat /proc/timer_list</span><br><span class="line">Per CPU device: 0</span><br><span class="line">Clock Event Device: lapic</span><br><span class="line"> max_delta_ns:   1763303757848</span><br><span class="line"> min_delta_ns:   1000</span><br><span class="line"> mult:           10461467</span><br><span class="line"> <span class="built_in">shift</span>:          27</span><br><span class="line"> mode:           3 // 单触发模式</span><br><span class="line"> next_event:     49202243575640499 nsecs</span><br><span class="line"> set_next_event: lapic_next_deadline</span><br><span class="line"> set_mode:       lapic_timer_setup</span><br><span class="line"> event_handler:  hrtimer_interrupt</span><br><span class="line"> retries:        15824846</span><br></pre></td></tr></tbody></table></figure>
+
+<h3 id="低分辨率定时器实现"><a href="#低分辨率定时器实现" class="headerlink" title="低分辨率定时器实现"></a>低分辨率定时器实现</h3><p>下面我们介绍一下低分辨率定时器的实现，这里我们假设内核使用了周期时钟。在 IA-32 系统架构上，一般通过 PID 或者 HPET（高精度时间定时器）来触发周期时钟事件。在这种情况下，时钟中断将定期发生，刚好每秒 HZ 次，HZ 是由一个体系结构相关的量。</p>
+<p>通常，较高的 HZ 值使得系统具有更好的交互性和响应速度，因为每个时钟中断时都会调用调度器。但是缺点是，因为定时器处理程序调用得更频繁，内核工作需要占用更多的 CPU。这样，较大的 HZ 值比较适合于桌面系统和多媒体系统，而较低的 HZ 值更适合于服务器和批处理机器，这种场合下交互性并不是那么重要。</p>
+<p>当这个周期性的时钟中断发生时，要处理这两部分工作：</p>
+<ol>
+<li>更新全局时钟 jiffies，更新墙上时间（系统已启动并运行了多长时间，单位是纳秒），统计系统负载，这部分工作内核会选择一个特定的 CPU 执行</li>
+<li>处理注册的低分辨率定时任务，向调度器提供时间感知(通过软中断 TIMER_SOFTIRQ)，这些工作在每个 CPU 上都会执行</li>
+</ol>
+<p>在 32 位的内核中，jiffies 是由一个 32 位的数表示的（unsigned long），这就意味着在系统运行很长一段时间后，该计数器会达到最大值，然后被重置为 0，如果定时器频率是 100，那么不到 500 天后达到最大值，而对于更高的 HZ 值，这个时间会更短。而在 64 位的系统上，就不存在这个问题，Linux 不可能连续运行 10^12 天。</p>
+<p>为了解决 32 位系统上 jiffies 回环的问题，内核会在比较 jiffies 时间时将 unsigned long 转化为 long 进行比较，假如jiffies开始为250，由于是无符号数据，那么它在机器中实际存储的补码为11111010，记为J1；timeout如果被设为252，实际存储为11111100；而过了一会jiffies发生回绕变成了1，实际存储变为00000001，记为J2。 那么此时如果按照无符号数比较其大小关系，有： <code>J1&lt;timeout &amp; J2 &lt;timeout</code>，这样的结果与实际的时间节拍统计是不符的，但是如果我们按照有符号数来比较会有什么结果呢？</p>
+<ul>
+<li>J1如果按照有符号数读取，首先从补码转换成原码：10000110，转换成十进制为－6；</li>
+<li>timeout按照有符号数读取，首先从补码转换成原码：10000100，转换成十进制为－4；</li>
+<li>J2按照有符号数读取，首先从补码转换成原码：00000001，转换成十进制为1；</li>
+</ul>
+<p>这样它们的大小关系为： J1&lt;timeout&lt;J2。 这与实际的节拍计数就吻合了，以上内核定义的几个宏就是通过这种方式巧妙解决jiffies回绕问题的</p>
+<p>接下来我们将介绍一个基于周期时钟的定时任务是如何实现的，在使用周期时钟时，它只会以一个固定的频率触发时钟中断，所以我们不得不在每次周期时钟中断时，确认是否有当前这一 jiffies 应该执行的任务，这个过程要尽可能地高效。这里我们先了解一下一个定时任务在内核中如何表示，然后再介绍内核如何高效的组织它们。</p>
+<figure class="highlight cpp"><table><tbody><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line"><span class="class"><span class="keyword">struct</span> <span class="title">timer_list</span> {</span></span><br><span class="line">    <span class="class"><span class="keyword">struct</span> <span class="title">list_head</span> <span class="title">entry</span>;</span> <span class="comment">// 同一 jiffies 触发的所有定时任务以链表形式组织，该字段保存了表头</span></span><br><span class="line">    <span class="keyword">unsigned</span> <span class="keyword">long</span> expires;  <span class="comment">// 定时任务到期时间 jiffies</span></span><br><span class="line">    <span class="keyword">void</span> (*function)(<span class="keyword">unsigned</span> <span class="keyword">long</span>);    <span class="comment">// 定时任务对应的函数</span></span><br><span class="line">    <span class="keyword">unsigned</span> <span class="keyword">long</span> data; <span class="comment">// 定时任务的参数</span></span><br><span class="line">    <span class="class"><span class="keyword">struct</span> <span class="title">tvec_t_base_s</span> *<span class="title">base</span>;</span> <span class="comment">// 指向一个基元素，其中的定时任务按到期时间排序，接下来就介绍它</span></span><br><span class="line">};</span><br></pre></td></tr></tbody></table></figure>
+
+<p>在每个 CPU 上都会维护一个基元素 tvec_t_base_s，它里面有 5 个组，这五个组中包含的定时任务是按照到期时间（偏移量 jiffies，而不是绝对时间 jiffies）递增的顺序保存的。例如，第一组 tv1 包含的是 0 - 255 jiffies 之后要触发的任务，第二个组内保存了 256 - ((2 ^ 14) - 1) jiffies 之后要执行的任务，以此类推可以得到下面的组与到期时间的对应关系。<br><img src="/images/loading-cat.gif" data-original="https://bbm-hexo.oss-accelerate.aliyuncs.com/images/linux/group-expired-time.png" alt="group-expired-time"><br>每个组都指向了一个更下层的数组，就如下图所示。就像前面所说的，第一组对应的定时任务都在 0 - 255 jiffies后触发，所以第一组的下层数组有 256 个项，数组中的每一项对应了一个特定的 jiffies 值（数组的第 0 位，对应了当前这一 jiffies 应该触发的任务，数组的第 1 位，对应了下一 jiffies 应该触发的任务），如果一个 jiffies 有多个定时任务的话，它们会以链表的形式保存在一个数组项下。<br><img src="/images/loading-cat.gif" data-original="https://bbm-hexo.oss-accelerate.aliyuncs.com/images/linux/timer-group-relation.png" alt="timer-group-relation"><br>除了第一组之外，其余组的下层数组项都是 64 个，对于这些数组项来说每一项就不再是对应一个 jiffies 周期了，对第二组来说每个数组项对应了 2 ^ 8 个周期，第三组对应了 2 ^ 14 个周期，第四组对应了 2 ^ 20 个周期，第五组对应了 2 ^ 26 个周期，你会发现每两组之间周期的差值正好是 2 ^ 6 = 64，到这你可能还没明白这个设计的巧妙之处，接下来我介绍完定时任务的触发执行过程，你就明白了。</p>
+<p>当每个周期时钟中断发生时，假设现在 jiffies = 0，内核会检查第一组 tv1 的下层数组项第 0 位，如果该数组项中不为 NULL，则说明 jiffies = 0 时没有定时任务，如果该数组项有内容，则把所有内容放到一个待决链表中，稍后一般通过软中断的方式执行。检查完第 0 项之后，记录一下当前处理的下标index = 0，当下一个周期时钟中断发生时，jiffies 变成了 1，这时候内核检查 index = 0，说明 tv1 的第 0 项已经处理过了，所以这次检查第 1 项，检查的过程和刚才完全一致，最后将 index 置为 1，内核持续这个过程直到 jiffies = 255，这时候 tv1 的所有数组项都检查完了，tv1 相当于被清空了，这时候内核会将 tv2 的第 0 项中的所有定时器填充到 tv1 中，因为 tv2 中的每个数组项中最多包含 2 ^ 8 = 256 个时钟周期，所以 tv2 的每个数组项正好能够填充整个 tv1，然后 tv2 记录一下该组的处理下标 index2 = 0，下次在需要填充 tv1 时就会从 tv2 的下标 1 开始，通过这种做法，当 tv2 处理完毕时就从 tv3 中借一个数组项填充整个 tv2，第三组中的一个数组项，正好够填充整个第二组，第四组的一个数组项正好够填充整个第三组，第五组的一个数组项足够填充整个第四组。</p>
+<p>就这样每次周期时钟中断时，就处理 tv1 的第一项，然后在所有项都处理完后，循环向后面的组中借过来一项填充自己，就完成了所有定时任务的检查。通过这种方式，内核可以不用扫描巨大的定时器链表，就能找到要触发的定时任务，处理范围仅限于第一组中的一个数组项。该数组项不是空就是一个链表，处理起来会非常快，而向后借项的过程也不需要多少时间。内核就借助这种算法，在周期性时钟中断的基础上实现了一个高效的定时任务机制。</p>
+<p>而且新添加定时任务的过程也很容易实现，就是根据定时器的到期时间（target_jiffies - current_jiffies）算出它所在的组以及在组中对应的数组项中。</p>
+<h3 id="高分辨率定时器实现"><a href="#高分辨率定时器实现" class="headerlink" title="高分辨率定时器实现"></a>高分辨率定时器实现</h3><p>再过去只有低精度定时器的时候，周期性时钟中断确实是内核工作的基础，但是高分辨率定时器出现以后，低精度定时器的价值就越来越低了，试想一下，如果你有一个可以随意指定时钟中断触发时间点的设备时，你可以轻易地模拟周期性时钟中断的行为，而且还可以完成更高精度的定时任务。接下来我就介绍一下如何基于高精度定时器完成定时任务，以及如何仿真周期时钟。</p>
+<h4 id="定时任务"><a href="#定时任务" class="headerlink" title="定时任务"></a>定时任务</h4><p>在用高分辨率定时器实现定时任务时，和之前的低分辨率定时器有两个根部不同：</p>
+<ol>
+<li>内核以红黑树的形式排序所有的定时任务</li>
+<li>所有定时任务不是基于 jiffies 而是采用纳秒时间戳来表示到期时间</li>
+</ol>
+<p>高分辨率定时器有两个时钟，一个是单调时钟在系统启动时从 0 开始，另一个是系统的实际时间（年月日时分秒），单调时间是从零开始单调递增的，而实际时间是可以随意更改的（修改系统时间）。<br><img src="/images/loading-cat.gif" data-original="https://bbm-hexo.oss-accelerate.aliyuncs.com/images/linux/high-resolution-red-black-tree.png" alt="high-resolution-red-black-tree"><br>系统中的每个 CPU 都为这两个时钟维护了各自的红黑树，来排序所有待决的定时任务。当新添加一个定时任务时，就根据使用的时钟类型，将其插入到对应的红黑树中，然后内核根据定时任务的到期时间向下层硬件中注册一个单触发事件，该事件的中断信号会在指定的事件点发出，在内核收到单触发事件中断时，内核从两个红黑树中的最左节点开始查找所有到期的任务，将到期任务加入到一个链表中（定时任务可以指定是在硬中断中执行还是软中断中执行，如果可以在软中断中执行才会被加入到链表，否则会在硬中断上下文中直接执行），然后向下层设备重新注册下一个单触发事件，以便能够触发下一个任务。最后引发一个软中断 HRTIMER_SOFTIRQ，在软中断会处理定时任务（声明可以在软中断中执行的任务）。<br><img src="/images/loading-cat.gif" data-original="https://bbm-hexo.oss-accelerate.aliyuncs.com/images/linux/high-resolution-clock-handle.png" alt="high-resolution-clock-handle"><br>在执行定时任务的回调函数时，如果该回调函数的返回值是 HRTIMER_RESTART 则说明该定时任务是一个循环定时任务，内核会按照该任务的要求，重新将该任务加入到红黑树中。通过这种循环定时任务我么就可以用来实现周期时钟。</p>
+<h4 id="仿真周期时钟"><a href="#仿真周期时钟" class="headerlink" title="仿真周期时钟"></a>仿真周期时钟</h4><p>因为高分辨率定时器不提供周期性的时钟信号，所以需要基于高分辨率定时器提供一个等效的功能，周期时钟的仿真就像添加一个循环定时任务一样，这里内核为了防止多个 CPU 同时出发周期时钟时出现不必要的资源争抢，所以在设定每个 CPU 的周期时钟触发点时，故意都错开了一小段时间。假设第一个时钟的触发点是 0，并且包含 N 个 CPU 的话，那么之后每个 CPU 的时钟信号之间都会相差 <code>delta = tick_period / 2N</code>，tick_period 实际上就是一个 jiffies 的时长。<br><img src="/images/loading-cat.gif" data-original="https://bbm-hexo.oss-accelerate.aliyuncs.com/images/linux/high-resolution-simulate-repeat.png" alt="high-resolution-simulate-repeat"><br>和低分辨率定时器一样，只会有一个 CPU 负责更新 jiffies，jiffies 加一，然后每个 CPU 都会管理进程时间，执行 CPU 周期时钟任务，最后计算下次单触发事件的时间，并向下层设备注册该事件。通过返回 HRTIMER_RESTART 定时器会重新进入红黑树中，并在下一个始终到期时激活。<br><img src="/images/loading-cat.gif" data-original="https://bbm-hexo.oss-accelerate.aliyuncs.com/images/linux/simulate-repeat-process.png" alt="simulate-repeat-process"></p>
+<h3 id="动态时钟"><a href="#动态时钟" class="headerlink" title="动态时钟"></a>动态时钟</h3><p>多年以来，Linux 内核中的时间都是由周期时钟提供的。该方法简单而有效，但在很关注耗电量的系统上，有一点不足之处: 周期时钟要求系统在一定的频率下，周期性地处于活动状态。因此，不能长时间的休眠。</p>
+<p>动态时钟机制的出现改善了这种情况。只有在有些任务需要实际执行时，才激活周期时钟。否则，会临时禁用周期时钟，可以在编译时启用该机制。那么内核如何判定系统当前是否无事可做？回想前面介绍的进程调度内容，其中提到，如果运行队列时没有活动进程，内核将选择一个特别的 idle 进程来运行，此时，动态时钟机制将开始发挥作用。每当选中 idle 进程运行时，都将禁用周期时钟，直至下一个定时任务要开始执行时，或者有中断发生时，将重新启用周期时钟。而在此之前，CPU 可以进入不受打扰的睡眠状态。请注意，只有使用低分辨率定时器时才需要该机制。高分辨率定时器由于不会绑定一个周期性的时钟中断，即便仿真周期时钟中断，也是软件模拟的很容易关闭它。</p>
+<p>在讨论动态时钟的实现之前，我们先要注意，如果要使用动态时钟机制的话，那么该系统中必须有一个支持单触发事件的设备。因为既然关闭了周期性时钟中断，还没有单触发事件的话，定时任务就没法工作了，换句话说当启用动态时钟时，所有定时任务必须由单触发事件设备负责，而且还需要单触发事件模拟周期时钟。</p>
+<p>然后我们看一看低分辨率系统下动态时钟都做了什么：</p>
+<ol>
+<li>首先将所有定时任务转移到单触发事件模式，单触发事件设备负责所有定时任务</li>
+<li>如果负责更新全局时钟的 CPU 要进入睡眠，则将更新全局时钟的职责移交给别的 CPU</li>
+<li>周期时钟停止工作</li>
+<li>如果只有部分 CPU 进入睡眠，在其他 CPU 上需要通过单触发事件仿真周期时钟，这样才能完成这些 CPU 上的进程时间更新，jiffies 更新等工作，换句话说，就是周期时钟设备关闭，然后通过单触发设备仿真周期事件</li>
+<li>如果所有 CPU 进入睡眠，仿真周期时钟也会关闭，那么会在中断发生或者定时任务到期时重新唤醒 CPU，这时候要通过时间源查看当前系统实际，然后根据 current_system_time - sleep_start_system_time 的方式计算经过的 jiffies 数，并更新 jiffies 等</li>
+</ol>
+<p>理解了低分辨率系统的动态时钟工作模式后，我们再来看看高分辨率模式的工作方式，由于内核使用高分辨率模式时，时钟事件设备以单触发模式运行，所以相较于低分辨率模式，处理过程得到了进一步的简化：</p>
+<ol>
+<li>如果 CPU 要进入睡眠模式，只需要关闭周期时钟仿真就行</li>
+<li>同样移交全局时钟的维护职责</li>
+<li>全部 CPU 进入睡眠后，所有 CPU 上的周期时钟仿真都会关闭，当发生中断或者定时任务到期时苏醒，并和低分辨率模式一样地更新 jiffies</li>
+</ol>
+<h3 id="广播模式"><a href="#广播模式" class="headerlink" title="广播模式"></a>广播模式</h3><p>在一些体系结构上，在某些省电模式启用时，时钟事件设备将进入睡眠，不过幸好系统中不只有一个时钟事件设备，因此仍然可以通过一个工作中的设备来代替停止的设备。<br><img src="/images/loading-cat.gif" data-original="https://bbm-hexo.oss-accelerate.aliyuncs.com/images/linux/broadcast-time-event.png" alt="broadcast-time-event"><br>在这种情况下，APIC 设备是不工作的，但是广播设备仍然可工作。广播设备可以工作与周期模式也可以工作与单触发模式，它的中断会通过 tick_do_periodic_broadcast 处理，在这里会确认哪些 CPU 上的 APIC 停止工作了，对于这种 CPU 会将时钟中断的消息传递给它，它会像 APIC 未停用时一样处理一些原来的工作，然后它会检查是否有其他 CPU 也停用了 APIC，如果有的话会以 IPI（处理器间中断）的形式通知他们，对于那些被通知的 CPU 来说，它们是无法区分 IPI 中断和真正的 APIC 中断，所以它们会像往常一样工作。</p>
+<p>需要注意的是，处理器中断是很慢的，因而无法提供高分辨率定时器所需的精度和分辨率。如果启用了广播，那么内核会切换到低分辨率模式。</p>
+<h3 id="定时器系统调用实现"><a href="#定时器系统调用实现" class="headerlink" title="定时器系统调用实现"></a>定时器系统调用实现</h3><p>上述的所有内容仅仅是针对内核中的情况介绍的，而在用户进程中，处理的过程多少有些不同，首先注册的过程是基本一致的，只不过在用户进程这对时间的划分更加细致：</p>
+<ol>
+<li>ITIMER_REAL：实际流逝的时间，不关心系统是处于内核态还是用户态，也不关心当前进程是否在运行中。定时器到期以 SIGALRM 信号通知。</li>
+<li>ITIMER_VIRTUAL：只计算该进程在用户态消耗的时间。定时器到期以 SIGVTALRM 信号通知。</li>
+<li>ITIMER_PROF：计算在用户态和内核态消耗的时间总和。定时器到期以 SIGPROF 信号通知。</li>
+</ol>
+<p>用户进程通过系统调用最终还是会调用到上述的定时系统中，而在需要触发任务时，内核不会在中断中执行用户进程的回调函数了。而是以信号的形式通知该进程，不同的时间基准下，会以不同的信号通知进程。同时，内核也不会负责用户进程的周期性任务，用户进程必须在自己处理完回调函数后，自己主动重新注册定时任务。之所以这样做，是为了防止用户进程设定周期过短的循环任务，这会浪费很多 CPU 时间，换句话说，这也是一种 DDoS (拒绝服务)攻击。</p>
+<h3 id="管理进程时间"><a href="#管理进程时间" class="headerlink" title="管理进程时间"></a>管理进程时间</h3><p>最后说一下内核管理进程时间的过程：</p>
+<ol>
+<li>根据当前进程的状态，统计进程在用户态或核心态消耗的 CPU 时间</li>
+<li>如果进程超过了 Rlimit 指定的 CPU 份额，还会发送 SIGXCPU 信号</li>
+<li>激活低分辨率定时任务</li>
+<li>进行调度</li>
+</ol>
+<h2 id="参考内容"><a href="#参考内容" class="headerlink" title="参考内容"></a>参考内容</h2><p>[1]《Linux内核设计与实现》<br>[2]《Linux系统编程》<br>[3]《深入理解Linux内核》<br>[4]《深入Linux内核架构》<br>[5] <span class="exturl" data-url="aHR0cHM6Ly93d3cuY25ibG9ncy5jb20vaGF6aXIvcC9saW51eF9rZXJuZWxfcGlkLmh0bWw=" title="https://www.cnblogs.com/hazir/p/linux_kernel_pid.html">Linux 内核进程管理之进程ID<i class="fa fa-external-link"></i></span><br>[6] <span class="exturl" data-url="aHR0cDovL3NlcnZlci41MWN0by5jb20vc0NvbGxlZ2UtMTk4ODQwLmh0bQ==" title="http://server.51cto.com/sCollege-198840.htm">服务器三大体系SMP、NUMA、MPP介绍<i class="fa fa-external-link"></i></span><br>[7] <span class="exturl" data-url="aHR0cHM6Ly96aHVhbmxhbi56aGlodS5jb20vcC82ODQ2NTk1Mg==" title="https://zhuanlan.zhihu.com/p/68465952">Linux中的物理内存管理 [一]<i class="fa fa-external-link"></i></span><br>[8] <span class="exturl" data-url="aHR0cDovL3d3dy52b2lkY24uY29tL2FydGljbGUvcC1haGZtZWNuei1icnEuaHRtbA==" title="http://www.voidcn.com/article/p-ahfmecnz-brq.html">Linux内核中的page migration和compaction机制简介<i class="fa fa-external-link"></i></span><br>[9] <span class="exturl" data-url="aHR0cHM6Ly9ibG9nLmNzZG4ubmV0L21hY3Jvc3NkemgvYXJ0aWNsZS9kZXRhaWxzLzU5NTQ3NjM=" title="https://blog.csdn.net/macrossdzh/article/details/5954763">物理地址、虚拟地址（线性地址）、逻辑地址以及MMU的知识<i class="fa fa-external-link"></i></span><br>[10] <span class="exturl" data-url="aHR0cHM6Ly9iYWlrZS5iYWlkdS5jb20vaXRlbS/pgLvovpHlnLDlnYA=" title="https://baike.baidu.com/item/逻辑地址">逻辑地址<i class="fa fa-external-link"></i></span><br>[11] <span class="exturl" data-url="aHR0cHM6Ly9ibG9nLmNzZG4ubmV0L3l3Zjg2MTAyOS9hcnRpY2xlL2RldGFpbHMvNjExNDc5NA==" title="https://blog.csdn.net/ywf861029/article/details/6114794">linux内核学习笔记-struct vm_area_struct<i class="fa fa-external-link"></i></span><br>[12] <span class="exturl" data-url="aHR0cDovL2xpdWp1bm1pbmcudG9wLzIwMTcvMDkvMDMvTGludXjkuK3ljL/lkI3pobXnmoTlj43lkJHmmKDlsIQvI+WPjeWQkeaYoOWwhOeahOW8leWFpQ==" title="http://liujunming.top/2017/09/03/Linux中匿名页的反向映射/#反向映射的引入">Linux中匿名页的反向映射<i class="fa fa-external-link"></i></span><br>[13] <span class="exturl" data-url="aHR0cHM6Ly9ibG9nLmNzZG4ubmV0L3NvZGF3YXRlcmVyL2FydGljbGUvZGV0YWlscy81MzQ1NjUxNg==" title="https://blog.csdn.net/sodawaterer/article/details/53456516">系统调用过程详解<i class="fa fa-external-link"></i></span><br>[14] <span class="exturl" data-url="aHR0cDovL3d3dy52b2lkY24uY29tL2FydGljbGUvcC1vZGJpamxwcy1ib2IuaHRtbA==" title="http://www.voidcn.com/article/p-odbijlps-bob.html">再谈Linux内核中的RCU机制<i class="fa fa-external-link"></i></span><br>[15] <span class="exturl" data-url="aHR0cHM6Ly9qYW1pbnpoYW5nLmdpdGh1Yi5pby9uZXR3b3JrL3RoZS1kaWZmZXJlbmNlLWJldHdlZW4tdW5peC1kb21haW4tc29ja2V0LWFuZC10Y3AtaXAtc29ja2V0Lw==" title="https://jaminzhang.github.io/network/the-difference-between-unix-domain-socket-and-tcp-ip-socket/">Unix domain socket 和 TCP/IP socket 的区别<i class="fa fa-external-link"></i></span><br>[16] <span class="exturl" data-url="aHR0cHM6Ly93d3cuaWxpbnV4a2VybmVsLmNvbS9maWxlcy9MaW51eC5HZW5lcmljLkJsb2NrLkxheWVyLnBkZg==" title="https://www.ilinuxkernel.com/files/Linux.Generic.Block.Layer.pdf">Linux通用块设备层<i class="fa fa-external-link"></i></span><br>[17] <span class="exturl" data-url="aHR0cHM6Ly9ibG9nLmNzZG4ubmV0L1l1WmhpSHVpX05vMS9hcnRpY2xlL2RldGFpbHMvNTAyNTY3MTM=" title="https://blog.csdn.net/YuZhiHui_No1/article/details/50256713">ext2文件系统结构分析<i class="fa fa-external-link"></i></span><br>[18] <span class="exturl" data-url="aHR0cHM6Ly9ibG9nLjUxY3RvLmNvbS9ndW9kb25nODEwLzExNzY0Mjc=" title="https://blog.51cto.com/guodong810/1176427">linux ACL权限规划：getfacl,setfacl使用<i class="fa fa-external-link"></i></span><br>[18] <span class="exturl" data-url="aHR0cHM6Ly9ibG9nLmNzZG4ubmV0L3lhbmdfeXVsZWkvYXJ0aWNsZS9kZXRhaWxzLzQ2MzcxOTc1" title="https://blog.csdn.net/yang_yulei/article/details/46371975">查找——图文翔解RadixTree（基数树）<i class="fa fa-external-link"></i></span><br>[19] <span class="exturl" data-url="aHR0cDovL3JvdXgudG9wLzIwMTcvMTAvMjgvcGFnZSUyMGNhY2hlJUU1JTkyJThDYWRkcmVzc19zcGFjZS8=" title="http://roux.top/2017/10/28/page%20cache%E5%92%8Caddress_space/">页缓存page cache和地址空间address_space<i class="fa fa-external-link"></i></span><br>[20] <span class="exturl" data-url="aHR0cHM6Ly9ibG9nLmNzZG4ubmV0L2Fya2JsdWUvYXJ0aWNsZS9kZXRhaWxzLzQ1Nzk2NTUx" title="https://blog.csdn.net/arkblue/article/details/45796551">rocketmq使用的系统参数（dirty_background_ration dirty_ratio）<i class="fa fa-external-link"></i></span><br>[21] <span class="exturl" data-url="aHR0cHM6Ly96aHVhbmxhbi56aGlodS5jb20vcC83MzUzOTMyOA==" title="https://zhuanlan.zhihu.com/p/73539328">Linux内存调节之zone watermark<i class="fa fa-external-link"></i></span><br>[22] <span class="exturl" data-url="aHR0cHM6Ly9ibG9nLmNzZG4ubmV0L3JlbndvdGFvMjAwOS9hcnRpY2xlL2RldGFpbHMvNTE5NzkzNDM=" title="https://blog.csdn.net/renwotao2009/article/details/51979343">Linux的内存回收和交换<i class="fa fa-external-link"></i></span><br>[23] <span class="exturl" data-url="aHR0cHM6Ly96aHVhbmxhbi56aGlodS5jb20vcC83MDk2NDE5NQ==" title="https://zhuanlan.zhihu.com/p/70964195">Linux中的内存回收[一]<i class="fa fa-external-link"></i></span><br>[24] <span class="exturl" data-url="aHR0cHM6Ly93d3cuY25ibG9ncy5jb20vdG9saW1pdC9wLzU0MzUwNjguaHRtbA==" title="https://www.cnblogs.com/tolimit/p/5435068.html">linux内存源码分析 - 内存回收(整体流程)<i class="fa fa-external-link"></i></span><br>[25] <span class="exturl" data-url="aHR0cHM6Ly9ibG9nLmNzZG4ubmV0L2xpX3dlbjAxL2FydGljbGUvZGV0YWlscy84MjY1OTQwNg==" title="https://blog.csdn.net/li_wen01/article/details/82659406">Linux 软中断机制分析<i class="fa fa-external-link"></i></span><br>[26] <span class="exturl" data-url="aHR0cHM6Ly9ibG9nLmNzZG4ubmV0L0RMVVRCcnVjZVpoYW5nL2FydGljbGUvZGV0YWlscy85OTE5NDUz" title="https://blog.csdn.net/DLUTBruceZhang/article/details/9919453">对 jiffies 溢出、回绕及 time_after 宏的理解<i class="fa fa-external-link"></i></span><br>[27] <span class="exturl" data-url="aHR0cHM6Ly9naXRodWIuY29tL2NhaXNhbi9teWJsb2cvYmxvYi9tYXN0ZXIvbGVhcm4tbGludXgtbmV0d29yay1uYW1lc3BhY2UubWQ=" title="https://github.com/caisan/myblog/blob/master/learn-linux-network-namespace.md">learn-linux-network-namespace<i class="fa fa-external-link"></i></span><br>[28] <span class="exturl" data-url="aHR0cHM6Ly96aC53aWtpcGVkaWEub3JnL3dpa2kvJUU2JTk4JUJFJUU1JUJDJThGJUU2JThCJUE1JUU1JUExJTlFJUU5JTgwJTlBJUU3JTlGJUE1" title="https://zh.wikipedia.org/wiki/%E6%98%BE%E5%BC%8F%E6%8B%A5%E5%A1%9E%E9%80%9A%E7%9F%A5">显式拥塞通知<i class="fa fa-external-link"></i></span><br>[29] <span class="exturl" data-url="aHR0cHM6Ly93d3cuY25raXJpdG8ubW9lL3RjcC10YWxrLw==" title="https://www.cnkirito.moe/tcp-talk/">聊聊 TCP 长连接和心跳那些事<i class="fa fa-external-link"></i></span><br>[30] <span class="exturl" data-url="aHR0cHM6Ly9qdWVqaW4uaW0vcG9zdC81OThiYTFkMDZmYjlhMDNjNGQ2NDY0YWI=" title="https://juejin.im/post/598ba1d06fb9a03c4d6464ab">关于 TCP/IP，必知必会的十个问题<i class="fa fa-external-link"></i></span><br>[31] <span class="exturl" data-url="aHR0cHM6Ly9ibG9nLmNzZG4ubmV0L2Z3MDEyNC9hcnRpY2xlL2RldGFpbHMvNzQ1MjY5NQ==" title="https://blog.csdn.net/fw0124/article/details/7452695">TCP协议三次握手连接四次握手断开和DOS攻击<i class="fa fa-external-link"></i></span><br>[32] <span class="exturl" data-url="aHR0cHM6Ly9jb29sc2hlbGwuY24vYXJ0aWNsZXMvMTE1NjQuaHRtbA==" title="https://coolshell.cn/articles/11564.html">TCP 的那些事儿（上）<i class="fa fa-external-link"></i></span><br>[33] <span class="exturl" data-url="aHR0cHM6Ly9jb29sc2hlbGwuY24vYXJ0aWNsZXMvMTE2MDkuaHRtbA==" title="https://coolshell.cn/articles/11609.html">TCP 的那些事儿（下）<i class="fa fa-external-link"></i></span></p>
+
+    </div>
+
+    
+    
+    
+
+      
+        <div id="wechat_subscriber" style="display: block; padding: 10px 0; margin: 20px auto; width: 100%; text-align: center">
+  <img id="wechat_subscriber_qcode" src="/images/qrcode_for_wechat.jpg" alt="贝克街的流浪猫 wechat" style="width: 400px; max-width: 100%;">
+  <div></div>
+</div>
+
+      
+        <div class="reward-container">
+  <div>您的打赏将鼓励我继续分享!</div>
+  <button disable="enable" onclick="var qr = document.getElementById(&quot;qr&quot;); qr.style.display = (qr.style.display === 'none') ? 'block' : 'none';">
+    打赏
+  </button>
+  <div id="qr" style="display: none;">
+      
+      <div style="display: inline-block;">
+        <img src="/images/wechat.jpg" alt="贝克街的流浪猫 微信支付">
+        <p>微信支付</p>
+      </div>
+      
+      <div style="display: inline-block;">
+        <img src="/images/alipay.jpg" alt="贝克街的流浪猫 支付宝">
+        <p>支付宝</p>
+      </div>
+
+  </div>
+</div>
+
+        
+
+<div>
+<ul class="post-copyright">
+  <li class="post-copyright-author">
+    <strong>本文作者： </strong>贝克街的流浪猫
+  </li>
+  <li class="post-copyright-link">
+    <strong>本文链接：</strong>
+    <a href="https://www.beikejiedeliulangmao.top/linux/time-management/" title="Linux 时间管理">https://www.beikejiedeliulangmao.top/linux/time-management/</a>
+  </li>
+  <li class="post-copyright-license">
+    <strong>版权声明： </strong>本博客所有文章除特别声明外，均采用 <span class="exturl" data-url="aHR0cHM6Ly9jcmVhdGl2ZWNvbW1vbnMub3JnL2xpY2Vuc2VzL2J5LW5jLXNhLzQuMC9udWxs"><i class="fa fa-fw fa-creative-commons"></i>BY-NC-SA</span> 许可协议，转载请注明出处！
+  </li>
+  <li class="post-copyright-license">
+    <strong>创作声明： </strong>本文基于上述所有参考内容进行创作，其中可能涉及复制、修改或者转换，图片均来自网络，如有侵权请联系我，我会第一时间进行删除。
+  </li>
+</ul>
+</div>
+
+
+      <footer class="post-footer">
+          <div class="post-tags">
+              <a href="/tags/OperatingSystem/" rel="tag"># OperatingSystem</a>
+              <a href="/tags/Unix/" rel="tag"># Unix</a>
+              <a href="/tags/Linux/" rel="tag"># Linux</a>
+              <a href="/tags/Kernel/" rel="tag"># Kernel</a>
+              <a href="/tags/TimeManagement/" rel="tag"># TimeManagement</a>
+              <a href="/tags/LowFrequencyTimer/" rel="tag"># LowFrequencyTimer</a>
+              <a href="/tags/HighFrequencyTimer/" rel="tag"># HighFrequencyTimer</a>
+              <a href="/tags/DynamicTimer/" rel="tag"># DynamicTimer</a>
+          </div>
+
+        
+
+          <div class="post-nav">
+            <div class="post-nav-next post-nav-item">
+                <a href="/linux/network/" rel="next" title="Linux 网络">
+                  <i class="fa fa-chevron-left"></i> Linux 网络
+                </a>
+            </div>
+
+            <span class="post-nav-divider"></span>
+
+            <div class="post-nav-prev post-nav-item">
+                <a href="/linux/interrupt/" rel="prev" title="Linux 中断">
+                  Linux 中断 <i class="fa fa-chevron-right"></i>
+                </a>
+            </div>
+          </div>
+      </footer>
+    
+  </article>
+  
+  
+  
+
+  </div>
+
+
+          </div>
+          
+    <div class="comments" id="gitalk-container"></div>
+
+        </div>
+          
+  
+  <div class="toggle sidebar-toggle">
+    <span class="toggle-line toggle-line-first"></span>
+    <span class="toggle-line toggle-line-middle"></span>
+    <span class="toggle-line toggle-line-last"></span>
+  </div>
+
+  <aside class="sidebar">
+    <div class="sidebar-inner">
+
+      <ul class="sidebar-nav motion-element">
+        <li class="sidebar-nav-toc">
+          文章目录
+        </li>
+        <li class="sidebar-nav-overview">
+          站点概览
+        </li>
+      </ul>
+
+      <!--noindex-->
+      <div class="post-toc-wrap sidebar-panel">
+          <div class="post-toc motion-element"><ol class="nav"><li class="nav-item nav-level-2"><a class="nav-link" href="#%E5%BC%95%E8%A8%80"><span class="nav-number">1.</span> <span class="nav-text">引言</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E6%97%B6%E9%97%B4%E7%AE%A1%E7%90%86"><span class="nav-number">2.</span> <span class="nav-text">时间管理</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#%E4%BD%8E%E5%88%86%E8%BE%A8%E7%8E%87%E5%AE%9A%E6%97%B6%E5%99%A8%E5%AE%9E%E7%8E%B0"><span class="nav-number">2.1.</span> <span class="nav-text">低分辨率定时器实现</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E9%AB%98%E5%88%86%E8%BE%A8%E7%8E%87%E5%AE%9A%E6%97%B6%E5%99%A8%E5%AE%9E%E7%8E%B0"><span class="nav-number">2.2.</span> <span class="nav-text">高分辨率定时器实现</span></a><ol class="nav-child"><li class="nav-item nav-level-4"><a class="nav-link" href="#%E5%AE%9A%E6%97%B6%E4%BB%BB%E5%8A%A1"><span class="nav-number">2.2.1.</span> <span class="nav-text">定时任务</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#%E4%BB%BF%E7%9C%9F%E5%91%A8%E6%9C%9F%E6%97%B6%E9%92%9F"><span class="nav-number">2.2.2.</span> <span class="nav-text">仿真周期时钟</span></a></li></ol></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E5%8A%A8%E6%80%81%E6%97%B6%E9%92%9F"><span class="nav-number">2.3.</span> <span class="nav-text">动态时钟</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E5%B9%BF%E6%92%AD%E6%A8%A1%E5%BC%8F"><span class="nav-number">2.4.</span> <span class="nav-text">广播模式</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E5%AE%9A%E6%97%B6%E5%99%A8%E7%B3%BB%E7%BB%9F%E8%B0%83%E7%94%A8%E5%AE%9E%E7%8E%B0"><span class="nav-number">2.5.</span> <span class="nav-text">定时器系统调用实现</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E7%AE%A1%E7%90%86%E8%BF%9B%E7%A8%8B%E6%97%B6%E9%97%B4"><span class="nav-number">2.6.</span> <span class="nav-text">管理进程时间</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E5%8F%82%E8%80%83%E5%86%85%E5%AE%B9"><span class="nav-number">3.</span> <span class="nav-text">参考内容</span></a></li></ol></div>
+      </div>
+      <!--/noindex-->
+
+      <div class="site-overview-wrap sidebar-panel">
+        <div class="site-author motion-element" itemprop="author" itemscope="" itemtype="http://schema.org/Person">
+    <img class="site-author-image" itemprop="image" alt="贝克街的流浪猫" src="/images/avatar.jpg">
+  <p class="site-author-name" itemprop="name">贝克街的流浪猫</p>
+  <div class="site-description" itemprop="description">贝贝猫</div>
+</div>
+<div class="site-state-wrap motion-element">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+          <a href="/archives/">
+        
+          <span class="site-state-item-count">120</span>
+          <span class="site-state-item-name">日志</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-categories">
+            <a href="/categories/">
+          
+        <span class="site-state-item-count">24</span>
+        <span class="site-state-item-name">分类</span></a>
+      </div>
+      <div class="site-state-item site-state-tags">
+            <a href="/tags/">
+          
+        <span class="site-state-item-count">158</span>
+        <span class="site-state-item-name">标签</span></a>
+      </div>
+  </nav>
+</div>
+  <div class="feed-link motion-element">
+    <a href="/atom.xml" rel="alternate">
+      <i class="fa fa-rss"></i>RSS
+    </a>
+  </div>
+  <div class="links-of-author motion-element">
+      <span class="links-of-author-item">
+        <span class="exturl" data-url="aHR0cHM6Ly9naXRodWIuY29tL0JlaUtlSmllRGVMaXVMYW5nTWFv" title="GitHub → https://github.com/BeiKeJieDeLiuLangMao"><i class="fa fa-fw fa-github"></i></span>
+      </span>
+      <span class="links-of-author-item">
+        <span class="exturl" data-url="aHR0cHM6Ly96aHVhbmxhbi56aGlodS5jb20vY18xMTY3NDI5NTg4NzExMzM3OTg1" title="知乎 → https://zhuanlan.zhihu.com/c_1167429588711337985"><i class="fa fa-fw fa-book"></i></span>
+      </span>
+      <span class="links-of-author-item">
+        <span class="exturl" data-url="bWFpbHRvOjUxNzM3NTY4NUBxcS5jb20=" title="E-Mail → mailto:517375685@qq.com"><i class="fa fa-fw fa-envelope"></i></span>
+      </span>
+      <span class="links-of-author-item">
+        <span class="exturl" data-url="aHR0cHM6Ly9zdGFja292ZXJmbG93LmNvbS91c2Vycy84NzgyOTY0L3lhbmctY2hlbj90YWI9cHJvZmlsZQ==" title="StackOverflow → https://stackoverflow.com/users/8782964/yang-chen?tab=profile"><i class="fa fa-fw fa-stack-overflow"></i></span>
+      </span>
+  </div>
+
+
+
+      </div>
+        <div class="back-to-top motion-element">
+          <i class="fa fa-arrow-up"></i>
+          <span>0%</span>
+        </div>
+
+    </div>
+  </aside>
+  <div id="sidebar-dimmer"></div>
+
+
+      </div>
+    </main>
+
+    <footer class="footer">
+      <div class="footer-inner">
+        
+  <div class="beian"><span class="exturl" data-url="aHR0cDovL3d3dy5iZWlhbi5taWl0Lmdvdi5jbg==">辽ICP备19017854号 </span>
+  </div>
+
+<div class="copyright">
+  
+  © 2019 – 
+  <span itemprop="copyrightYear">2021</span>
+  <span class="with-love">
+    <i class="fa fa-heart"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">贝克街的流浪猫</span>
+    <span class="post-meta-divider">|</span>
+    <span class="post-meta-item-icon">
+      <i class="fa fa-area-chart"></i>
+    </span>
+      <span class="post-meta-item-text">站点总字数：</span>
+    <span title="站点总字数">1.5m</span>
+    <span class="post-meta-divider">|</span>
+    <span class="post-meta-item-icon">
+      <i class="fa fa-coffee"></i>
+    </span>
+      <span class="post-meta-item-text">站点阅读时长 ≈</span>
+    <span title="站点阅读时长">22:36</span>
+</div>
+
+        
+<div class="busuanzi-count">
+  <script async="" src="https://busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js"></script>
+    <span class="post-meta-item" id="busuanzi_container_site_uv" style="display: none;">
+      <span class="post-meta-item-icon">
+        <i class="fa fa-user"></i>
+      </span>
+      <span class="site-uv" title="总访客量">
+        贝贝猫有
+        <span id="busuanzi_value_site_uv"></span>
+        位同学
+      </span>
+    </span>
+    <span class="post-meta-divider">|</span>
+    <span class="post-meta-item" id="busuanzi_container_site_pv" style="display: none;">
+      <span class="post-meta-item-icon">
+        <i class="fa fa-eye"></i>
+      </span>
+      <span class="site-pv" title="总访问量">
+        笔记被翻阅
+        <span id="busuanzi_value_site_pv"></span>
+        次
+      </span>
+    </span>
+</div>
+
+
+
+
+
+
+  
+
+
+
+
+
+
+        
+      </div>
+    </footer>
+  </div>
+
+  
+  
+  <script src="//cdn.jsdelivr.net/npm/medium-zoom@1/dist/medium-zoom.min.js"></script>
+  <script src="//cdn.jsdelivr.net/npm/pangu@4/dist/browser/pangu.min.js"></script>
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+
+
+
+
+  
+
+<script src="//cdn.jsdelivr.net/npm/instantsearch.js@2/dist/instantsearch.min.js"></script>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+  
+  <script src="//cdn.jsdelivr.net/npm/quicklink@1/dist/quicklink.umd.js"></script>
+  
+
+
+
+
+
+
+
+<script type="text/javascript" src="/bundle.js"></script><script type="text/javascript">function leancloudSelector(url) {
+    return document.getElementById(url).querySelector('.leancloud-visitors-count');
+  }
+  if (CONFIG.page.isPost) {
+    function addCount(Counter) {
+      var visitors = document.querySelector('.leancloud_visitors');
+      var url = visitors.getAttribute('id').trim();
+      var title = visitors.getAttribute('data-flag-title').trim();
+
+      Counter('get', `/classes/Counter?where=${JSON.stringify({ url })}`)
+        .then(response => response.json())
+        .then(({ results }) => {
+          if (results.length > 0) {
+            var counter = results[0];
+              leancloudSelector(url).innerText = counter.time + 1;
+            Counter('put', '/classes/Counter/' + counter.objectId, { time: { '__op': 'Increment', 'amount': 1 } })
+              .then(response => response.json())
+              .catch(error => {
+                console.log('Failed to save visitor count', error);
+              })
+          } else {
+              leancloudSelector(url).innerText = 'Counter not initialized! More info at console err msg.';
+              console.error('ATTENTION! LeanCloud counter has security bug, see how to solve it here: https://github.com/theme-next/hexo-leancloud-counter-security. \n However, you can still use LeanCloud without security, by setting `security` option to `false`.');
+            
+          }
+        })
+        .catch(error => {
+          console.log('LeanCloud Counter Error', error);
+        });
+    }
+  } else {
+    function showTime(Counter) {
+      var visitors = document.querySelectorAll('.leancloud_visitors');
+      var entries = [...visitors].map(element => {
+        return element.getAttribute('id').trim();
+      });
+
+      Counter('get', `/classes/Counter?where=${JSON.stringify({ url: { '$in': entries } })}`)
+        .then(response => response.json())
+        .then(({ results }) => {
+          if (results.length === 0) {
+            document.querySelectorAll('.leancloud_visitors .leancloud-visitors-count').forEach(element => {
+              element.innerText = 0;
+            });
+            return;
+          }
+          for (var i = 0; i < results.length; i++) {
+            var item = results[i];
+            var url = item.url;
+            var time = item.time;
+            leancloudSelector(url).innerText = time;
+          }
+          for (var i = 0; i < entries.length; i++) {
+            var url = entries[i];
+            var element = leancloudSelector(url);
+            if (element.innerText == '') {
+              element.innerText = 0;
+            }
+          }
+        })
+        .catch(error => {
+          console.log('LeanCloud Counter Error', error);
+        });
+    }
+  }
+
+  fetch('https://app-router.leancloud.cn/2/route?appId=gmT3IkYtHVMymcwAjbwHhtiv-gzGzoHsz')
+    .then(response => response.json())
+    .then(({ api_server }) => {
+      var Counter = (method, url, data) => {
+        return fetch(`https://${api_server}/1.1${url}`, {
+          method: method,
+          headers: {
+            'X-LC-Id': 'gmT3IkYtHVMymcwAjbwHhtiv-gzGzoHsz',
+            'X-LC-Key': 'co6tpmcyS9za2D1uqQyMFtnN',
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(data)
+        });
+      };
+      if (CONFIG.page.isPost) {
+        const localhost = /http:\/\/(localhost|127.0.0.1|0.0.0.0)/;
+        if (localhost.test(document.URL)) return;
+        addCount(Counter);
+      } else if (document.querySelectorAll('.post-title-link').length >= 1) {
+        showTime(Counter);
+      }
+    });;(function(){
+      var bp = document.createElement('script');
+      var curProtocol = window.location.protocol.split(':')[0];
+      bp.src = (curProtocol === 'https') ? 'https://zz.bdstatic.com/linksubmit/push.js' : 'http://push.zhanzhang.baidu.com/push.js';
+      var s = document.getElementsByTagName("script")[0];
+      s.parentNode.insertBefore(bp, s);
+    })();;if (document.querySelectorAll('pre.mermaid').length) {
+  NexT.utils.getScript('//cdn.jsdelivr.net/npm/mermaid@8/dist/mermaid.min.js', () => {
+    mermaid.initialize({
+      theme: 'forest',
+      logLevel: 3,
+      flowchart: { curve: 'linear' },
+      gantt: { axisFormat: '%m/%d/%Y' },
+      sequence: { actorMargin: 50 }
+    });
+  }, window.mermaid);
+};window.addEventListener('load', () => {
+      quicklink({
+        timeout: 3000,
+        priority: true,
+        ignores: [uri => uri.includes('#'),uri => uri == 'https://www.beikejiedeliulangmao.top/linux/time-management/',]
+      });
+      });;NexT.utils.getScript('//cdn.jsdelivr.net/npm/gitalk@1/dist/gitalk.min.js', () => {
+    var gitalk = new Gitalk({
+      clientID: '6201d1cc2825a93aa161',
+      clientSecret: '71c60f650595a3eedba64b844f811b90acac3798',
+      repo: 'HexoBlogComment',
+      owner: 'BeiKeJieDeLiuLangMao',
+      admin: ['BeiKeJieDeLiuLangMao'],
+      id: 'a97049c917465b3b9bcb54a6167e8cf1',
+        language: 'zh-CN',
+      distractionFreeMode: 'true'
+    });
+    gitalk.render('gitalk-container');
+  }, window.Gitalk);;window.imageLazyLoadSetting = {
+                isSPA: false,
+                processImages: null,
+            };;window.addEventListener("load",function(){var t=/\.(gif|jpg|jpeg|tiff|png)$/i,r=/^data:image\/[a-z]+;base64,/;Array.prototype.slice.call(document.querySelectorAll("img[data-original]")).forEach(function(a){var e=a.parentNode;"A"===e.tagName&&(e.href.match(t)||e.href.match(r))&&(e.href=a.dataset.original)})});;!function(n){n.imageLazyLoadSetting.processImages=o;var i=n.imageLazyLoadSetting.isSPA,l=Array.prototype.slice.call(document.querySelectorAll("img[data-original]"));function o(){i&&(l=Array.prototype.slice.call(document.querySelectorAll("img[data-original]")));for(var r=0;r<l.length;r++)t=l[r],void 0,0<=(e=t.getBoundingClientRect()).bottom&&0<=e.left&&e.top<=(n.innerHeight||document.documentElement.clientHeight)&&function(t){var e,n,i,o,a=l[r];e=a,n=function(){l=l.filter(function(t){return a!==t})},i=new Image,o=e.getAttribute("data-original"),i.onload=function(){e.src=o,n&&n()},i.src=o}();var t,e}o(),n.addEventListener("scroll",function(){var t,e;t=o,e=n,clearTimeout(t.tId),t.tId=setTimeout(function(){t.call(e)},500)})}(this);</script></body></html>

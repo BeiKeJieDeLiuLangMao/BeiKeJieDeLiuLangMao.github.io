@@ -1,0 +1,643 @@
+<?xml version="1.0" encoding="utf-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom">
+  <title>贝克街的流浪猫</title>
+  <icon>https://www.beikejiedeliulangmao.top/icon.png</icon>
+  <subtitle>技术博客</subtitle>
+  <link href="/atom.xml" rel="self"/>
+  
+  <link href="https://www.beikejiedeliulangmao.top/"/>
+  <updated>2021-01-17T04:25:41.842Z</updated>
+  <id>https://www.beikejiedeliulangmao.top/</id>
+  
+  <author>
+    <name>贝克街的流浪猫</name>
+    
+  </author>
+  
+  <generator uri="https://hexo.io/">Hexo</generator>
+  
+  <entry>
+    <title>Sentinel 简介</title>
+    <link href="https://www.beikejiedeliulangmao.top/middleware/sentinel/introduction/"/>
+    <id>https://www.beikejiedeliulangmao.top/middleware/sentinel/introduction/</id>
+    <published>2020-08-10T01:12:59.000Z</published>
+    <updated>2021-01-17T04:25:41.842Z</updated>
+    
+    <summary type="html">
+    
+      &lt;h2 id=&quot;引言&quot;&gt;&lt;a href=&quot;#引言&quot; class=&quot;headerlink&quot; title=&quot;引言&quot;&gt;&lt;/a&gt;引言&lt;/h2&gt;&lt;p&gt;随着微服务的流行，服务和服务之间的稳定性变得越来越重要。从本篇文章开始，我们将进入 Sentinel 的世界，看看它作为一个流量控制组件，是如何从流量控制、熔断降级、系统自适应保护等多个维度来保障微服务的稳定性的。本文作为 Sentinel 系列文章的开篇，会先简单地介绍一下 Sentinel 中的概念以及设计思想，在接下来的文章中，我们还会介绍 Sentinel 的使用方式，以及各个核心模块的实现原理，和 Sentinel 相关的所有文章均会收录于&lt;a href=&quot;https://www.beikejiedeliulangmao.top/categories/Middleware/Sentinel&quot;&gt;&amp;lt;Sentinel系列文章&amp;gt;&lt;/a&gt;中，感兴趣的同学可以看一下。&lt;/p&gt;
+    
+    </summary>
+    
+    
+      <category term="Middleware" scheme="https://www.beikejiedeliulangmao.top/categories/Middleware/"/>
+    
+      <category term="Sentinel" scheme="https://www.beikejiedeliulangmao.top/categories/Middleware/Sentinel/"/>
+    
+    
+      <category term="Java" scheme="https://www.beikejiedeliulangmao.top/tags/Java/"/>
+    
+      <category term="Distributed" scheme="https://www.beikejiedeliulangmao.top/tags/Distributed/"/>
+    
+      <category term="MicroService" scheme="https://www.beikejiedeliulangmao.top/tags/MicroService/"/>
+    
+      <category term="FlowControl" scheme="https://www.beikejiedeliulangmao.top/tags/FlowControl/"/>
+    
+      <category term="TrafficShaping" scheme="https://www.beikejiedeliulangmao.top/tags/TrafficShaping/"/>
+    
+      <category term="CircuitBreaking" scheme="https://www.beikejiedeliulangmao.top/tags/CircuitBreaking/"/>
+    
+      <category term="Degrade" scheme="https://www.beikejiedeliulangmao.top/tags/Degrade/"/>
+    
+      <category term="SystemProtection" scheme="https://www.beikejiedeliulangmao.top/tags/SystemProtection/"/>
+    
+  </entry>
+  
+  <entry>
+    <title>Sentinel 定义资源</title>
+    <link href="https://www.beikejiedeliulangmao.top/middleware/sentinel/define-resource/"/>
+    <id>https://www.beikejiedeliulangmao.top/middleware/sentinel/define-resource/</id>
+    <published>2020-08-10T01:12:55.000Z</published>
+    <updated>2021-01-17T04:25:41.842Z</updated>
+    
+    <summary type="html">
+    
+      &lt;h2 id=&quot;引言&quot;&gt;&lt;a href=&quot;#引言&quot; class=&quot;headerlink&quot; title=&quot;引言&quot;&gt;&lt;/a&gt;引言&lt;/h2&gt;&lt;p&gt;在前面的文章中，我们已经简单地介绍了 Sentinel 的核心概念、核心功能以及实现的思想，从本篇文章开始，我将介绍一下如何使用 Sentinel 的核心功能，本文先介绍一下如何定义 Sentinel 中的资源，和 Sentinel 相关的所有文章均会收录于&lt;a href=&quot;https://www.beikejiedeliulangmao.top/categories/Middleware/Sentinel&quot;&gt;&amp;lt;Sentinel系列文章&amp;gt;&lt;/a&gt;中，感兴趣的同学可以看一下。&lt;/p&gt;
+    
+    </summary>
+    
+    
+      <category term="Middleware" scheme="https://www.beikejiedeliulangmao.top/categories/Middleware/"/>
+    
+      <category term="Sentinel" scheme="https://www.beikejiedeliulangmao.top/categories/Middleware/Sentinel/"/>
+    
+    
+      <category term="Java" scheme="https://www.beikejiedeliulangmao.top/tags/Java/"/>
+    
+      <category term="Distributed" scheme="https://www.beikejiedeliulangmao.top/tags/Distributed/"/>
+    
+      <category term="MicroService" scheme="https://www.beikejiedeliulangmao.top/tags/MicroService/"/>
+    
+      <category term="FlowControl" scheme="https://www.beikejiedeliulangmao.top/tags/FlowControl/"/>
+    
+      <category term="TrafficShaping" scheme="https://www.beikejiedeliulangmao.top/tags/TrafficShaping/"/>
+    
+      <category term="CircuitBreaking" scheme="https://www.beikejiedeliulangmao.top/tags/CircuitBreaking/"/>
+    
+      <category term="Degrade" scheme="https://www.beikejiedeliulangmao.top/tags/Degrade/"/>
+    
+      <category term="SystemProtection" scheme="https://www.beikejiedeliulangmao.top/tags/SystemProtection/"/>
+    
+  </entry>
+  
+  <entry>
+    <title>Sentinel 规则的种类</title>
+    <link href="https://www.beikejiedeliulangmao.top/middleware/sentinel/rules/"/>
+    <id>https://www.beikejiedeliulangmao.top/middleware/sentinel/rules/</id>
+    <published>2020-08-10T01:12:50.000Z</published>
+    <updated>2021-01-17T04:25:41.387Z</updated>
+    
+    <summary type="html">
+    
+      &lt;h2 id=&quot;引言&quot;&gt;&lt;a href=&quot;#引言&quot; class=&quot;headerlink&quot; title=&quot;引言&quot;&gt;&lt;/a&gt;引言&lt;/h2&gt;&lt;p&gt;在前面的文章中，我们已经简单地介绍了如何在 Sentinel 中如何定义资源，本文将介绍 Sentinel 中所包含的各种类型的规则，和 Sentinel 相关的所有文章均会收录于&lt;a href=&quot;https://www.beikejiedeliulangmao.top/categories/Middleware/Sentinel&quot;&gt;&amp;lt;Sentinel系列文章&amp;gt;&lt;/a&gt;中，感兴趣的同学可以看一下。&lt;/p&gt;
+    
+    </summary>
+    
+    
+      <category term="Middleware" scheme="https://www.beikejiedeliulangmao.top/categories/Middleware/"/>
+    
+      <category term="Sentinel" scheme="https://www.beikejiedeliulangmao.top/categories/Middleware/Sentinel/"/>
+    
+    
+      <category term="Java" scheme="https://www.beikejiedeliulangmao.top/tags/Java/"/>
+    
+      <category term="Distributed" scheme="https://www.beikejiedeliulangmao.top/tags/Distributed/"/>
+    
+      <category term="MicroService" scheme="https://www.beikejiedeliulangmao.top/tags/MicroService/"/>
+    
+      <category term="FlowControl" scheme="https://www.beikejiedeliulangmao.top/tags/FlowControl/"/>
+    
+      <category term="TrafficShaping" scheme="https://www.beikejiedeliulangmao.top/tags/TrafficShaping/"/>
+    
+      <category term="CircuitBreaking" scheme="https://www.beikejiedeliulangmao.top/tags/CircuitBreaking/"/>
+    
+      <category term="Degrade" scheme="https://www.beikejiedeliulangmao.top/tags/Degrade/"/>
+    
+      <category term="SystemProtection" scheme="https://www.beikejiedeliulangmao.top/tags/SystemProtection/"/>
+    
+  </entry>
+  
+  <entry>
+    <title>Sentinel 查看和定义规则</title>
+    <link href="https://www.beikejiedeliulangmao.top/middleware/sentinel/define-rule/"/>
+    <id>https://www.beikejiedeliulangmao.top/middleware/sentinel/define-rule/</id>
+    <published>2020-08-10T01:12:45.000Z</published>
+    <updated>2021-01-17T04:25:41.842Z</updated>
+    
+    <summary type="html">
+    
+      &lt;h2 id=&quot;引言&quot;&gt;&lt;a href=&quot;#引言&quot; class=&quot;headerlink&quot; title=&quot;引言&quot;&gt;&lt;/a&gt;引言&lt;/h2&gt;&lt;p&gt;在前面的文章中，我们已经简单地介绍了 Sentinel 中所包含的各类规则，本文将介绍 Sentinel 中各类规则的查看和修改方式，和 Sentinel 相关的所有文章均会收录于&lt;a href=&quot;https://www.beikejiedeliulangmao.top/categories/Middleware/Sentinel&quot;&gt;&amp;lt;Sentinel系列文章&amp;gt;&lt;/a&gt;中，感兴趣的同学可以看一下。&lt;/p&gt;
+    
+    </summary>
+    
+    
+      <category term="Middleware" scheme="https://www.beikejiedeliulangmao.top/categories/Middleware/"/>
+    
+      <category term="Sentinel" scheme="https://www.beikejiedeliulangmao.top/categories/Middleware/Sentinel/"/>
+    
+    
+      <category term="Java" scheme="https://www.beikejiedeliulangmao.top/tags/Java/"/>
+    
+      <category term="Distributed" scheme="https://www.beikejiedeliulangmao.top/tags/Distributed/"/>
+    
+      <category term="MicroService" scheme="https://www.beikejiedeliulangmao.top/tags/MicroService/"/>
+    
+      <category term="FlowControl" scheme="https://www.beikejiedeliulangmao.top/tags/FlowControl/"/>
+    
+      <category term="TrafficShaping" scheme="https://www.beikejiedeliulangmao.top/tags/TrafficShaping/"/>
+    
+      <category term="CircuitBreaking" scheme="https://www.beikejiedeliulangmao.top/tags/CircuitBreaking/"/>
+    
+      <category term="Degrade" scheme="https://www.beikejiedeliulangmao.top/tags/Degrade/"/>
+    
+      <category term="SystemProtection" scheme="https://www.beikejiedeliulangmao.top/tags/SystemProtection/"/>
+    
+  </entry>
+  
+  <entry>
+    <title>Sentinel 实现原理——概述</title>
+    <link href="https://www.beikejiedeliulangmao.top/middleware/sentinel/impl-introduction/"/>
+    <id>https://www.beikejiedeliulangmao.top/middleware/sentinel/impl-introduction/</id>
+    <published>2020-08-10T01:12:40.000Z</published>
+    <updated>2021-01-17T04:25:41.842Z</updated>
+    
+    <summary type="html">
+    
+      &lt;h2 id=&quot;引言&quot;&gt;&lt;a href=&quot;#引言&quot; class=&quot;headerlink&quot; title=&quot;引言&quot;&gt;&lt;/a&gt;引言&lt;/h2&gt;&lt;p&gt;在前面的文章中，我已经介绍了 Sentinel 中的概念，以及所提供的各类功能如何使用。从本篇文章开始，我们将深入到源码中，自顶向下地介绍 Sentinel 整体的实现原理以及各个核心模块的实现原理。本文作为这一部分介绍的开篇，我会先介绍一下 Sentinel 的整体设计思想，以及下层包含的各个模块，后续的文章中会详细地介绍各个核心模块的实现原理，和 Sentinel 相关的所有文章均会收录于&lt;a href=&quot;https://www.beikejiedeliulangmao.top/categories/Middleware/Sentinel&quot;&gt;&amp;lt;Sentinel系列文章&amp;gt;&lt;/a&gt;中，感兴趣的同学可以看一下。&lt;/p&gt;
+    
+    </summary>
+    
+    
+      <category term="Middleware" scheme="https://www.beikejiedeliulangmao.top/categories/Middleware/"/>
+    
+      <category term="Sentinel" scheme="https://www.beikejiedeliulangmao.top/categories/Middleware/Sentinel/"/>
+    
+    
+      <category term="Java" scheme="https://www.beikejiedeliulangmao.top/tags/Java/"/>
+    
+      <category term="Distributed" scheme="https://www.beikejiedeliulangmao.top/tags/Distributed/"/>
+    
+      <category term="MicroService" scheme="https://www.beikejiedeliulangmao.top/tags/MicroService/"/>
+    
+      <category term="FlowControl" scheme="https://www.beikejiedeliulangmao.top/tags/FlowControl/"/>
+    
+      <category term="TrafficShaping" scheme="https://www.beikejiedeliulangmao.top/tags/TrafficShaping/"/>
+    
+      <category term="CircuitBreaking" scheme="https://www.beikejiedeliulangmao.top/tags/CircuitBreaking/"/>
+    
+      <category term="Degrade" scheme="https://www.beikejiedeliulangmao.top/tags/Degrade/"/>
+    
+      <category term="SystemProtection" scheme="https://www.beikejiedeliulangmao.top/tags/SystemProtection/"/>
+    
+  </entry>
+  
+  <entry>
+    <title>Sentinel 实现原理——Context</title>
+    <link href="https://www.beikejiedeliulangmao.top/middleware/sentinel/impl-context/"/>
+    <id>https://www.beikejiedeliulangmao.top/middleware/sentinel/impl-context/</id>
+    <published>2020-08-10T01:12:35.000Z</published>
+    <updated>2021-01-17T04:25:41.842Z</updated>
+    
+    <summary type="html">
+    
+      &lt;h2 id=&quot;引言&quot;&gt;&lt;a href=&quot;#引言&quot; class=&quot;headerlink&quot; title=&quot;引言&quot;&gt;&lt;/a&gt;引言&lt;/h2&gt;&lt;p&gt;在前面的文章中，我已经介绍了 Sentinel 的整体设计思想，本文主要介绍 Sentinel 中贯穿整个调用链路的 Context 容器实现，和 Sentinel 相关的所有文章均会收录于&lt;a href=&quot;https://www.beikejiedeliulangmao.top/categories/Middleware/Sentinel&quot;&gt;&amp;lt;Sentinel系列文章&amp;gt;&lt;/a&gt;中，感兴趣的同学可以看一下。&lt;/p&gt;
+    
+    </summary>
+    
+    
+      <category term="Middleware" scheme="https://www.beikejiedeliulangmao.top/categories/Middleware/"/>
+    
+      <category term="Sentinel" scheme="https://www.beikejiedeliulangmao.top/categories/Middleware/Sentinel/"/>
+    
+    
+      <category term="Java" scheme="https://www.beikejiedeliulangmao.top/tags/Java/"/>
+    
+      <category term="Distributed" scheme="https://www.beikejiedeliulangmao.top/tags/Distributed/"/>
+    
+      <category term="MicroService" scheme="https://www.beikejiedeliulangmao.top/tags/MicroService/"/>
+    
+      <category term="FlowControl" scheme="https://www.beikejiedeliulangmao.top/tags/FlowControl/"/>
+    
+      <category term="TrafficShaping" scheme="https://www.beikejiedeliulangmao.top/tags/TrafficShaping/"/>
+    
+      <category term="CircuitBreaking" scheme="https://www.beikejiedeliulangmao.top/tags/CircuitBreaking/"/>
+    
+      <category term="Degrade" scheme="https://www.beikejiedeliulangmao.top/tags/Degrade/"/>
+    
+      <category term="SystemProtection" scheme="https://www.beikejiedeliulangmao.top/tags/SystemProtection/"/>
+    
+  </entry>
+  
+  <entry>
+    <title>Sentinel 实现原理——处理链</title>
+    <link href="https://www.beikejiedeliulangmao.top/middleware/sentinel/impl-chain/"/>
+    <id>https://www.beikejiedeliulangmao.top/middleware/sentinel/impl-chain/</id>
+    <published>2020-08-10T01:12:30.000Z</published>
+    <updated>2021-01-17T04:25:41.842Z</updated>
+    
+    <summary type="html">
+    
+      &lt;h2 id=&quot;引言&quot;&gt;&lt;a href=&quot;#引言&quot; class=&quot;headerlink&quot; title=&quot;引言&quot;&gt;&lt;/a&gt;引言&lt;/h2&gt;&lt;p&gt;从本篇文章开始，就要介绍 Sentinel 限流降级功能的核心了，前面也说过 Sentinel 使用了一套类似于责任链的模式来实现这个部分，这里我们展开一下，将责任链中的各个部分分别详细的介绍一下，和 Sentinel 相关的所有文章均会收录于&lt;a href=&quot;https://www.beikejiedeliulangmao.top/categories/Middleware/Sentinel&quot;&gt;&amp;lt;Sentinel系列文章&amp;gt;&lt;/a&gt;中，感兴趣的同学可以看一下。&lt;/p&gt;
+    
+    </summary>
+    
+    
+      <category term="Middleware" scheme="https://www.beikejiedeliulangmao.top/categories/Middleware/"/>
+    
+      <category term="Sentinel" scheme="https://www.beikejiedeliulangmao.top/categories/Middleware/Sentinel/"/>
+    
+    
+      <category term="Java" scheme="https://www.beikejiedeliulangmao.top/tags/Java/"/>
+    
+      <category term="Distributed" scheme="https://www.beikejiedeliulangmao.top/tags/Distributed/"/>
+    
+      <category term="MicroService" scheme="https://www.beikejiedeliulangmao.top/tags/MicroService/"/>
+    
+      <category term="FlowControl" scheme="https://www.beikejiedeliulangmao.top/tags/FlowControl/"/>
+    
+      <category term="TrafficShaping" scheme="https://www.beikejiedeliulangmao.top/tags/TrafficShaping/"/>
+    
+      <category term="CircuitBreaking" scheme="https://www.beikejiedeliulangmao.top/tags/CircuitBreaking/"/>
+    
+      <category term="Degrade" scheme="https://www.beikejiedeliulangmao.top/tags/Degrade/"/>
+    
+      <category term="SystemProtection" scheme="https://www.beikejiedeliulangmao.top/tags/SystemProtection/"/>
+    
+      <category term="TokenBucket" scheme="https://www.beikejiedeliulangmao.top/tags/TokenBucket/"/>
+    
+  </entry>
+  
+  <entry>
+    <title>Java JUC 简介</title>
+    <link href="https://www.beikejiedeliulangmao.top/java/concurrent/juc-introduction/"/>
+    <id>https://www.beikejiedeliulangmao.top/java/concurrent/juc-introduction/</id>
+    <published>2020-06-09T10:46:22.000Z</published>
+    <updated>2021-01-17T04:25:40.566Z</updated>
+    
+    <summary type="html">
+    
+      &lt;h2 id=&quot;引言&quot;&gt;&lt;a href=&quot;#引言&quot; class=&quot;headerlink&quot; title=&quot;引言&quot;&gt;&lt;/a&gt;引言&lt;/h2&gt;&lt;p&gt;本系列文章旨在介绍 Java 并发相关的知识，本文作为开篇主要介绍了 JDK 中常用的并发库(JUC)的使用方式, 后续的文章中我会自上而下地剖析了 JUC 中各个部门的实现原理，从直接下级框架 AbstractQueuedSynchronizer 也就是大家常说的 AQS，再到其中使用的 CAS, Wait，Park，最后到操作系统层面的 Mutex，Condition，希望通过这篇文章，大家能够对整个 Java 并发有一个清晰全面的认识，而且把这些内容串在一起你会发现它们本质上都是相通的。所有关于 Java 并发的文章均收录于&lt;a href=&quot;https://www.beikejiedeliulangmao.top/categories/Java/Concurrent&quot;&gt;&amp;lt;Java并发系列文章&amp;gt;&lt;/a&gt;。&lt;/p&gt;
+    
+    </summary>
+    
+    
+      <category term="Java" scheme="https://www.beikejiedeliulangmao.top/categories/Java/"/>
+    
+      <category term="Concurrent" scheme="https://www.beikejiedeliulangmao.top/categories/Java/Concurrent/"/>
+    
+    
+      <category term="Java" scheme="https://www.beikejiedeliulangmao.top/tags/Java/"/>
+    
+      <category term="Concurrent" scheme="https://www.beikejiedeliulangmao.top/tags/Concurrent/"/>
+    
+      <category term="JUC" scheme="https://www.beikejiedeliulangmao.top/tags/JUC/"/>
+    
+  </entry>
+  
+  <entry>
+    <title>Java ThreadLocal 实现</title>
+    <link href="https://www.beikejiedeliulangmao.top/java/concurrent/thread-local-impl/"/>
+    <id>https://www.beikejiedeliulangmao.top/java/concurrent/thread-local-impl/</id>
+    <published>2020-06-09T10:46:21.000Z</published>
+    <updated>2021-01-17T04:25:40.566Z</updated>
+    
+    <summary type="html">
+    
+      &lt;h2 id=&quot;引言&quot;&gt;&lt;a href=&quot;#引言&quot; class=&quot;headerlink&quot; title=&quot;引言&quot;&gt;&lt;/a&gt;引言&lt;/h2&gt;&lt;p&gt;前面我们已经介绍了 JDK 中常用的并发库(JUC)的使用方式, 本文我们着重介绍 JUC 中 ThreadLocal 的实现方式已经 Netty 对 ThreadLocal 的增强实现。所有关于 Java 并发的文章均收录于&lt;a href=&quot;https://www.beikejiedeliulangmao.top/categories/Java/Concurrent&quot;&gt;&amp;lt;Java并发系列文章&amp;gt;&lt;/a&gt;。&lt;/p&gt;
+    
+    </summary>
+    
+    
+      <category term="Java" scheme="https://www.beikejiedeliulangmao.top/categories/Java/"/>
+    
+      <category term="Concurrent" scheme="https://www.beikejiedeliulangmao.top/categories/Java/Concurrent/"/>
+    
+    
+      <category term="Java" scheme="https://www.beikejiedeliulangmao.top/tags/Java/"/>
+    
+      <category term="Concurrent" scheme="https://www.beikejiedeliulangmao.top/tags/Concurrent/"/>
+    
+      <category term="ThreadLocal" scheme="https://www.beikejiedeliulangmao.top/tags/ThreadLocal/"/>
+    
+  </entry>
+  
+  <entry>
+    <title>Java ThreadPool 实现</title>
+    <link href="https://www.beikejiedeliulangmao.top/java/concurrent/thread-pool-impl/"/>
+    <id>https://www.beikejiedeliulangmao.top/java/concurrent/thread-pool-impl/</id>
+    <published>2020-06-09T10:46:20.000Z</published>
+    <updated>2020-09-07T05:58:49.026Z</updated>
+    
+    <summary type="html">
+    
+      &lt;h2 id=&quot;引言&quot;&gt;&lt;a href=&quot;#引言&quot; class=&quot;headerlink&quot; title=&quot;引言&quot;&gt;&lt;/a&gt;引言&lt;/h2&gt;&lt;p&gt;前面我们已经介绍了 JDK 中常用的并发库(JUC)的使用方式, 本文我们着重介绍 JUC 中 ThreadPool 的实现方式。所有关于 Java 并发的文章均收录于&lt;a href=&quot;https://www.beikejiedeliulangmao.top/categories/Java/Concurrent&quot;&gt;&amp;lt;Java并发系列文章&amp;gt;&lt;/a&gt;。&lt;/p&gt;
+    
+    </summary>
+    
+    
+      <category term="Java" scheme="https://www.beikejiedeliulangmao.top/categories/Java/"/>
+    
+      <category term="Concurrent" scheme="https://www.beikejiedeliulangmao.top/categories/Java/Concurrent/"/>
+    
+    
+      <category term="Java" scheme="https://www.beikejiedeliulangmao.top/tags/Java/"/>
+    
+      <category term="Concurrent" scheme="https://www.beikejiedeliulangmao.top/tags/Concurrent/"/>
+    
+      <category term="ThreadPool" scheme="https://www.beikejiedeliulangmao.top/tags/ThreadPool/"/>
+    
+  </entry>
+  
+  <entry>
+    <title>Java ConcurrentHashMap 实现</title>
+    <link href="https://www.beikejiedeliulangmao.top/java/concurrent/concurrent-hashmap/"/>
+    <id>https://www.beikejiedeliulangmao.top/java/concurrent/concurrent-hashmap/</id>
+    <published>2020-06-09T10:46:19.000Z</published>
+    <updated>2020-09-07T05:58:49.022Z</updated>
+    
+    <summary type="html">
+    
+      &lt;h2 id=&quot;引言&quot;&gt;&lt;a href=&quot;#引言&quot; class=&quot;headerlink&quot; title=&quot;引言&quot;&gt;&lt;/a&gt;引言&lt;/h2&gt;&lt;p&gt;从本篇文章开始，我们将介绍 Java 并发容器的实现方式，本文会着重介绍其中的 ConcurrentHashMap 部分。所有关于 Java 并发的文章均收录于&lt;a href=&quot;https://www.beikejiedeliulangmao.top/categories/Java/Concurrent&quot;&gt;&amp;lt;Java并发系列文章&amp;gt;&lt;/a&gt;。&lt;/p&gt;
+    
+    </summary>
+    
+    
+      <category term="Java" scheme="https://www.beikejiedeliulangmao.top/categories/Java/"/>
+    
+      <category term="Concurrent" scheme="https://www.beikejiedeliulangmao.top/categories/Java/Concurrent/"/>
+    
+    
+      <category term="Java" scheme="https://www.beikejiedeliulangmao.top/tags/Java/"/>
+    
+      <category term="Concurrent" scheme="https://www.beikejiedeliulangmao.top/tags/Concurrent/"/>
+    
+      <category term="ConcurrentContainer" scheme="https://www.beikejiedeliulangmao.top/tags/ConcurrentContainer/"/>
+    
+      <category term="ConcurrentHashMap" scheme="https://www.beikejiedeliulangmao.top/tags/ConcurrentHashMap/"/>
+    
+  </entry>
+  
+  <entry>
+    <title>Java ConcurrentLinkedQueue 实现</title>
+    <link href="https://www.beikejiedeliulangmao.top/java/concurrent/concurrent-linked-queue/"/>
+    <id>https://www.beikejiedeliulangmao.top/java/concurrent/concurrent-linked-queue/</id>
+    <published>2020-06-09T10:46:18.000Z</published>
+    <updated>2021-01-08T09:25:56.206Z</updated>
+    
+    <summary type="html">
+    
+      &lt;h2 id=&quot;引言&quot;&gt;&lt;a href=&quot;#引言&quot; class=&quot;headerlink&quot; title=&quot;引言&quot;&gt;&lt;/a&gt;引言&lt;/h2&gt;&lt;p&gt;本文着重介绍 Java 并发容器中 ConcurrentLinkedQueue 的实现方式。所有关于 Java 并发的文章均收录于&lt;a href=&quot;https://www.beikejiedeliulangmao.top/categories/Java/Concurrent&quot;&gt;&amp;lt;Java并发系列文章&amp;gt;&lt;/a&gt;。&lt;/p&gt;
+    
+    </summary>
+    
+    
+      <category term="Java" scheme="https://www.beikejiedeliulangmao.top/categories/Java/"/>
+    
+      <category term="Concurrent" scheme="https://www.beikejiedeliulangmao.top/categories/Java/Concurrent/"/>
+    
+    
+      <category term="Java" scheme="https://www.beikejiedeliulangmao.top/tags/Java/"/>
+    
+      <category term="Concurrent" scheme="https://www.beikejiedeliulangmao.top/tags/Concurrent/"/>
+    
+      <category term="ConcurrentContainer" scheme="https://www.beikejiedeliulangmao.top/tags/ConcurrentContainer/"/>
+    
+      <category term="ConcurrentLinkedQueue" scheme="https://www.beikejiedeliulangmao.top/tags/ConcurrentLinkedQueue/"/>
+    
+  </entry>
+  
+  <entry>
+    <title>Java ConcurrentSkipListMap 实现</title>
+    <link href="https://www.beikejiedeliulangmao.top/java/concurrent/concurrent-skip-list-map/"/>
+    <id>https://www.beikejiedeliulangmao.top/java/concurrent/concurrent-skip-list-map/</id>
+    <published>2020-06-09T10:46:17.000Z</published>
+    <updated>2021-01-17T04:25:40.566Z</updated>
+    
+    <summary type="html">
+    
+      &lt;h2 id=&quot;引言&quot;&gt;&lt;a href=&quot;#引言&quot; class=&quot;headerlink&quot; title=&quot;引言&quot;&gt;&lt;/a&gt;引言&lt;/h2&gt;&lt;p&gt;本文目前只是简单地介绍了 Java 并发容器中 ConcurrentSkipListMap 的实现方式，后续会考虑拓展本文，从源码的角度进行详细的分析。所有关于 Java 并发的文章均收录于&lt;a href=&quot;https://www.beikejiedeliulangmao.top/categories/Java/Concurrent&quot;&gt;&amp;lt;Java并发系列文章&amp;gt;&lt;/a&gt;。&lt;/p&gt;
+    
+    </summary>
+    
+    
+      <category term="Java" scheme="https://www.beikejiedeliulangmao.top/categories/Java/"/>
+    
+      <category term="Concurrent" scheme="https://www.beikejiedeliulangmao.top/categories/Java/Concurrent/"/>
+    
+    
+      <category term="Java" scheme="https://www.beikejiedeliulangmao.top/tags/Java/"/>
+    
+      <category term="Concurrent" scheme="https://www.beikejiedeliulangmao.top/tags/Concurrent/"/>
+    
+      <category term="ConcurrentContainer" scheme="https://www.beikejiedeliulangmao.top/tags/ConcurrentContainer/"/>
+    
+      <category term="ConcurrentSkipListMap" scheme="https://www.beikejiedeliulangmao.top/tags/ConcurrentSkipListMap/"/>
+    
+  </entry>
+  
+  <entry>
+    <title>Java CoryOnWriteArrayList 实现</title>
+    <link href="https://www.beikejiedeliulangmao.top/java/concurrent/copy-on-write-array-list/"/>
+    <id>https://www.beikejiedeliulangmao.top/java/concurrent/copy-on-write-array-list/</id>
+    <published>2020-06-09T10:46:16.000Z</published>
+    <updated>2021-01-11T05:21:09.056Z</updated>
+    
+    <summary type="html">
+    
+      &lt;h2 id=&quot;引言&quot;&gt;&lt;a href=&quot;#引言&quot; class=&quot;headerlink&quot; title=&quot;引言&quot;&gt;&lt;/a&gt;引言&lt;/h2&gt;&lt;p&gt;本文着重介绍 Java 并发容器中 CoryOnWriteArrayList 的实现方式。所有关于 Java 并发的文章均收录于&lt;a href=&quot;https://www.beikejiedeliulangmao.top/categories/Java/Concurrent&quot;&gt;&amp;lt;Java并发系列文章&amp;gt;&lt;/a&gt;。&lt;/p&gt;
+    
+    </summary>
+    
+    
+      <category term="Java" scheme="https://www.beikejiedeliulangmao.top/categories/Java/"/>
+    
+      <category term="Concurrent" scheme="https://www.beikejiedeliulangmao.top/categories/Java/Concurrent/"/>
+    
+    
+      <category term="Java" scheme="https://www.beikejiedeliulangmao.top/tags/Java/"/>
+    
+      <category term="Concurrent" scheme="https://www.beikejiedeliulangmao.top/tags/Concurrent/"/>
+    
+      <category term="ConcurrentContainer" scheme="https://www.beikejiedeliulangmao.top/tags/ConcurrentContainer/"/>
+    
+      <category term="CoryOnWriteArrayList" scheme="https://www.beikejiedeliulangmao.top/tags/CoryOnWriteArrayList/"/>
+    
+  </entry>
+  
+  <entry>
+    <title>Java LinkedBlockingQueue 实现</title>
+    <link href="https://www.beikejiedeliulangmao.top/java/concurrent/linked-blocking-queue/"/>
+    <id>https://www.beikejiedeliulangmao.top/java/concurrent/linked-blocking-queue/</id>
+    <published>2020-06-09T10:46:15.000Z</published>
+    <updated>2020-09-07T05:58:49.024Z</updated>
+    
+    <summary type="html">
+    
+      &lt;h2 id=&quot;引言&quot;&gt;&lt;a href=&quot;#引言&quot; class=&quot;headerlink&quot; title=&quot;引言&quot;&gt;&lt;/a&gt;引言&lt;/h2&gt;&lt;p&gt;本文着重介绍 Java 并发容器中 LinkedBlockingQueue 的实现方式。所有关于 Java 并发的文章均收录于&lt;a href=&quot;https://www.beikejiedeliulangmao.top/categories/Java/Concurrent&quot;&gt;&amp;lt;Java并发系列文章&amp;gt;&lt;/a&gt;。&lt;/p&gt;
+    
+    </summary>
+    
+    
+      <category term="Java" scheme="https://www.beikejiedeliulangmao.top/categories/Java/"/>
+    
+      <category term="Concurrent" scheme="https://www.beikejiedeliulangmao.top/categories/Java/Concurrent/"/>
+    
+    
+      <category term="Java" scheme="https://www.beikejiedeliulangmao.top/tags/Java/"/>
+    
+      <category term="Concurrent" scheme="https://www.beikejiedeliulangmao.top/tags/Concurrent/"/>
+    
+      <category term="ConcurrentContainer" scheme="https://www.beikejiedeliulangmao.top/tags/ConcurrentContainer/"/>
+    
+      <category term="LinkedBlockingQueue" scheme="https://www.beikejiedeliulangmao.top/tags/LinkedBlockingQueue/"/>
+    
+  </entry>
+  
+  <entry>
+    <title>Java PriorityBlockingQueue 实现</title>
+    <link href="https://www.beikejiedeliulangmao.top/java/concurrent/priority-blocking-queue/"/>
+    <id>https://www.beikejiedeliulangmao.top/java/concurrent/priority-blocking-queue/</id>
+    <published>2020-06-09T10:46:14.000Z</published>
+    <updated>2021-03-27T10:22:02.419Z</updated>
+    
+    <summary type="html">
+    
+      &lt;h2 id=&quot;引言&quot;&gt;&lt;a href=&quot;#引言&quot; class=&quot;headerlink&quot; title=&quot;引言&quot;&gt;&lt;/a&gt;引言&lt;/h2&gt;&lt;p&gt;本文着重介绍 Java 并发容器中 PriorityBlockingQueue 的实现方式。所有关于 Java 并发的文章均收录于&lt;a href=&quot;https://www.beikejiedeliulangmao.top/categories/Java/Concurrent&quot;&gt;&amp;lt;Java并发系列文章&amp;gt;&lt;/a&gt;。&lt;/p&gt;
+    
+    </summary>
+    
+    
+      <category term="Java" scheme="https://www.beikejiedeliulangmao.top/categories/Java/"/>
+    
+      <category term="Concurrent" scheme="https://www.beikejiedeliulangmao.top/categories/Java/Concurrent/"/>
+    
+    
+      <category term="Java" scheme="https://www.beikejiedeliulangmao.top/tags/Java/"/>
+    
+      <category term="Concurrent" scheme="https://www.beikejiedeliulangmao.top/tags/Concurrent/"/>
+    
+      <category term="ConcurrentContainer" scheme="https://www.beikejiedeliulangmao.top/tags/ConcurrentContainer/"/>
+    
+      <category term="PriorityBlockingQueue" scheme="https://www.beikejiedeliulangmao.top/tags/PriorityBlockingQueue/"/>
+    
+  </entry>
+  
+  <entry>
+    <title>Java Lock</title>
+    <link href="https://www.beikejiedeliulangmao.top/java/concurrent/lock/"/>
+    <id>https://www.beikejiedeliulangmao.top/java/concurrent/lock/</id>
+    <published>2020-06-09T10:46:13.000Z</published>
+    <updated>2021-01-17T04:25:40.566Z</updated>
+    
+    <summary type="html">
+    
+      &lt;h2 id=&quot;引言&quot;&gt;&lt;a href=&quot;#引言&quot; class=&quot;headerlink&quot; title=&quot;引言&quot;&gt;&lt;/a&gt;引言&lt;/h2&gt;&lt;p&gt;本文着重介绍 Java 中 Lock 的不同实现方式。所有关于 Java 并发的文章均收录于&lt;a href=&quot;https://www.beikejiedeliulangmao.top/categories/Java/Concurrent&quot;&gt;&amp;lt;Java并发系列文章&amp;gt;&lt;/a&gt;。&lt;/p&gt;
+    
+    </summary>
+    
+    
+      <category term="Java" scheme="https://www.beikejiedeliulangmao.top/categories/Java/"/>
+    
+      <category term="Concurrent" scheme="https://www.beikejiedeliulangmao.top/categories/Java/Concurrent/"/>
+    
+    
+      <category term="Java" scheme="https://www.beikejiedeliulangmao.top/tags/Java/"/>
+    
+      <category term="Concurrent" scheme="https://www.beikejiedeliulangmao.top/tags/Concurrent/"/>
+    
+      <category term="Lock" scheme="https://www.beikejiedeliulangmao.top/tags/Lock/"/>
+    
+  </entry>
+  
+  <entry>
+    <title>Java AQS 实现——数据组织</title>
+    <link href="https://www.beikejiedeliulangmao.top/java/concurrent/aqs-data/"/>
+    <id>https://www.beikejiedeliulangmao.top/java/concurrent/aqs-data/</id>
+    <published>2020-06-09T10:46:12.000Z</published>
+    <updated>2021-01-17T04:25:40.566Z</updated>
+    
+    <summary type="html">
+    
+      &lt;h2 id=&quot;引言&quot;&gt;&lt;a href=&quot;#引言&quot; class=&quot;headerlink&quot; title=&quot;引言&quot;&gt;&lt;/a&gt;引言&lt;/h2&gt;&lt;p&gt;从本篇文章开始，我们将介绍 Java AQS 的实现方式，本文先介绍 AQS 的内部数据是如何组织的，后面的文章中再分别介绍 AQS 的各个部门实现。所有关于 Java 并发的文章均收录于&lt;a href=&quot;https://www.beikejiedeliulangmao.top/categories/Java/Concurrent&quot;&gt;&amp;lt;Java并发系列文章&amp;gt;&lt;/a&gt;。&lt;/p&gt;
+    
+    </summary>
+    
+    
+      <category term="Java" scheme="https://www.beikejiedeliulangmao.top/categories/Java/"/>
+    
+      <category term="Concurrent" scheme="https://www.beikejiedeliulangmao.top/categories/Java/Concurrent/"/>
+    
+    
+      <category term="Java" scheme="https://www.beikejiedeliulangmao.top/tags/Java/"/>
+    
+      <category term="Concurrent" scheme="https://www.beikejiedeliulangmao.top/tags/Concurrent/"/>
+    
+      <category term="AQS" scheme="https://www.beikejiedeliulangmao.top/tags/AQS/"/>
+    
+  </entry>
+  
+  <entry>
+    <title>Java AQS 实现——排他模式</title>
+    <link href="https://www.beikejiedeliulangmao.top/java/concurrent/aqs-exclusive-mode/"/>
+    <id>https://www.beikejiedeliulangmao.top/java/concurrent/aqs-exclusive-mode/</id>
+    <published>2020-06-09T10:46:11.000Z</published>
+    <updated>2020-09-07T05:58:49.021Z</updated>
+    
+    <summary type="html">
+    
+      &lt;h2 id=&quot;引言&quot;&gt;&lt;a href=&quot;#引言&quot; class=&quot;headerlink&quot; title=&quot;引言&quot;&gt;&lt;/a&gt;引言&lt;/h2&gt;&lt;p&gt;本文着重介绍 AQS 的排他模式的实现方式。所有关于 Java 并发的文章均收录于&lt;a href=&quot;https://www.beikejiedeliulangmao.top/categories/Java/Concurrent&quot;&gt;&amp;lt;Java并发系列文章&amp;gt;&lt;/a&gt;。&lt;/p&gt;
+    
+    </summary>
+    
+    
+      <category term="Java" scheme="https://www.beikejiedeliulangmao.top/categories/Java/"/>
+    
+      <category term="Concurrent" scheme="https://www.beikejiedeliulangmao.top/categories/Java/Concurrent/"/>
+    
+    
+      <category term="Java" scheme="https://www.beikejiedeliulangmao.top/tags/Java/"/>
+    
+      <category term="Concurrent" scheme="https://www.beikejiedeliulangmao.top/tags/Concurrent/"/>
+    
+      <category term="AQS" scheme="https://www.beikejiedeliulangmao.top/tags/AQS/"/>
+    
+  </entry>
+  
+  <entry>
+    <title>Java AQS 实现——共享模式</title>
+    <link href="https://www.beikejiedeliulangmao.top/java/concurrent/aqs-share-mode/"/>
+    <id>https://www.beikejiedeliulangmao.top/java/concurrent/aqs-share-mode/</id>
+    <published>2020-06-09T10:46:10.000Z</published>
+    <updated>2021-01-17T04:25:40.566Z</updated>
+    
+    <summary type="html">
+    
+      &lt;h2 id=&quot;引言&quot;&gt;&lt;a href=&quot;#引言&quot; class=&quot;headerlink&quot; title=&quot;引言&quot;&gt;&lt;/a&gt;引言&lt;/h2&gt;&lt;p&gt;本文着重介绍 AQS 的共享模式的实现方式。所有关于 Java 并发的文章均收录于&lt;a href=&quot;https://www.beikejiedeliulangmao.top/categories/Java/Concurrent&quot;&gt;&amp;lt;Java并发系列文章&amp;gt;&lt;/a&gt;。&lt;/p&gt;
+    
+    </summary>
+    
+    
+      <category term="Java" scheme="https://www.beikejiedeliulangmao.top/categories/Java/"/>
+    
+      <category term="Concurrent" scheme="https://www.beikejiedeliulangmao.top/categories/Java/Concurrent/"/>
+    
+    
+      <category term="Java" scheme="https://www.beikejiedeliulangmao.top/tags/Java/"/>
+    
+      <category term="Concurrent" scheme="https://www.beikejiedeliulangmao.top/tags/Concurrent/"/>
+    
+      <category term="AQS" scheme="https://www.beikejiedeliulangmao.top/tags/AQS/"/>
+    
+  </entry>
+  
+</feed>

@@ -1,0 +1,3801 @@
+<!DOCTYPE html><html lang="zh-CN"><head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 5.1.1">
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/avatar.jpg">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/avatar.jpg">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/avatar.jpg">
+  <link rel="mask-icon" href="/images/avatar.jpg" color="#222">
+  <link rel="alternate" href="/atom.xml" title="贝克街的流浪猫" type="application/atom+xml">
+  <meta http-equiv="Cache-Control" content="no-transform">
+  <meta http-equiv="Cache-Control" content="no-siteapp">
+  <meta name="google-site-verification" content="PB8pKbwvyCztAdFAxM1AdLMfqXY7wDk6xWZIy3BYn0M">
+  <meta name="baidu-site-verification" content="lHxDkbImj8">
+
+
+
+
+
+  
+  
+
+
+<script id="hexo-configurations">
+  var NexT = window.NexT || {};
+  var CONFIG = {
+    root: '/',
+    scheme: 'Gemini',
+    version: '7.5.0',
+    exturl: true,
+    sidebar: {"position":"left","display":"post","offset":12,"onmobile":false},
+    copycode: {"enable":true,"show_result":true,"style":null},
+    back2top: {"enable":true,"sidebar":true,"scrollpercent":true},
+    bookmark: {"enable":false,"color":"#222","save":"auto"},
+    fancybox: false,
+    mediumzoom: true,
+    lazyload: false,
+    pangu: true,
+    algolia: {
+      appID: 'XKULKGLQCN',
+      apiKey: '59d463bff59108a7719f93aa31f249f3',
+      indexName: 'Hexo Blog',
+      hits: {"per_page":10},
+      labels: {"input_placeholder":"文章查询","hits_empty":"很抱歉，贝贝猫没有发表关于 \"${query}\" 的文章","hits_stats":"找到了 ${hits} 篇文章，耗时 ${time} 毫秒"}
+    },
+    localsearch: {"enable":false,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false},
+    path: '',
+    motion: {"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},
+    sidebarPadding: 40
+  };
+</script>
+
+  <meta name="description" content="引言前段时间，我负责的远程控制手机的功能新加了动态修改手机端网络延迟的功能（网络测试），所以当时 Infra 团队为我们构建了一个 WiFi 网络环境，并通过两台 Linux 主机进行实际的网络控制。不过后来我们对其软件解决方案进行了改善，使其不仅能够修改网络的延迟，还能够修改网络的带宽和丢包情况，本文就介绍了这整个实现方案。">
+<meta property="og:type" content="article">
+<meta property="og:title" content="在 CentOS 上构建无线网络测试环境">
+<meta property="og:url" content="https://www.beikejiedeliulangmao.top/network/build-network-test-environment/index.html">
+<meta property="og:site_name" content="贝克街的流浪猫">
+<meta property="og:description" content="引言前段时间，我负责的远程控制手机的功能新加了动态修改手机端网络延迟的功能（网络测试），所以当时 Infra 团队为我们构建了一个 WiFi 网络环境，并通过两台 Linux 主机进行实际的网络控制。不过后来我们对其软件解决方案进行了改善，使其不仅能够修改网络的延迟，还能够修改网络的带宽和丢包情况，本文就介绍了这整个实现方案。">
+<meta property="og:locale" content="zh_CN">
+<meta property="og:image" content="https://www.beikejiedeliulangmao.top/images/loading-cat.gif">
+<meta property="og:image" content="https://www.beikejiedeliulangmao.top/images/loading-cat.gif">
+<meta property="og:image" content="https://www.beikejiedeliulangmao.top/images/loading-cat.gif">
+<meta property="og:image" content="https://www.beikejiedeliulangmao.top/images/loading-cat.gif">
+<meta property="og:image" content="https://www.beikejiedeliulangmao.top/images/loading-cat.gif">
+<meta property="og:image" content="https://www.beikejiedeliulangmao.top/images/loading-cat.gif">
+<meta property="og:image" content="https://www.beikejiedeliulangmao.top/images/loading-cat.gif">
+<meta property="og:image" content="https://www.beikejiedeliulangmao.top/images/loading-cat.gif">
+<meta property="og:image" content="https://www.beikejiedeliulangmao.top/images/loading-cat.gif">
+<meta property="og:image" content="https://www.beikejiedeliulangmao.top/images/loading-cat.gif">
+<meta property="og:image" content="https://www.beikejiedeliulangmao.top/images/loading-cat.gif">
+<meta property="og:image" content="https://www.beikejiedeliulangmao.top/images/loading-cat.gif">
+<meta property="article:published_time" content="2019-12-03T10:27:06.000Z">
+<meta property="article:modified_time" content="2021-01-17T04:25:41.367Z">
+<meta property="article:author" content="贝克街的流浪猫">
+<meta property="article:tag" content="Linux">
+<meta property="article:tag" content="DHCP">
+<meta property="article:tag" content="DNS">
+<meta property="article:tag" content="AP">
+<meta property="article:tag" content="WiFi">
+<meta property="article:tag" content="tc">
+<meta property="article:tag" content="iptables">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="https://www.beikejiedeliulangmao.top/images/loading-cat.gif">
+
+<link rel="canonical" href="https://www.beikejiedeliulangmao.top/network/build-network-test-environment/">
+
+
+<script id="page-configurations">
+  // https://hexo.io/docs/variables.html
+  CONFIG.page = {
+    sidebar: "",
+    isHome: false,
+    isPost: true,
+    isPage: false,
+    isArchive: false
+  };
+</script>
+
+  <title>在 CentOS 上构建无线网络测试环境 | 贝克街的流浪猫</title>
+  
+    <script>
+      function sendPageView() {
+        var host = window.location.hostname;
+        if (host == "localhost" && true) return;
+        var uid = localStorage.getItem('uid') || (Math.random() + '.' + Math.random());
+        localStorage.setItem('uid', uid);
+        navigator.sendBeacon('https://www.google-analytics.com/collect', new URLSearchParams({
+          v  : 1,
+          tid: 'UA-146830566-1',
+          cid: uid,
+          t  : 'pageview',
+          dp : encodeURIComponent(location.pathname)
+        }));
+      }
+      document.addEventListener('pjax:complete', sendPageView);
+      sendPageView();
+    </script>
+
+
+  <script>
+    var _hmt = _hmt || [];
+    (function() {
+      var hm = document.createElement("script");
+      hm.src = "https://hm.baidu.com/hm.js?818a8e6061ff2bd0b5531a739f216601";
+      var s = document.getElementsByTagName("script")[0];
+      s.parentNode.insertBefore(hm, s);
+    })();
+  </script>
+
+
+
+
+  <style>body {
+  background-image: url("https://www.beikejiedeliulangmao.top/images/background.jpeg") !important;
+  background-attachment: fixed !important;
+  background-repeat: no-repeat !important;
+  background-size: 100% 100% !important;
+}
+.bg_content {
+  position: fixed;
+  top: 0;
+  z-index: -1;
+  width: 100%;
+  height: 100%;
+}
+.copyright {
+  color: #000;
+}
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+  background-color: #fff;
+}
+::-webkit-scrollbar-button {
+  width: 0;
+  height: 0;
+}
+::-webkit-scrollbar-button:start:increment,
+::-webkit-scrollbar-button:end:decrement {
+  display: none;
+}
+::-webkit-scrollbar-corner {
+  display: block;
+}
+::-webkit-scrollbar-thumb {
+  border-radius: 6px;
+  background-color: rgba(0,0,0,0.4);
+}
+::-webkit-scrollbar-thumb:hover {
+  border-radius: 6px;
+  background-color: rgba(0,0,0,0.6);
+}
+::-webkit-scrollbar-track,
+::-webkit-scrollbar-thumb {
+  border-right: 1px solid transparent;
+  border-left: 1px solid transparent;
+}
+::-webkit-scrollbar-button:start {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-button:end {
+  width: 6px;
+  height: 6px;
+}
+html {
+  line-height: 1.15; 
+  -webkit-text-size-adjust: 100%; 
+}
+body {
+  margin: 0;
+}
+main {
+  display: block;
+}
+h1 {
+  font-size: 2em;
+  margin: 0.67em 0;
+}
+hr {
+  box-sizing: content-box; 
+  height: 0; 
+  overflow: visible; 
+}
+pre {
+  font-family: monospace, monospace; 
+  font-size: 1em; 
+}
+a {
+  background: transparent;
+}
+abbr[title] {
+  border-bottom: none; 
+  text-decoration: underline; 
+  text-decoration: underline dotted; 
+}
+b,
+strong {
+  font-weight: bolder;
+}
+code,
+kbd,
+samp {
+  font-family: monospace, monospace; 
+  font-size: 1em; 
+}
+small {
+  font-size: 80%;
+}
+sub,
+sup {
+  font-size: 75%;
+  line-height: 0;
+  position: relative;
+  vertical-align: baseline;
+}
+sub {
+  bottom: -0.25em;
+}
+sup {
+  top: -0.5em;
+}
+img {
+  border-style: none;
+}
+button,
+input,
+optgroup,
+select,
+textarea {
+  font-family: inherit; 
+  font-size: 100%; 
+  line-height: 1.15; 
+  margin: 0; 
+}
+button,
+input {
+
+  overflow: visible;
+}
+button,
+select {
+
+  text-transform: none;
+}
+button,
+[type='button'],
+[type='reset'],
+[type='submit'] {
+  -webkit-appearance: button;
+}
+button::-moz-focus-inner,
+[type='button']::-moz-focus-inner,
+[type='reset']::-moz-focus-inner,
+[type='submit']::-moz-focus-inner {
+  border-style: none;
+  padding: 0;
+}
+button:-moz-focusring,
+[type='button']:-moz-focusring,
+[type='reset']:-moz-focusring,
+[type='submit']:-moz-focusring {
+  outline: 1px dotted ButtonText;
+}
+fieldset {
+  padding: 0.35em 0.75em 0.625em;
+}
+legend {
+  box-sizing: border-box; 
+  color: inherit; 
+  display: table; 
+  max-width: 100%; 
+  padding: 0; 
+  white-space: normal; 
+}
+progress {
+  vertical-align: baseline;
+}
+textarea {
+  overflow: auto;
+}
+[type='checkbox'],
+[type='radio'] {
+  box-sizing: border-box; 
+  padding: 0; 
+}
+[type='number']::-webkit-inner-spin-button,
+[type='number']::-webkit-outer-spin-button {
+  height: auto;
+}
+[type='search'] {
+  outline-offset: -2px; 
+  -webkit-appearance: textfield; 
+}
+[type='search']::-webkit-search-decoration {
+  -webkit-appearance: none;
+}
+::-webkit-file-upload-button {
+  font: inherit; 
+  -webkit-appearance: button; 
+}
+details {
+  display: block;
+}
+summary {
+  display: list-item;
+}
+template {
+  display: none;
+}
+[hidden] {
+  display: none;
+}
+::selection {
+  background: #262a30;
+  color: #fff;
+}
+html,
+body {
+  height: 100%;
+}
+body {
+  background: #eee;
+  color: #555;
+  font-family: 'Monda', "PingFang SC", "Microsoft YaHei", sans-serif;
+  font-size: 1em;
+  line-height: 2;
+}
+@media (max-width: 991px) {
+  body {
+    padding-left: 0 !important;
+    padding-right: 0 !important;
+  }
+}
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+  font-family: 'Roboto Slab', 'Monda', "PingFang SC", "Microsoft YaHei", sans-serif;
+  font-weight: bold;
+  line-height: 1.5;
+  margin: 20px 0 15px;
+  padding: 0;
+}
+h1 {
+  font-size: 1.5em;
+}
+h2 {
+  font-size: 1.375em;
+}
+h3 {
+  font-size: 1.25em;
+}
+h4 {
+  font-size: 1.125em;
+}
+h5 {
+  font-size: 1em;
+}
+h6 {
+  font-size: 0.875em;
+}
+p {
+  margin: 0 0 20px 0;
+}
+a,
+span.exturl {
+  border-bottom: 1px solid #999;
+  color: #555;
+  outline: 0;
+  text-decoration: none;
+  overflow-wrap: break-word;
+  word-wrap: break-word;
+  cursor: pointer;
+}
+a:hover,
+span.exturl:hover {
+  border-bottom-color: #222;
+  color: #222;
+}
+iframe,
+img,
+video {
+  display: block;
+  margin-left: auto;
+  margin-right: auto;
+  max-width: 100%;
+}
+hr {
+  background-color: #ddd;
+  background-image: repeating-linear-gradient(-45deg, #fff, #fff 4px, transparent 4px, transparent 8px);
+  border: 0;
+  height: 3px;
+  margin: 40px 0;
+}
+blockquote {
+  border-left: 4px solid #ddd;
+  color: #666;
+  margin: 0;
+  padding: 0 15px;
+}
+blockquote cite::before {
+  content: '-';
+  padding: 0 5px;
+}
+dt {
+  font-weight: 700;
+}
+dd {
+  margin: 0;
+  padding: 0;
+}
+kbd {
+  background-color: #f5f5f5;
+  background-image: linear-gradient(#eee, #fff, #eee);
+  border: 1px solid #ccc;
+  border-radius: 0.2em;
+  box-shadow: 0.1em 0.1em 0.2em rgba(0,0,0,0.1);
+  font-family: inherit;
+  padding: 0.1em 0.3em;
+  white-space: nowrap;
+}
+.table-container {
+  -webkit-overflow-scrolling: touch;
+  overflow: auto;
+}
+table {
+  border-collapse: collapse;
+  border-spacing: 0;
+  font-size: 0.875em;
+  margin: 0 0 20px 0;
+  width: 100%;
+}
+tbody tr:nth-of-type(odd) {
+  background: #f9f9f9;
+}
+tbody tr:hover {
+  background: #f5f5f5;
+}
+caption,
+th,
+td {
+  font-weight: normal;
+  padding: 8px;
+  text-align: left;
+  vertical-align: middle;
+}
+th,
+td {
+  border: 1px solid #ddd;
+  border-bottom: 3px solid #ddd;
+}
+th {
+  font-weight: 700;
+  padding-bottom: 10px;
+}
+td {
+  border-bottom-width: 1px;
+}
+.btn {
+  background: #fff;
+  border: 2px solid #555;
+  border-radius: 2px;
+  color: #555;
+  display: inline-block;
+  font-size: 0.875em;
+  line-height: 2;
+  padding: 0 20px;
+  text-decoration: none;
+  transition-property: background-color;
+  transition-delay: 0s;
+  transition-duration: 0.2s;
+  transition-timing-function: ease-in-out;
+}
+.btn:hover {
+  background: #222;
+  border-color: #222;
+  color: #fff;
+}
+.btn + .btn {
+  margin: 0 0 8px 8px;
+}
+.btn .fa-fw {
+  text-align: left;
+  width: 1.285714285714286em;
+}
+.toggle {
+  line-height: 0;
+}
+.toggle .toggle-line {
+  background: #fff;
+  display: inline-block;
+  height: 2px;
+  left: 0;
+  position: relative;
+  top: 0;
+  transition: all 0.4s;
+  vertical-align: top;
+  width: 100%;
+}
+.toggle .toggle-line:not(:first-child) {
+  margin-top: 3px;
+}
+.toggle.toggle-arrow .toggle-line-first {
+  left: 50%;
+  top: 2px;
+  transform: rotate(45deg);
+  width: 50%;
+}
+.toggle.toggle-arrow .toggle-line-middle {
+  left: 2px;
+  width: 90%;
+}
+.toggle.toggle-arrow .toggle-line-last {
+  left: 50%;
+  top: -2px;
+  transform: rotate(-45deg);
+  width: 50%;
+}
+.toggle.toggle-close .toggle-line-first {
+  transform: rotate(-45deg);
+  top: 5px;
+}
+.toggle.toggle-close .toggle-line-middle {
+  opacity: 0;
+}
+.toggle.toggle-close .toggle-line-last {
+  transform: rotate(45deg);
+  top: -5px;
+}
+.highlight-container {
+  position: relative;
+}
+.highlight-container:hover .copy-btn,
+.highlight-container .copy-btn:focus {
+  opacity: 1;
+}
+.copy-btn {
+  color: #333;
+  cursor: pointer;
+  display: inline-block;
+  font-weight: 700;
+  line-height: 1.6;
+  opacity: 0;
+  outline: 0;
+  padding: 2px 6px;
+  position: absolute;
+  transition: opacity 0.3s ease-in-out;
+  vertical-align: middle;
+  white-space: nowrap;
+  -moz-user-select: none;
+  -ms-user-select: none;
+  -webkit-user-select: none;
+  user-select: none;
+  background-color: #eee;
+  background-image: linear-gradient(#fcfcfc, #eee);
+  border: 1px solid #d5d5d5;
+  border-radius: 3px;
+  font-size: 0.8125em;
+  right: 4px;
+  top: 8px;
+}
+.highlight,
+pre {
+  background: #f7f7f7;
+  color: #4d4d4c;
+  line-height: 1.6;
+  margin: 0 auto 20px;
+}
+pre,
+code {
+  font-family: 'PT Mono', consolas, Menlo, monospace, "PingFang SC", "Microsoft YaHei";
+}
+code {
+  background: #eee;
+  border-radius: 3px;
+  color: #555;
+  padding: 2px 4px;
+  overflow-wrap: break-word;
+  word-wrap: break-word;
+}
+.highlight *::selection {
+  background: #d6d6d6;
+}
+.highlight pre {
+  border: 0;
+  margin: 0;
+  padding: 0;
+}
+.highlight table {
+  border: 0;
+  margin: 0;
+  width: auto;
+}
+.highlight tr:first-child pre {
+  padding-top: 10px;
+}
+.highlight tr:last-child pre {
+  padding-bottom: 10px;
+}
+.highlight td {
+  border: 0;
+  padding: 0;
+}
+.highlight figcaption {
+  background: #eee;
+  color: #4d4d4c;
+  font-size: 0.875em;
+  line-height: 1.2;
+  padding: 0.5em;
+}
+.highlight figcaption::before,
+.highlight figcaption::after {
+  content: ' ';
+  display: table;
+}
+.highlight figcaption::after {
+  clear: both;
+}
+.highlight figcaption a {
+  color: #4d4d4c;
+  float: right;
+}
+.highlight figcaption a:hover {
+  border-bottom-color: #4d4d4c;
+}
+.highlight .gutter pre {
+  background: #eff2f3;
+  color: #869194;
+  padding-left: 10px;
+  padding-right: 10px;
+  text-align: right;
+  -moz-user-select: none;
+  -ms-user-select: none;
+  -webkit-user-select: none;
+  user-select: none;
+}
+.highlight .code pre {
+  background: #f7f7f7;
+  padding-left: 10px;
+  width: 100%;
+}
+.gist table {
+  width: auto;
+}
+.gist table td {
+  border: 0;
+}
+pre {
+  overflow: auto;
+  padding: 10px;
+}
+pre code {
+  background: none;
+  color: #4d4d4c;
+  font-size: 0.875em;
+  padding: 0;
+  text-shadow: none;
+}
+pre .deletion {
+  background: #fdd;
+}
+pre .addition {
+  background: #dfd;
+}
+pre .meta {
+  color: #eab700;
+  -moz-user-select: none;
+  -ms-user-select: none;
+  -webkit-user-select: none;
+  user-select: none;
+}
+pre .comment {
+  color: #8e908c;
+}
+pre .variable,
+pre .attribute,
+pre .tag,
+pre .name,
+pre .regexp,
+pre .ruby .constant,
+pre .xml .tag .title,
+pre .xml .pi,
+pre .xml .doctype,
+pre .html .doctype,
+pre .css .id,
+pre .css .class,
+pre .css .pseudo {
+  color: #c82829;
+}
+pre .number,
+pre .preprocessor,
+pre .built_in,
+pre .builtin-name,
+pre .literal,
+pre .params,
+pre .constant,
+pre .command {
+  color: #f5871f;
+}
+pre .ruby .class .title,
+pre .css .rules .attribute,
+pre .string,
+pre .symbol,
+pre .value,
+pre .inheritance,
+pre .header,
+pre .ruby .symbol,
+pre .xml .cdata,
+pre .special,
+pre .formula {
+  color: #718c00;
+}
+pre .title,
+pre .css .hexcolor {
+  color: #3e999f;
+}
+pre .function,
+pre .python .decorator,
+pre .python .title,
+pre .ruby .function .title,
+pre .ruby .title .keyword,
+pre .perl .sub,
+pre .javascript .title,
+pre .coffeescript .title {
+  color: #4271ae;
+}
+pre .keyword,
+pre .javascript .function {
+  color: #8959a8;
+}
+.blockquote-center {
+  border-left: none;
+  margin: 40px 0;
+  padding: 0;
+  position: relative;
+  text-align: center;
+}
+.blockquote-center::before,
+.blockquote-center::after {
+  background-repeat: no-repeat;
+  background-size: 22px 22px;
+  content: ' ';
+  display: block;
+  height: 24px;
+  opacity: 0.2;
+  position: absolute;
+  width: 100%;
+}
+.blockquote-center::before {
+  background-image: url("../images/quote-l.svg");
+  background-position: 0 -6px;
+  border-top: 1px solid #ccc;
+  top: -20px;
+}
+.blockquote-center::after {
+  background-image: url("../images/quote-r.svg");
+  background-position: 100% 8px;
+  border-bottom: 1px solid #ccc;
+  bottom: -20px;
+}
+.blockquote-center p,
+.blockquote-center div {
+  text-align: center;
+}
+.post-body .group-picture img {
+  border: 0;
+  margin: 0 auto;
+  padding: 0 3px;
+}
+.group-picture-row {
+  margin-bottom: 6px;
+  overflow: hidden;
+}
+.group-picture-column {
+  float: left;
+  margin-bottom: 10px;
+}
+.post-body .label {
+  display: inline;
+  padding: 0 2px;
+}
+.post-body .label.default {
+  background: #f0f0f0;
+}
+.post-body .label.primary {
+  background: #efe6f7;
+}
+.post-body .label.info {
+  background: #e5f2f8;
+}
+.post-body .label.success {
+  background: #e7f4e9;
+}
+.post-body .label.warning {
+  background: #fcf6e1;
+}
+.post-body .label.danger {
+  background: #fae8eb;
+}
+.post-body .tabs {
+  margin-bottom: 20px;
+}
+.post-body .tabs,
+.tabs-comment {
+  display: block;
+  padding-top: 10px;
+  position: relative;
+}
+.post-body .tabs ul.nav-tabs,
+.tabs-comment ul.nav-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  margin: 0;
+  margin-bottom: -1px;
+  padding: 0;
+}
+@media (max-width: 413px) {
+  .post-body .tabs ul.nav-tabs,
+  .tabs-comment ul.nav-tabs {
+    display: block;
+    margin-bottom: 5px;
+  }
+}
+.post-body .tabs ul.nav-tabs li.tab,
+.tabs-comment ul.nav-tabs li.tab {
+  background: #fff;
+  border-bottom: 1px solid #ddd;
+  border-left: 1px solid transparent;
+  border-right: 1px solid transparent;
+  border-top: 3px solid transparent;
+  flex-grow: 1;
+  list-style-type: none;
+}
+@media (max-width: 413px) {
+  .post-body .tabs ul.nav-tabs li.tab,
+  .tabs-comment ul.nav-tabs li.tab {
+    border-bottom: 1px solid transparent;
+    border-left: 3px solid transparent;
+    border-right: 1px solid transparent;
+    border-top: 1px solid transparent;
+  }
+}
+.post-body .tabs ul.nav-tabs li.tab a,
+.tabs-comment ul.nav-tabs li.tab a {
+  border-bottom: initial;
+  display: block;
+  line-height: 1.8;
+  outline: 0;
+  padding: 0.25em 0.75em;
+  text-align: center;
+  transition-delay: 0s;
+  transition-duration: 0.2s;
+  transition-timing-function: ease-out;
+}
+.post-body .tabs ul.nav-tabs li.tab a i,
+.tabs-comment ul.nav-tabs li.tab a i {
+  width: 1.285714285714286em;
+}
+.post-body .tabs ul.nav-tabs li.tab.active,
+.tabs-comment ul.nav-tabs li.tab.active {
+  border-bottom: 1px solid transparent;
+  border-left: 1px solid #ddd;
+  border-right: 1px solid #ddd;
+  border-top: 3px solid #fc6423;
+}
+@media (max-width: 413px) {
+  .post-body .tabs ul.nav-tabs li.tab.active,
+  .tabs-comment ul.nav-tabs li.tab.active {
+    border-bottom: 1px solid #ddd;
+    border-left: 3px solid #fc6423;
+    border-right: 1px solid #ddd;
+    border-top: 1px solid #ddd;
+  }
+}
+.post-body .tabs ul.nav-tabs li.tab.active a,
+.tabs-comment ul.nav-tabs li.tab.active a {
+  color: #555;
+  cursor: default;
+}
+.post-body .tabs .tab-content .tab-pane,
+.tabs-comment .tab-content .tab-pane {
+  border: 1px solid #ddd;
+  padding: 20px 20px 0 20px;
+}
+.post-body .tabs .tab-content .tab-pane:not(.active),
+.tabs-comment .tab-content .tab-pane:not(.active) {
+  display: none;
+}
+.post-body .tabs .tab-content .tab-pane.active,
+.tabs-comment .tab-content .tab-pane.active {
+  display: block;
+}
+.post-body .note {
+  margin-bottom: 20px;
+  padding: 15px;
+  position: relative;
+  border: 1px solid #eee;
+  border-left-width: 5px;
+  border-radius: 3px;
+}
+.post-body .note h2,
+.post-body .note h3,
+.post-body .note h4,
+.post-body .note h5,
+.post-body .note h6 {
+  margin-top: 0;
+  border-bottom: initial;
+  margin-bottom: 0;
+  padding-top: 0;
+}
+.post-body .note p:first-child,
+.post-body .note ul:first-child,
+.post-body .note ol:first-child,
+.post-body .note table:first-child,
+.post-body .note pre:first-child,
+.post-body .note blockquote:first-child,
+.post-body .note img:first-child {
+  margin-top: 0;
+}
+.post-body .note p:last-child,
+.post-body .note ul:last-child,
+.post-body .note ol:last-child,
+.post-body .note table:last-child,
+.post-body .note pre:last-child,
+.post-body .note blockquote:last-child,
+.post-body .note img:last-child {
+  margin-bottom: 0;
+}
+.post-body .note.default {
+  border-left-color: #777;
+}
+.post-body .note.default h2,
+.post-body .note.default h3,
+.post-body .note.default h4,
+.post-body .note.default h5,
+.post-body .note.default h6 {
+  color: #777;
+}
+.post-body .note.primary {
+  border-left-color: #6f42c1;
+}
+.post-body .note.primary h2,
+.post-body .note.primary h3,
+.post-body .note.primary h4,
+.post-body .note.primary h5,
+.post-body .note.primary h6 {
+  color: #6f42c1;
+}
+.post-body .note.info {
+  border-left-color: #428bca;
+}
+.post-body .note.info h2,
+.post-body .note.info h3,
+.post-body .note.info h4,
+.post-body .note.info h5,
+.post-body .note.info h6 {
+  color: #428bca;
+}
+.post-body .note.success {
+  border-left-color: #5cb85c;
+}
+.post-body .note.success h2,
+.post-body .note.success h3,
+.post-body .note.success h4,
+.post-body .note.success h5,
+.post-body .note.success h6 {
+  color: #5cb85c;
+}
+.post-body .note.warning {
+  border-left-color: #f0ad4e;
+}
+.post-body .note.warning h2,
+.post-body .note.warning h3,
+.post-body .note.warning h4,
+.post-body .note.warning h5,
+.post-body .note.warning h6 {
+  color: #f0ad4e;
+}
+.post-body .note.danger {
+  border-left-color: #d9534f;
+}
+.post-body .note.danger h2,
+.post-body .note.danger h3,
+.post-body .note.danger h4,
+.post-body .note.danger h5,
+.post-body .note.danger h6 {
+  color: #d9534f;
+}
+.pagination .prev,
+.pagination .next,
+.pagination .page-number,
+.pagination .space {
+  display: inline-block;
+  margin: 0 10px;
+  padding: 0 11px;
+  position: relative;
+  top: -1px;
+}
+@media (max-width: 767px) {
+  .pagination .prev,
+  .pagination .next,
+  .pagination .page-number,
+  .pagination .space {
+    margin: 0 5px;
+  }
+}
+.pagination {
+  border-top: 1px solid #eee;
+  margin: 120px 0 0;
+  text-align: center;
+}
+.pagination .prev,
+.pagination .next,
+.pagination .page-number {
+  border-bottom: 0;
+  border-top: 1px solid #eee;
+  transition-property: border-color;
+  transition-delay: 0s;
+  transition-duration: 0.2s;
+  transition-timing-function: ease-in-out;
+}
+.pagination .prev:hover,
+.pagination .next:hover,
+.pagination .page-number:hover {
+  border-top-color: #222;
+}
+.pagination .space {
+  margin: 0;
+  padding: 0;
+}
+.pagination .prev {
+  margin-left: 0;
+}
+.pagination .next {
+  margin-right: 0;
+}
+.pagination .page-number.current,
+.algolia-pagination .current .page-number {
+  background: #ccc;
+  border-top-color: #ccc;
+  color: #fff;
+}
+@media (max-width: 767px) {
+  .pagination {
+    border-top: none;
+  }
+  .pagination .prev,
+  .pagination .next,
+  .pagination .page-number {
+    border-bottom: 1px solid #eee;
+    border-top: 0;
+    margin-bottom: 10px;
+    padding: 0 10px;
+  }
+  .pagination .prev:hover,
+  .pagination .next:hover,
+  .pagination .page-number:hover {
+    border-bottom-color: #222;
+  }
+}
+.comments {
+  margin: 60px 20px 0;
+  overflow: hidden;
+}
+.comment-button-group {
+  display: flex;
+  flex-wrap: wrap-reverse;
+  justify-content: center;
+  margin: 1em 0;
+}
+.comment-button-group .comment-button {
+  margin: 0.1em 0.2em;
+}
+.comment-button-group .comment-button.active {
+  background: #222;
+  border-color: #222;
+  color: #fff;
+}
+.comment-position {
+  display: none;
+}
+.comment-position.active {
+  display: block;
+}
+.tabs-comment {
+  background: #fff;
+  margin-top: 4em;
+  padding-top: 0;
+}
+.tabs-comment .comments {
+  border: 0;
+  box-shadow: none;
+  margin-top: 0;
+  padding-top: 0;
+}
+.container {
+  min-height: 100%;
+  position: relative;
+}
+.main-inner {
+  margin: 0 auto;
+  width: calc(100% - 20px);
+}
+@media (min-width: 1200px) {
+  .main-inner {
+    width: 1160px;
+  }
+}
+@media (min-width: 1600px) {
+  .main-inner {
+    width: 73%;
+  }
+}
+.header {
+  background: transparent;
+}
+.header-inner {
+  margin: 0 auto;
+  position: relative;
+  width: calc(100% - 20px);
+}
+@media (min-width: 1200px) {
+  .header-inner {
+    width: 1160px;
+  }
+}
+@media (min-width: 1600px) {
+  .header-inner {
+    width: 73%;
+  }
+}
+.headband {
+  background: #222;
+  height: 3px;
+}
+.site-meta {
+  margin: 0;
+  text-align: center;
+}
+@media (max-width: 767px) {
+  .site-meta {
+    text-align: center;
+  }
+}
+.brand {
+  background: #222;
+  border-bottom: none;
+  color: #fff;
+  display: inline-block;
+  line-height: 1.375em;
+  padding: 0 40px;
+  position: relative;
+}
+.brand:hover {
+  color: #fff;
+}
+.site-title {
+  display: inline-block;
+  font-family: 'Monda', "PingFang SC", "Microsoft YaHei", sans-serif;
+  font-size: 1.375em;
+  font-weight: normal;
+  line-height: 1.5;
+  vertical-align: top;
+}
+.site-subtitle {
+  color: #ddd;
+  font-size: 0.8125em;
+  margin-top: 10px;
+}
+.use-motion .brand {
+  opacity: 0;
+}
+.use-motion .site-title,
+.use-motion .site-subtitle,
+.use-motion .custom-logo-image {
+  opacity: 0;
+  position: relative;
+  top: -10px;
+}
+.site-nav-toggle {
+  display: none;
+  left: 10px;
+  position: absolute;
+}
+@media (max-width: 767px) {
+  .site-nav-toggle {
+    display: block;
+  }
+}
+.site-nav-toggle .toggle {
+  background: transparent;
+  border: 0;
+  margin-top: 2px;
+  padding: 10px;
+  width: 22px;
+}
+.site-nav-toggle .toggle .toggle-line {
+  background: #555;
+  border-radius: 1px;
+}
+.site-nav {
+  display: block;
+}
+@media (max-width: 767px) {
+  .site-nav {
+    border-top: 1px solid #ddd;
+    clear: both;
+    display: none;
+    margin: 0 -10px;
+    padding: 0 10px;
+  }
+}
+.site-nav.site-nav-on {
+  display: block;
+}
+.menu {
+  margin-top: 20px;
+  padding-left: 0;
+  text-align: center;
+}
+.menu-item {
+  display: inline-block;
+  list-style: none;
+  margin: 0 10px;
+}
+@media (max-width: 767px) {
+  .menu-item {
+    margin-top: 10px;
+  }
+}
+.menu-item a,
+.menu-item span.exturl {
+  border-bottom: 0;
+  display: block;
+  font-size: 0.8125em;
+  transition-property: border-color;
+  transition-delay: 0s;
+  transition-duration: 0.2s;
+  transition-timing-function: ease-in-out;
+}
+@media (hover: none) {
+  .menu-item a:hover,
+  .menu-item span.exturl:hover {
+    border-bottom-color: transparent !important;
+  }
+}
+.menu-item .fa {
+  margin-right: 8px;
+}
+.menu-item .badge {
+  display: inline-block;
+  font-weight: 700;
+  line-height: 1;
+  margin-left: 0.35em;
+  margin-top: 0.35em;
+  text-align: center;
+  white-space: nowrap;
+}
+@media (max-width: 767px) {
+  .menu-item .badge {
+    float: right;
+    margin-left: 0;
+  }
+}
+.use-motion .menu-item {
+  opacity: 0;
+}
+.github-corner :hover .octo-arm {
+  animation: octocat-wave 560ms ease-in-out;
+}
+.github-corner svg {
+  border: 0;
+  color: #fff;
+  fill: #222;
+  position: absolute;
+  right: 0;
+  top: 0;
+  z-index: 1000;
+}
+@media (max-width: 991px) {
+  .github-corner svg {
+    color: #222;
+    fill: #fff;
+  }
+  .github-corner .github-corner:hover .octo-arm {
+    animation: none;
+  }
+  .github-corner .github-corner .octo-arm {
+    animation: octocat-wave 560ms ease-in-out;
+  }
+}
+@-moz-keyframes octocat-wave {
+  0%, 100% {
+    transform: rotate(0);
+  }
+  20%, 60% {
+    transform: rotate(-25deg);
+  }
+  40%, 80% {
+    transform: rotate(10deg);
+  }
+}
+@-webkit-keyframes octocat-wave {
+  0%, 100% {
+    transform: rotate(0);
+  }
+  20%, 60% {
+    transform: rotate(-25deg);
+  }
+  40%, 80% {
+    transform: rotate(10deg);
+  }
+}
+@-o-keyframes octocat-wave {
+  0%, 100% {
+    transform: rotate(0);
+  }
+  20%, 60% {
+    transform: rotate(-25deg);
+  }
+  40%, 80% {
+    transform: rotate(10deg);
+  }
+}
+@keyframes octocat-wave {
+  0%, 100% {
+    transform: rotate(0);
+  }
+  20%, 60% {
+    transform: rotate(-25deg);
+  }
+  40%, 80% {
+    transform: rotate(10deg);
+  }
+}
+.sidebar {
+  background: #222;
+  bottom: 0;
+  box-shadow: inset 0 2px 6px #000;
+  position: fixed;
+  top: 0;
+  z-index: 1200;
+}
+.sidebar a,
+.sidebar span.exturl {
+  border-bottom-color: #555;
+  color: #999;
+}
+.sidebar a:hover,
+.sidebar span.exturl:hover {
+  border-bottom-color: #eee;
+  color: #eee;
+}
+@media (max-width: 991px) {
+  .sidebar {
+    display: none;
+  }
+}
+.sidebar-inner {
+  color: #999;
+  padding: 20px 10px;
+  text-align: center;
+}
+.site-overview-wrap {
+  overflow-x: hidden;
+  overflow-y: auto;
+}
+.cc-license {
+  margin-top: 10px;
+  text-align: center;
+}
+.cc-license .cc-opacity {
+  border-bottom: none;
+  opacity: 0.7;
+}
+.cc-license .cc-opacity:hover {
+  opacity: 0.9;
+}
+.cc-license img {
+  display: inline-block;
+}
+.site-author-image {
+  border: 1px solid #eee;
+  display: block;
+  height: auto;
+  margin: 0 auto;
+  max-width: 120px;
+  padding: 2px;
+  border-radius: 50%;
+}
+.site-author-name {
+  color: #222;
+  font-weight: 600;
+  margin: 0;
+  text-align: center;
+}
+.site-description {
+  color: #999;
+  font-size: 0.8125em;
+  margin-top: 0;
+  text-align: center;
+}
+.links-of-author {
+  margin-top: 15px;
+}
+.links-of-author a,
+.links-of-author span.exturl {
+  border-bottom-color: #555;
+  display: inline-block;
+  font-size: 0.8125em;
+  margin-bottom: 10px;
+  margin-right: 10px;
+  vertical-align: middle;
+  transition-delay: 0s;
+  transition-duration: 0.2s;
+  transition-timing-function: ease-in-out;
+}
+.links-of-author a::before,
+.links-of-author span.exturl::before {
+  background: #0ab5cd;
+  border-radius: 50%;
+  content: ' ';
+  display: inline-block;
+  height: 4px;
+  margin-right: 3px;
+  vertical-align: middle;
+  width: 4px;
+}
+.feed-link,
+.chat {
+  margin-top: 15px;
+}
+.feed-link a,
+.chat a {
+  border: 1px solid #fc6423;
+  border-radius: 4px;
+  color: #fc6423;
+  display: inline-block;
+  padding: 0 15px;
+}
+.feed-link a .fa,
+.chat a .fa {
+  margin-right: 5px;
+}
+.feed-link a:hover,
+.chat a:hover {
+  background: #fc6423;
+  border: 1px solid #fc6423;
+  color: #fff;
+}
+.feed-link a:hover .fa,
+.chat a:hover .fa {
+  color: #fff;
+}
+.links-of-blogroll {
+  font-size: 0.8125em;
+  margin-top: 10px;
+}
+.links-of-blogroll-title {
+  font-size: 0.875em;
+  font-weight: 600;
+  margin-top: 0;
+}
+.links-of-blogroll-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.links-of-blogroll-item {
+  padding: 2px 10px;
+}
+.links-of-blogroll-item a,
+.links-of-blogroll-item span.exturl {
+  box-sizing: border-box;
+  display: inline-block;
+  max-width: 280px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+#sidebar-dimmer {
+  display: none;
+}
+@media (max-width: 767px) {
+  #sidebar-dimmer {
+    background: #000;
+    display: block;
+    height: 100%;
+    left: 100%;
+    opacity: 0;
+    position: fixed;
+    top: 0;
+    width: 100%;
+    z-index: 1100;
+  }
+  .sidebar-active + #sidebar-dimmer {
+    opacity: 0.7;
+    transform: translateX(-100%);
+    transition: opacity 0.5s;
+  }
+}
+.sidebar-nav {
+  margin: 0;
+  padding-bottom: 20px;
+  padding-left: 0;
+}
+.sidebar-nav li {
+  border-bottom: 1px solid transparent;
+  color: #555;
+  cursor: pointer;
+  display: inline-block;
+  font-size: 0.875em;
+}
+.sidebar-nav li.sidebar-nav-overview {
+  margin-left: 10px;
+}
+.sidebar-nav li:hover {
+  color: #fc6423;
+}
+.sidebar-nav .sidebar-nav-active {
+  border-bottom-color: #fc6423;
+  color: #fc6423;
+}
+.sidebar-nav .sidebar-nav-active:hover {
+  color: #fc6423;
+}
+.sidebar-panel {
+  display: none;
+}
+.sidebar-panel-active {
+  display: block;
+}
+.sidebar-toggle {
+  background: #222;
+  bottom: 45px;
+  cursor: pointer;
+  height: 14px;
+  left: 30px;
+  padding: 5px;
+  position: fixed;
+  width: 14px;
+  z-index: 1300;
+}
+@media (max-width: 991px) {
+  .sidebar-toggle {
+    left: 20px;
+    opacity: 0.8;
+    display: none;
+  }
+}
+.sidebar-toggle:hover .toggle-line {
+  background: #fc6423;
+}
+.post-toc-wrap {
+  overflow-x: hidden;
+  overflow-y: auto;
+}
+.post-toc {
+  font-size: 0.875em;
+}
+.post-toc ol {
+  list-style: none;
+  margin: 0;
+  padding: 0 2px 5px 10px;
+  text-align: left;
+}
+.post-toc ol > ol {
+  padding-left: 0;
+}
+.post-toc ol a {
+  border-bottom-color: #ccc;
+  color: #666;
+  transition-property: all;
+  transition-delay: 0s;
+  transition-duration: 0.2s;
+  transition-timing-function: ease-in-out;
+}
+.post-toc ol a:hover {
+  border-bottom-color: #000;
+  color: #000;
+}
+.post-toc .nav-item {
+  line-height: 1.8;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.post-toc .nav .nav-child {
+  display: none;
+}
+.post-toc .nav .active > .nav-child {
+  display: block;
+}
+.post-toc .nav .active-current > .nav-child {
+  display: block;
+}
+.post-toc .nav .active-current > .nav-child > .nav-item {
+  display: block;
+}
+.post-toc .nav .active > a {
+  border-bottom-color: #fc6423;
+  color: #fc6423;
+}
+.post-toc .nav .active-current > a {
+  color: #fc6423;
+}
+.post-toc .nav .active-current > a:hover {
+  color: #fc6423;
+}
+.site-state {
+  display: flex;
+  justify-content: center;
+  line-height: 1.4;
+  margin-top: 10px;
+  overflow: hidden;
+  text-align: center;
+  white-space: nowrap;
+}
+.site-state-item {
+  padding: 0 15px;
+}
+.site-state-item:not(:first-child) {
+  border-left: 1px solid #eee;
+}
+.site-state-item a {
+  border-bottom: none;
+}
+.site-state-item-count {
+  color: inherit;
+  display: block;
+  font-size: 1em;
+  font-weight: 600;
+  text-align: center;
+}
+.site-state-item-name {
+  color: #999;
+  font-size: 0.8125em;
+}
+.footer {
+  color: #999;
+  font-size: 0.875em;
+  padding: 20px 0;
+}
+.footer.footer-fixed {
+  bottom: 0;
+  left: 0;
+  position: absolute;
+  right: 0;
+}
+.footer img {
+  border: 0;
+}
+.footer-inner {
+  box-sizing: border-box;
+  margin: 0 auto;
+  text-align: center;
+  width: calc(100% - 20px);
+}
+@media (min-width: 1200px) {
+  .footer-inner {
+    width: 1160px;
+  }
+}
+@media (min-width: 1600px) {
+  .footer-inner {
+    width: 73%;
+  }
+}
+.with-love {
+  color: red;
+  display: inline-block;
+  margin: 0 5px;
+  animation: iconAnimate 1.33s ease-in-out infinite;
+}
+.powered-by,
+.theme-info {
+  display: inline-block;
+}
+@-moz-keyframes iconAnimate {
+  0%, 100% {
+    transform: scale(1);
+  }
+  10%, 30% {
+    transform: scale(0.9);
+  }
+  20%, 40%, 60%, 80% {
+    transform: scale(1.1);
+  }
+  50%, 70% {
+    transform: scale(1.1);
+  }
+}
+@-webkit-keyframes iconAnimate {
+  0%, 100% {
+    transform: scale(1);
+  }
+  10%, 30% {
+    transform: scale(0.9);
+  }
+  20%, 40%, 60%, 80% {
+    transform: scale(1.1);
+  }
+  50%, 70% {
+    transform: scale(1.1);
+  }
+}
+@-o-keyframes iconAnimate {
+  0%, 100% {
+    transform: scale(1);
+  }
+  10%, 30% {
+    transform: scale(0.9);
+  }
+  20%, 40%, 60%, 80% {
+    transform: scale(1.1);
+  }
+  50%, 70% {
+    transform: scale(1.1);
+  }
+}
+@keyframes iconAnimate {
+  0%, 100% {
+    transform: scale(1);
+  }
+  10%, 30% {
+    transform: scale(0.9);
+  }
+  20%, 40%, 60%, 80% {
+    transform: scale(1.1);
+  }
+  50%, 70% {
+    transform: scale(1.1);
+  }
+}
+.back-to-top {
+  background: #eee;
+  font-size: 12px;
+  margin: 8px -10px -20px;
+  opacity: 0;
+  text-align: center;
+  transition-delay: 0s;
+  transition-duration: 0.2s;
+  transition-timing-function: ease-in-out;
+}
+.back-to-top.back-to-top-on {
+  cursor: pointer;
+  opacity: 0.6;
+}
+.back-to-top.back-to-top-on:hover {
+  opacity: 0.8;
+}
+.post-body {
+  font-family: 'Monda', "PingFang SC", "Microsoft YaHei", sans-serif;
+  overflow-wrap: break-word;
+  word-wrap: break-word;
+}
+@media (min-width: 1200px) {
+  .post-body {
+    font-size: 1.125em;
+  }
+}
+.post-body span.exturl .fa {
+  font-size: 0.875em;
+  margin-left: 4px;
+}
+.post-body .image-caption,
+.post-body .figure .caption {
+  color: #999;
+  font-size: 0.875em;
+  font-weight: bold;
+  line-height: 1;
+  margin: -20px auto 15px;
+  text-align: center;
+}
+.post-sticky-flag {
+  display: inline-block;
+  transform: rotate(30deg);
+}
+.post-button {
+  margin-top: 40px;
+  text-align: center;
+}
+.use-motion .post-block,
+.use-motion .pagination,
+.use-motion .comments {
+  opacity: 0;
+}
+.use-motion .post-header {
+  opacity: 0;
+}
+.use-motion .post-body {
+  opacity: 0;
+}
+.use-motion .collection-header {
+  opacity: 0;
+}
+.posts-collapse {
+  margin-left: 55px;
+  position: relative;
+}
+@media (max-width: 767px) {
+  .posts-collapse {
+    margin-left: 20px;
+    margin-right: 20px;
+  }
+}
+.posts-collapse .collection-title {
+  font-size: 1.125em;
+  position: relative;
+}
+.posts-collapse .collection-title::before {
+  background: #999;
+  border: 1px solid #fff;
+  border-radius: 50%;
+  content: ' ';
+  height: 10px;
+  left: 0;
+  margin-left: -6px;
+  margin-top: -4px;
+  position: absolute;
+  top: 50%;
+  width: 10px;
+}
+.posts-collapse .collection-year {
+  margin: 60px 0;
+  position: relative;
+}
+.posts-collapse .collection-year::before {
+  background: #bbb;
+  border-radius: 50%;
+  content: ' ';
+  height: 8px;
+  left: 0;
+  margin-left: -4px;
+  margin-top: -4px;
+  position: absolute;
+  top: 50%;
+  width: 8px;
+}
+.posts-collapse .collection-header {
+  display: inline-block;
+  margin: 0 0 0 20px;
+}
+.posts-collapse .collection-header small {
+  color: #bbb;
+  margin-left: 5px;
+}
+.posts-collapse .post-header {
+  border-bottom: 1px dashed #ccc;
+  margin: 30px 0;
+  padding-left: 15px;
+  position: relative;
+  transition-property: border;
+  transition-delay: 0s;
+  transition-duration: 0.2s;
+  transition-timing-function: ease-in-out;
+}
+.posts-collapse .post-header::before {
+  background: #bbb;
+  border: 1px solid #fff;
+  border-radius: 50%;
+  content: ' ';
+  height: 6px;
+  left: 0;
+  margin-left: -4px;
+  position: absolute;
+  top: 0.75em;
+  transition-property: background;
+  width: 6px;
+  transition-delay: 0s;
+  transition-duration: 0.2s;
+  transition-timing-function: ease-in-out;
+}
+.posts-collapse .post-header:hover {
+  border-bottom-color: #666;
+}
+.posts-collapse .post-header:hover::before {
+  background: #222;
+}
+.posts-collapse .post-meta {
+  display: inline;
+  font-size: 0.75em;
+  margin-right: 10px;
+}
+.posts-collapse .post-title {
+  display: inline;
+  font-size: 1em;
+  font-weight: normal;
+  margin-bottom: 0;
+  margin-top: 0;
+}
+.posts-collapse .post-title a,
+.posts-collapse .post-title span.exturl {
+  border-bottom: none;
+  color: #666;
+}
+.posts-collapse::before {
+  background: #f5f5f5;
+  content: ' ';
+  height: 100%;
+  left: 0;
+  margin-left: -2px;
+  position: absolute;
+  top: 1.25em;
+  width: 4px;
+}
+.posts-collapse .fa-external-link {
+  font-size: 0.875em;
+  margin-left: 5px;
+}
+.post-eof {
+  background: #ccc;
+  height: 1px;
+  margin: 80px auto 60px;
+  text-align: center;
+  width: 8%;
+}
+.post-block:last-child .post-eof {
+  display: none;
+}
+.posts-expand {
+  padding-top: 40px;
+}
+@media (max-width: 767px) {
+  .posts-expand {
+    margin: 0 20px;
+  }
+}
+@media (min-width: 992px) {
+  .post-body {
+    text-align: left;
+  }
+}
+@media (max-width: 991px) {
+  .post-body {
+    text-align: left;
+  }
+}
+.post-body h2,
+.post-body h3,
+.post-body h4,
+.post-body h5,
+.post-body h6 {
+  padding-top: 10px;
+}
+.post-body h2 .header-anchor,
+.post-body h3 .header-anchor,
+.post-body h4 .header-anchor,
+.post-body h5 .header-anchor,
+.post-body h6 .header-anchor {
+  border-bottom-style: none;
+  color: #ccc;
+  float: right;
+  margin-left: 10px;
+  visibility: hidden;
+}
+.post-body h2 .header-anchor:hover,
+.post-body h3 .header-anchor:hover,
+.post-body h4 .header-anchor:hover,
+.post-body h5 .header-anchor:hover,
+.post-body h6 .header-anchor:hover {
+  color: inherit;
+}
+.post-body h2:hover .header-anchor,
+.post-body h3:hover .header-anchor,
+.post-body h4:hover .header-anchor,
+.post-body h5:hover .header-anchor,
+.post-body h6:hover .header-anchor {
+  visibility: visible;
+}
+.post-body img {
+  border: 1px solid #ddd;
+  box-sizing: border-box;
+  padding: 3px;
+}
+@media (max-width: 767px) {
+  .post-body img {
+    padding: initial;
+  }
+}
+.post-body iframe,
+.post-body img,
+.post-body video {
+  margin-bottom: 20px;
+}
+.post-body .video-container {
+  height: 0;
+  margin-bottom: 20px;
+  overflow: hidden;
+  padding-top: 75%;
+  position: relative;
+  width: 100%;
+}
+.post-body .video-container iframe,
+.post-body .video-container object,
+.post-body .video-container embed {
+  height: 100%;
+  left: 0;
+  margin: 0;
+  position: absolute;
+  top: 0;
+  width: 100%;
+}
+.post-gallery {
+  border-collapse: separate;
+  display: table;
+  table-layout: fixed;
+  width: 100%;
+}
+.post-gallery .post-gallery-img {
+  border: 0;
+  display: table-cell;
+  text-align: center;
+  vertical-align: middle;
+}
+.post-gallery .post-gallery-img img {
+  border: 0;
+  max-height: 100%;
+  max-width: 100%;
+}
+.post-gallery-row {
+  display: table-row;
+}
+.posts-expand .post-header {
+  font-size: 1.125em;
+}
+.posts-expand .post-title {
+  font-weight: 400;
+  margin: initial;
+  text-align: center;
+  overflow-wrap: break-word;
+  word-wrap: break-word;
+}
+.posts-expand .post-title-link {
+  border-bottom: none;
+  color: #555;
+  display: inline-block;
+  position: relative;
+  vertical-align: top;
+}
+.posts-expand .post-title-link::before {
+  background: #000;
+  bottom: 0;
+  content: '';
+  height: 2px;
+  left: 0;
+  position: absolute;
+  transform: scaleX(0);
+  visibility: hidden;
+  width: 100%;
+  transition-delay: 0s;
+  transition-duration: 0.2s;
+  transition-timing-function: ease-in-out;
+}
+.posts-expand .post-title-link:hover::before {
+  transform: scaleX(1);
+  visibility: visible;
+}
+.posts-expand .post-title-link .fa {
+  font-size: 0.875em;
+  margin-left: 5px;
+}
+.posts-expand .post-meta {
+  color: #999;
+  font-family: 'Monda', "PingFang SC", "Microsoft YaHei", sans-serif;
+  font-size: 0.75em;
+  margin: 3px 0 60px 0;
+  text-align: center;
+}
+.posts-expand .post-meta .post-description {
+  font-size: 0.875em;
+  margin-top: 2px;
+}
+.posts-expand .post-meta time {
+  border-bottom: 1px dashed #999;
+  cursor: pointer;
+}
+.post-meta .post-meta-item + .post-meta-item::before {
+  content: '|';
+  margin: 0 0.5em;
+}
+.post-meta-divider {
+  margin: 0 0.5em;
+}
+.post-meta-item-icon {
+  margin-right: 3px;
+}
+@media (max-width: 991px) {
+  .post-meta-item-icon {
+    display: inline-block;
+  }
+}
+@media (max-width: 991px) {
+  .post-meta-item-text {
+    display: none;
+  }
+}
+.post-nav {
+  border-top: 1px solid #eee;
+  display: table;
+  margin-top: 15px;
+  width: 100%;
+}
+.post-nav-divider {
+  display: table-cell;
+  width: 10%;
+}
+.post-nav-item {
+  display: table-cell;
+  padding: 10px 0 0 0;
+  vertical-align: top;
+  width: 45%;
+}
+.post-nav-item a {
+  border-bottom: none;
+  color: #555;
+  display: block;
+  font-size: 0.875em;
+  line-height: 1.6;
+  position: relative;
+}
+.post-nav-item a:hover {
+  border-bottom: none;
+  color: #222;
+}
+.post-nav-item a:active {
+  top: 2px;
+}
+.post-nav-item .fa {
+  font-size: 0.75em;
+  margin-right: 5px;
+}
+.post-nav-next a {
+  padding-left: 5px;
+}
+.post-nav-prev {
+  text-align: right;
+}
+.post-nav-prev a {
+  padding-right: 5px;
+}
+.post-nav-prev .fa {
+  margin-left: 5px;
+}
+.rtl.post-body p,
+.rtl.post-body a,
+.rtl.post-body h1,
+.rtl.post-body h2,
+.rtl.post-body h3,
+.rtl.post-body h4,
+.rtl.post-body h5,
+.rtl.post-body h6,
+.rtl.post-body li,
+.rtl.post-body ul,
+.rtl.post-body ol {
+  direction: rtl;
+  font-family: UKIJ Ekran;
+}
+.rtl.post-title {
+  font-family: UKIJ Ekran;
+}
+.post-tags {
+  margin-top: 40px;
+  text-align: center;
+}
+.post-tags a {
+  display: inline-block;
+  font-size: 0.8125em;
+}
+.post-tags a:not(:last-child) {
+  margin-right: 10px;
+}
+.post-widgets {
+  border-top: 1px solid #eee;
+  margin-top: 15px;
+  text-align: center;
+}
+.wp_rating {
+  height: 20px;
+  line-height: 20px;
+  margin-top: 10px;
+  padding-top: 6px;
+  text-align: center;
+}
+.social-like {
+  display: flex;
+  font-size: 0.875em;
+  justify-content: center;
+  text-align: center;
+}
+.reward-container {
+  margin: 20px auto;
+  padding: 10px 0;
+  text-align: center;
+  width: 90%;
+}
+.reward-container button {
+  background: #ff2a2a;
+  border: 0;
+  border-radius: 5px;
+  color: #fff;
+  cursor: pointer;
+  line-height: 2;
+  outline: 0;
+  padding: 0 15px;
+  vertical-align: text-top;
+}
+.reward-container button:hover {
+  background: #f55;
+}
+#qr {
+  padding-top: 20px;
+}
+#qr a {
+  border: 0;
+}
+#qr img {
+  display: inline-block;
+  margin: 0.8em 2em 0 2em;
+  max-width: 100%;
+  width: 180px;
+}
+#qr p {
+  text-align: center;
+}
+.post-copyright {
+  background: #f5f5f5;
+  border-left: 3px solid #ff2a2a;
+  list-style: none;
+  margin: 2em 0 0;
+  padding: 0.5em 1em;
+}
+.category-all-page .category-all-title {
+  text-align: center;
+}
+.category-all-page .category-all {
+  margin-top: 20px;
+}
+.category-all-page .category-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.category-all-page .category-list-item {
+  margin: 5px 10px;
+}
+.category-all-page .category-list-count {
+  color: #bbb;
+}
+.category-all-page .category-list-count::before {
+  content: ' (';
+  display: inline;
+}
+.category-all-page .category-list-count::after {
+  content: ') ';
+  display: inline;
+}
+.category-all-page .category-list-child {
+  padding-left: 10px;
+}
+.event-list {
+  padding: 0;
+}
+.event-list hr {
+  background: #222;
+  margin: 20px 0 45px 0;
+}
+.event-list hr::after {
+  background: #222;
+  color: #fff;
+  content: 'NOW';
+  display: inline-block;
+  font-weight: bold;
+  padding: 0 5px;
+  text-align: right;
+}
+.event-list .event {
+  background: #222;
+  margin: 20px 0;
+  min-height: 40px;
+  padding: 15px 0 15px 10px;
+}
+.event-list .event .event-summary {
+  color: #fff;
+  margin: 0;
+  padding-bottom: 3px;
+}
+.event-list .event .event-summary::before {
+  animation: dot-flash 1s alternate infinite ease-in-out;
+  color: #fff;
+  content: '\f111';
+  display: inline-block;
+  font-family: 'FontAwesome';
+  font-size: 10px;
+  margin-right: 25px;
+  vertical-align: middle;
+}
+.event-list .event .event-relative-time {
+  color: #bbb;
+  display: inline-block;
+  font-size: 12px;
+  font-weight: 400;
+  padding-left: 12px;
+}
+.event-list .event .event-details {
+  color: #fff;
+  display: block;
+  line-height: 18px;
+  margin-left: 56px;
+  padding-bottom: 6px;
+  padding-top: 3px;
+  text-indent: -24px;
+}
+.event-list .event .event-details::before {
+  color: #fff;
+  display: inline-block;
+  font-family: 'FontAwesome';
+  margin-right: 9px;
+  text-align: center;
+  text-indent: 0;
+  width: 14px;
+}
+.event-list .event .event-details.event-location::before {
+  content: '\f041';
+}
+.event-list .event .event-details.event-duration::before {
+  content: '\f017';
+}
+.event-list .event-past {
+  background: #f5f5f5;
+}
+.event-list .event-past .event-summary,
+.event-list .event-past .event-details {
+  color: #bbb;
+  opacity: 0.9;
+}
+.event-list .event-past .event-summary::before,
+.event-list .event-past .event-details::before {
+  animation: none;
+  color: #bbb;
+}
+@-moz-keyframes dot-flash {
+  from {
+    opacity: 1;
+    transform: scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: scale(0.8);
+  }
+}
+@-webkit-keyframes dot-flash {
+  from {
+    opacity: 1;
+    transform: scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: scale(0.8);
+  }
+}
+@-o-keyframes dot-flash {
+  from {
+    opacity: 1;
+    transform: scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: scale(0.8);
+  }
+}
+@keyframes dot-flash {
+  from {
+    opacity: 1;
+    transform: scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: scale(0.8);
+  }
+}
+ul.breadcrumb {
+  font-size: 0.75em;
+  list-style: none;
+  margin: 1em 0;
+  padding: 0 2em;
+  text-align: center;
+}
+ul.breadcrumb li {
+  display: inline;
+}
+ul.breadcrumb li + li::before {
+  content: '/\00a0';
+  font-weight: normal;
+  padding: 0.5em;
+}
+ul.breadcrumb li + li:last-child {
+  font-weight: bold;
+}
+.tag-cloud {
+  text-align: center;
+}
+.tag-cloud a {
+  display: inline-block;
+  margin: 10px;
+}
+.tag-cloud a:hover {
+  color: #222 !important;
+}
+.gt-header a,
+.gt-comments a,
+.gt-popup a {
+  border-bottom: none;
+}
+.gt-container .gt-popup .gt-action.is--active::before {
+  top: 0.7em;
+}
+.search-pop-overlay {
+  background: rgba(0,0,0,0.3);
+  display: none;
+  height: 100%;
+  left: 0;
+  overflow: hidden;
+  position: fixed;
+  top: 0;
+  width: 100%;
+  z-index: 1400;
+}
+.search-popup {
+  background: #fff;
+  border-radius: 5px;
+  color: #333;
+  display: none;
+  height: 80%;
+  left: 50%;
+  margin-left: -350px;
+  padding: 0;
+  position: fixed;
+  top: 10%;
+  width: 700px;
+  z-index: 1500;
+}
+@media (max-width: 767px) {
+  .search-popup {
+    border-radius: 0;
+    height: 100%;
+    left: 0;
+    margin: 0;
+    padding: 0;
+    top: 0;
+    width: 100%;
+  }
+}
+.search-popup .search-icon,
+.search-popup .popup-btn-close {
+  color: #999;
+  display: inline-block;
+  font-size: 18px;
+  height: 36px;
+  padding-left: 10px;
+  padding-right: 10px;
+  width: 18px;
+}
+.search-popup .popup-btn-close {
+  border-left: 1px solid #eee;
+  cursor: pointer;
+  float: right;
+}
+.search-popup .popup-btn-close:hover .fa {
+  color: #222;
+}
+.search-popup .search-header {
+  background: #f5f5f5;
+  border-top-left-radius: 5px;
+  border-top-right-radius: 5px;
+  padding: 5px;
+}
+.search-input {
+  display: inline-block;
+  width: calc(90% - 30px);
+}
+.search-input input {
+  background: transparent;
+  border: 0;
+  outline: 0;
+  padding: 5px 0;
+  width: 100%;
+}
+.search-input .ais-search-box--magnifier svg,
+.search-input .ais-search-box--reset svg {
+  display: none;
+}
+.algolia-powered {
+  float: right;
+}
+.algolia-powered img {
+  display: inline-block;
+  height: 18px;
+  vertical-align: middle;
+}
+.algolia-results {
+  height: calc(100% - 55px);
+  overflow: auto;
+  padding: 5px 30px;
+  position: relative;
+}
+.algolia-results hr {
+  margin: 10px 0;
+}
+.algolia-results .highlight {
+  color: #f00;
+  font-size: inherit;
+  font-style: normal;
+  margin: 0;
+  padding: 0 2px;
+}
+.algolia-hits {
+  margin-top: 20px;
+}
+.algolia-hit-item {
+  margin: 15px 0;
+}
+.algolia-hit-item-link {
+  border-bottom: 1px dashed #ccc;
+  display: block;
+  transition-delay: 0s;
+  transition-duration: 0.2s;
+  transition-timing-function: ease-in-out;
+}
+.algolia-pagination .pagination {
+  border-top: none;
+  margin: 40px 0;
+  opacity: 1;
+  padding: 0;
+}
+.algolia-pagination .pagination-item {
+  display: inline-block;
+}
+.algolia-pagination .page-number {
+  border-top: none;
+}
+.algolia-pagination .page-number:hover {
+  border-bottom: 1px solid #222;
+}
+.algolia-pagination .disabled-item {
+  visibility: hidden;
+}
+.header {
+  margin: 0 auto;
+  position: relative;
+  width: calc(100% - 20px);
+}
+@media (min-width: 1200px) {
+  .header {
+    width: 1160px;
+  }
+}
+@media (min-width: 1600px) {
+  .header {
+    width: 73%;
+  }
+}
+@media (max-width: 991px) {
+  .header {
+    width: auto;
+  }
+}
+.header-inner {
+  background: #fff;
+  border-radius: initial;
+  box-shadow: 0 2px 2px 0 rgba(0,0,0,0.12), 0 3px 1px -2px rgba(0,0,0,0.06), 0 1px 5px 0 rgba(0,0,0,0.12);
+  overflow: hidden;
+  padding: 0;
+  position: absolute;
+  top: 0;
+  width: 240px;
+}
+@media (min-width: 1200px) {
+  .header-inner {
+    width: 240px;
+  }
+}
+@media (max-width: 991px) {
+  .header-inner {
+    border-radius: initial;
+    position: relative;
+    width: auto;
+  }
+}
+.main::before,
+.main::after {
+  content: ' ';
+  display: table;
+}
+.main::after {
+  clear: both;
+}
+@media (max-width: 991px) {
+  .main-inner {
+    width: auto;
+  }
+}
+.content-wrap {
+  background: #fff;
+  border-radius: initial;
+  box-shadow: 0 2px 2px 0 rgba(0,0,0,0.12), 0 3px 1px -2px rgba(0,0,0,0.06), 0 1px 5px 0 rgba(0,0,0,0.12);
+  box-sizing: border-box;
+  float: right;
+  padding: 40px;
+  width: calc(100% - 252px);
+}
+@media (max-width: 991px) {
+  .content-wrap {
+    border-radius: initial;
+    padding: 20px;
+    width: 100%;
+  }
+}
+.sidebar {
+  background: #eee;
+  box-shadow: none;
+  float: left;
+  position: static;
+  width: 240px;
+}
+@media (max-width: 991px) {
+  .sidebar {
+    display: none;
+  }
+}
+.sidebar-toggle {
+  display: none;
+}
+.footer-inner {
+  padding-left: 260px;
+}
+.back-to-top {
+  left: auto;
+  right: 30px;
+}
+@media (max-width: 991px) {
+  .back-to-top {
+    right: 20px;
+  }
+}
+@media (max-width: 991px) {
+  .footer-inner {
+    padding-left: 0;
+    padding-right: 0;
+    width: auto;
+  }
+}
+.site-brand-container {
+  position: relative;
+}
+.site-meta {
+  background: #222;
+  color: #fff;
+  padding: 20px 0;
+}
+@media (max-width: 991px) {
+  .site-meta {
+    box-shadow: 0 0 16px rgba(0,0,0,0.5);
+  }
+}
+.brand {
+  background: none;
+  padding: 0;
+}
+.brand:hover {
+  color: #fff;
+}
+.site-subtitle {
+  font-weight: initial;
+  margin: 10px 10px 0;
+}
+.custom-logo-image {
+  margin-top: 20px;
+}
+@media (max-width: 991px) {
+  .custom-logo-image {
+    display: none;
+  }
+}
+.site-nav-toggle {
+  left: 20px;
+  top: 50%;
+  transform: translateY(-50%);
+}
+@media (min-width: 768px) and (max-width: 991px) {
+  .site-nav-toggle {
+    display: block;
+  }
+}
+.site-nav-toggle .toggle .toggle-line {
+  background: #fff;
+}
+.site-nav {
+  border-top: none;
+}
+@media (min-width: 768px) and (max-width: 991px) {
+  .site-nav {
+    display: none;
+  }
+}
+.menu-item-active a,
+.menu .menu-item a:hover,
+.menu .menu-item span.exturl:hover {
+  background: #f5f5f5;
+}
+.menu-item-active a::after,
+.menu .menu-item a:hover::after,
+.menu .menu-item span.exturl:hover::after {
+  background: #bbb;
+  border-radius: 50%;
+  content: ' ';
+  height: 6px;
+  margin-top: -3px;
+  position: absolute;
+  right: 15px;
+  top: 50%;
+  width: 6px;
+}
+.menu .menu-item {
+  display: block;
+  margin: 0;
+}
+.menu .menu-item a,
+.menu .menu-item span.exturl {
+  padding: 5px 20px;
+  position: relative;
+  text-align: left;
+  transition-property: background-color;
+}
+.menu .menu-item .badge {
+  background: #ccc;
+  border-radius: 10px;
+  color: #fff;
+  float: right;
+  padding: 2px 5px;
+  text-shadow: 1px 1px 0 rgba(0,0,0,0.1);
+  vertical-align: middle;
+}
+.sub-menu {
+  background: #fff;
+  border-bottom: 1px solid #ddd;
+  margin: 0;
+  padding: 6px 0;
+}
+.sub-menu .menu-item {
+  display: inline-block;
+}
+.sub-menu .menu-item a,
+.sub-menu .menu-item span.exturl {
+  margin: 5px 10px;
+  padding: initial;
+}
+.sub-menu .menu-item a:hover,
+.sub-menu .menu-item span.exturl:hover {
+  background: initial;
+  color: #fc6423;
+}
+.sub-menu .menu-item a::after,
+.sub-menu .menu-item span.exturl::after {
+  content: initial !important;
+}
+.sub-menu .menu-item-active a {
+  background: #fff;
+  border-bottom-color: #fc6423;
+  color: #fc6423;
+}
+.sub-menu .menu-item-active a:hover {
+  background: #fff;
+  border-bottom-color: #fc6423;
+}
+.sidebar {
+  bottom: auto;
+  right: auto;
+}
+.sidebar a,
+.sidebar span.exturl {
+  color: #555;
+}
+.sidebar a:hover,
+.sidebar span.exturl:hover {
+  border-bottom-color: #222;
+  color: #222;
+}
+.sidebar-inner {
+  background: #fff;
+  border-radius: initial;
+  box-shadow: 0 2px 2px 0 rgba(0,0,0,0.12), 0 3px 1px -2px rgba(0,0,0,0.06), 0 1px 5px 0 rgba(0,0,0,0.12), 0 -1px 0.5px 0 rgba(0,0,0,0.09);
+  box-sizing: border-box;
+  color: #555;
+  width: 240px;
+  opacity: 0;
+}
+.sidebar-inner.affix {
+  position: fixed;
+  top: 12px;
+}
+.sidebar-inner.affix-bottom {
+  position: absolute;
+}
+.site-state-item {
+  padding: 0 10px;
+}
+.feed-link,
+.chat {
+  border-bottom: 1px dotted #ccc;
+  border-top: 1px dotted #ccc;
+  margin-top: 10px;
+  text-align: center;
+}
+.feed-link a,
+.chat a {
+  border: 0;
+  color: #fc6423;
+  display: block;
+}
+.feed-link a:hover,
+.chat a:hover {
+  background: none;
+  border: 0;
+  color: #e34603;
+}
+.feed-link a:hover .fa,
+.chat a:hover .fa {
+  color: #e34603;
+}
+.links-of-author {
+  display: flex;
+  flex-wrap: wrap;
+  margin-top: 10px;
+  justify-content: center;
+}
+.links-of-author-item {
+  margin: 5px 0 0;
+}
+.links-of-author-item a,
+.links-of-author-item span.exturl {
+  box-sizing: border-box;
+  display: inline-block;
+  margin-bottom: 0;
+  margin-right: 0;
+  max-width: 216px;
+  overflow: hidden;
+  padding: 0 5px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.links-of-author-item a,
+.links-of-author-item span.exturl {
+  border-bottom: none;
+  display: block;
+  text-decoration: none;
+}
+.links-of-author-item a::before,
+.links-of-author-item span.exturl::before {
+  display: none;
+}
+.links-of-author-item a:hover,
+.links-of-author-item span.exturl:hover {
+  background: #eee;
+  border-radius: 4px;
+}
+.links-of-author-item .fa {
+  margin-right: 2px;
+}
+.links-of-blogroll-item {
+  padding: 0;
+}
+.content-wrap {
+  background: initial;
+  box-shadow: initial;
+  padding: initial;
+}
+.post-block {
+  background: #fff;
+  border-radius: initial;
+  box-shadow: 0 2px 2px 0 rgba(0,0,0,0.12), 0 3px 1px -2px rgba(0,0,0,0.06), 0 1px 5px 0 rgba(0,0,0,0.12);
+  padding: 40px;
+}
+.post-block + .post-block {
+  border-radius: initial;
+  box-shadow: 0 2px 2px 0 rgba(0,0,0,0.12), 0 3px 1px -2px rgba(0,0,0,0.06), 0 1px 5px 0 rgba(0,0,0,0.12), 0 -1px 0.5px 0 rgba(0,0,0,0.09);
+  margin-top: 12px;
+}
+.comments {
+  background: #fff;
+  border-radius: initial;
+  box-shadow: 0 2px 2px 0 rgba(0,0,0,0.12), 0 3px 1px -2px rgba(0,0,0,0.06), 0 1px 5px 0 rgba(0,0,0,0.12), 0 -1px 0.5px 0 rgba(0,0,0,0.09);
+  margin: auto;
+  margin-top: 12px;
+  padding: 40px;
+}
+.tabs-comment {
+  margin-top: 1em;
+}
+.posts-expand {
+  padding-top: initial;
+}
+.post-nav-divider {
+  width: 4%;
+}
+.post-nav-item {
+  width: 48%;
+}
+.post-eof {
+  display: none;
+}
+.pagination {
+  background: #fff;
+  border-radius: initial;
+  border-top: initial;
+  box-shadow: 0 2px 2px 0 rgba(0,0,0,0.12), 0 3px 1px -2px rgba(0,0,0,0.06), 0 1px 5px 0 rgba(0,0,0,0.12), 0 -1px 0.5px 0 rgba(0,0,0,0.09);
+  margin: 12px 0 0;
+  padding: 10px 0 10px;
+}
+.pagination .prev,
+.pagination .next,
+.pagination .page-number {
+  margin-bottom: initial;
+  top: initial;
+}
+.main {
+  padding-bottom: initial;
+}
+.footer {
+  bottom: auto;
+}
+.sub-menu {
+  border-bottom: initial;
+  box-shadow: 0 2px 2px 0 rgba(0,0,0,0.12), 0 3px 1px -2px rgba(0,0,0,0.06), 0 1px 5px 0 rgba(0,0,0,0.12);
+}
+.sub-menu + .content .post-block {
+  box-shadow: 0 2px 2px 0 rgba(0,0,0,0.12), 0 3px 1px -2px rgba(0,0,0,0.06), 0 1px 5px 0 rgba(0,0,0,0.12), 0 -1px 0.5px 0 rgba(0,0,0,0.09);
+  margin-top: 12px;
+}
+@media (min-width: 768px) and (max-width: 991px) {
+  .sub-menu + .content .post-block {
+    margin-top: 10px;
+  }
+}
+@media (max-width: 767px) {
+  .sub-menu + .content .post-block {
+    margin-top: 8px;
+  }
+}
+.post-body h1,
+.post-body h2 {
+  border-bottom: 1px solid #eee;
+}
+.post-body h3 {
+  border-bottom: 1px solid #eee;
+}
+.post-body h4 {
+  border-bottom: 1px dotted #eee;
+}
+@media (min-width: 768px) and (max-width: 991px) {
+  .content-wrap {
+    padding: 10px;
+  }
+  .posts-expand {
+    margin: initial;
+  }
+  .posts-expand .post-button {
+    margin-top: 20px;
+  }
+  .post-block {
+    border-radius: initial;
+    box-shadow: 0 2px 2px 0 rgba(0,0,0,0.12), 0 3px 1px -2px rgba(0,0,0,0.06), 0 1px 5px 0 rgba(0,0,0,0.12), 0 -1px 0.5px 0 rgba(0,0,0,0.09);
+    padding: 20px;
+  }
+  .post-block + .post-block {
+    margin-top: 10px;
+  }
+  .comments {
+    margin-top: 10px;
+    padding: 10px 20px;
+  }
+  .pagination {
+    margin: 10px 0 0;
+  }
+}
+@media (max-width: 767px) {
+  .content-wrap {
+    padding: 8px;
+  }
+  .posts-expand {
+    margin: initial;
+  }
+  .posts-expand .post-button {
+    margin: 12px 0;
+  }
+  .post-block {
+    border-radius: initial;
+    box-shadow: 0 2px 2px 0 rgba(0,0,0,0.12), 0 3px 1px -2px rgba(0,0,0,0.06), 0 1px 5px 0 rgba(0,0,0,0.12), 0 -1px 0.5px 0 rgba(0,0,0,0.09);
+    min-height: auto;
+    padding: 12px;
+  }
+  .post-block + .post-block {
+    margin-top: 8px;
+  }
+  .comments {
+    margin-top: 8px;
+    padding: 10px 12px;
+  }
+  .pagination {
+    margin: 8px 0 0;
+  }
+}</style><noscript>
+  <style>
+  .use-motion .brand,
+  .use-motion .menu-item,
+  .sidebar-inner,
+  .use-motion .post-block,
+  .use-motion .pagination,
+  .use-motion .comments,
+  .use-motion .post-header,
+  .use-motion .post-body,
+  .use-motion .collection-header { opacity: initial; }
+
+  .use-motion .site-title,
+  .use-motion .site-subtitle {
+    opacity: initial;
+    top: initial;
+  }
+
+  .use-motion .logo-line-before i { left: initial; }
+  .use-motion .logo-line-after i { right: initial; }
+  </style>
+</noscript>
+
+<script>function loadCss(l){var d=document,h=d.head,s=d.createElement('link');s.rel='stylesheet';s.href=l;!function e(f){if (d.body)return f();setTimeout(function(){e(f)})}(function(){h.appendChild(s);});}loadCss('/style.css');loadCss('//fonts.googleapis.com/css?family=Monda:300,300italic,400,400italic,700,700italic|Roboto Slab:300,300italic,400,400italic,700,700italic|PT Mono:300,300italic,400,400italic,700,700italic&display=swap&subset=latin,latin-ext');loadCss('//cdn.jsdelivr.net/npm/instantsearch.js@2/dist/instantsearch.min.css');loadCss('//cdn.jsdelivr.net/npm/gitalk@1/dist/gitalk.min.css');</script><noscript><link rel="stylesheet" href="/style.css"><link rel="stylesheet" href="//fonts.googleapis.com/css?family=Monda:300,300italic,400,400italic,700,700italic|Roboto Slab:300,300italic,400,400italic,700,700italic|PT Mono:300,300italic,400,400italic,700,700italic&amp;display=swap&amp;subset=latin,latin-ext"><link rel="stylesheet" href="//cdn.jsdelivr.net/npm/instantsearch.js@2/dist/instantsearch.min.css"><link rel="stylesheet" href="//cdn.jsdelivr.net/npm/gitalk@1/dist/gitalk.min.css"></noscript></head>
+
+<body itemscope="" itemtype="http://schema.org/WebPage">
+  <div class="container use-motion">
+    <div class="headband"></div>
+
+    <header class="header" itemscope="" itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-container">
+  <div class="site-meta">
+
+    <div>
+      <a href="/" class="brand" rel="start">
+        <span class="logo-line-before"><i></i></span>
+        <span class="site-title">贝克街的流浪猫</span>
+        <span class="logo-line-after"><i></i></span>
+      </a>
+    </div>
+        <h1 class="site-subtitle" itemprop="description">技术博客</h1>
+      
+  </div>
+
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="切换导航栏">
+      <span class="toggle-line toggle-line-first"></span>
+      <span class="toggle-line toggle-line-middle"></span>
+      <span class="toggle-line toggle-line-last"></span>
+    </div>
+  </div>
+</div>
+
+
+<nav class="site-nav">
+  
+  <ul id="menu" class="menu">
+        <li class="menu-item menu-item-home">
+
+    <a href="/" rel="section"><i class="fa fa-fw fa-home"></i>首页</a>
+
+  </li>
+        <li class="menu-item menu-item-tags">
+
+    <a href="/tags/" rel="section"><i class="fa fa-fw fa-tags"></i>标签</a>
+
+  </li>
+        <li class="menu-item menu-item-categories">
+
+    <a href="/categories/" rel="section"><i class="fa fa-fw fa-th"></i>分类</a>
+
+  </li>
+        <li class="menu-item menu-item-archives">
+
+    <a href="/archives/" rel="section"><i class="fa fa-fw fa-archive"></i>归档</a>
+
+  </li>
+        <li class="menu-item menu-item-about">
+
+    <a href="/about/" rel="section"><i class="fa fa-fw fa-user"></i>关于</a>
+
+  </li>
+      <li class="menu-item menu-item-search">
+        <a role="button" class="popup-trigger"><i class="fa fa-search fa-fw"></i>搜索
+        </a>
+      </li>
+  </ul>
+
+</nav>
+  <div class="site-search">
+    <div class="popup search-popup">
+    <div class="search-header">
+  <span class="search-icon">
+    <i class="fa fa-search"></i>
+  </span>
+  <div class="search-input" id="search-input"></div>
+  <span class="popup-btn-close">
+    <i class="fa fa-times-circle"></i>
+  </span>
+</div>
+<div class="algolia-results">
+  <div id="algolia-stats"></div>
+  <div id="algolia-hits"></div>
+  <div id="algolia-pagination" class="algolia-pagination"></div>
+</div>
+
+  
+</div>
+<div class="search-pop-overlay"></div>
+
+  </div>
+</div>
+    </header>
+
+    
+
+  <span class="exturl github-corner" data-url="aHR0cHM6Ly9naXRodWIuY29tL0JlaUtlSmllRGVMaXVMYW5nTWFv" title="欢迎关注我的 GitHub" aria-label="欢迎关注我的 GitHub"><svg width="80" height="80" viewBox="0 0 250 250" aria-hidden="true"><path d="M0,0 L115,115 L130,115 L142,142 L250,250 L250,0 Z"></path><path d="M128.3,109.0 C113.8,99.7 119.0,89.6 119.0,89.6 C122.0,82.7 120.5,78.6 120.5,78.6 C119.2,72.0 123.4,76.3 123.4,76.3 C127.3,80.9 125.5,87.3 125.5,87.3 C122.9,97.6 130.6,101.9 134.4,103.2" fill="currentColor" style="transform-origin: 130px 106px;" class="octo-arm"></path><path d="M115.0,115.0 C114.9,115.1 118.7,116.5 119.8,115.4 L133.7,101.6 C136.9,99.2 139.9,98.4 142.2,98.6 C133.8,88.0 127.5,74.4 143.8,58.0 C148.5,53.4 154.0,51.2 159.7,51.0 C160.3,49.4 163.2,43.6 171.4,40.1 C171.4,40.1 176.1,42.5 178.8,56.2 C183.1,58.6 187.2,61.8 190.9,65.4 C194.5,69.0 197.7,73.2 200.1,77.6 C213.8,80.2 216.3,84.9 216.3,84.9 C212.7,93.1 206.9,96.0 205.4,96.6 C205.1,102.4 203.0,107.8 198.3,112.5 C181.9,128.9 168.3,122.5 157.7,114.1 C157.9,116.9 156.7,120.9 152.7,124.9 L141.0,136.5 C139.8,137.7 141.6,141.9 141.8,141.8 Z" fill="currentColor" class="octo-body"></path></svg></span>
+
+
+    <main class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          
+
+          <div class="content">
+            
+
+  <div class="posts-expand">
+      
+  
+  
+  <article itemscope="" itemtype="http://schema.org/Article" class="post-block " lang="zh-CN">
+    <link itemprop="mainEntityOfPage" href="https://www.beikejiedeliulangmao.top/network/build-network-test-environment/">
+
+    <span hidden="" itemprop="author" itemscope="" itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.jpg">
+      <meta itemprop="name" content="贝克街的流浪猫">
+      <meta itemprop="description" content="贝贝猫">
+    </span>
+
+    <span hidden="" itemprop="publisher" itemscope="" itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="贝克街的流浪猫">
+    </span>
+      <header class="post-header">
+        <h2 class="post-title" itemprop="name headline">
+          在 CentOS 上构建无线网络测试环境
+        </h2>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="fa fa-calendar-o"></i>
+              </span>
+              <span class="post-meta-item-text">发表于</span>
+
+              <time title="创建时间：2019-12-03 18:27:06" itemprop="dateCreated datePublished" datetime="2019-12-03T18:27:06+08:00">2019-12-03</time>
+            </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="fa fa-folder-o"></i>
+              </span>
+              <span class="post-meta-item-text">分类于</span>
+                <span itemprop="about" itemscope="" itemtype="http://schema.org/Thing">
+                  <a href="/categories/Network/" itemprop="url" rel="index">
+                    <span itemprop="name">Network</span>
+                  </a>
+                </span>
+            </span>
+
+          
+            <span id="/network/build-network-test-environment/" class="post-meta-item leancloud_visitors" data-flag-title="在 CentOS 上构建无线网络测试环境" title="阅读次数">
+              <span class="post-meta-item-icon">
+                <i class="fa fa-eye"></i>
+              </span>
+              <span class="post-meta-item-text">阅读次数：</span>
+              <span class="leancloud-visitors-count"></span>
+            </span><br>
+            <span class="post-meta-item" title="本文字数">
+              <span class="post-meta-item-icon">
+                <i class="fa fa-file-word-o"></i>
+              </span>
+                <span class="post-meta-item-text">本文字数：</span>
+              <span>27k</span>
+            </span>
+            <span class="post-meta-item" title="阅读时长">
+              <span class="post-meta-item-icon">
+                <i class="fa fa-clock-o"></i>
+              </span>
+                <span class="post-meta-item-text">阅读时长 ≈</span>
+              <span>25 分钟</span>
+            </span>
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+        <h2 id="引言"><a href="#引言" class="headerlink" title="引言"></a>引言</h2><p>前段时间，我负责的远程控制手机的功能新加了动态修改手机端网络延迟的功能（网络测试），所以当时 Infra 团队为我们构建了一个 WiFi 网络环境，并通过两台 Linux 主机进行实际的网络控制。不过后来我们对其软件解决方案进行了改善，使其不仅能够修改网络的延迟，还能够修改网络的带宽和丢包情况，本文就介绍了这整个实现方案。</p>
+<a id="more"></a>
+
+<h2 id="网络结构"><a href="#网络结构" class="headerlink" title="网络结构"></a>网络结构</h2><p><img src="/images/loading-cat.gif" data-original="https://bbm-hexo.oss-accelerate.aliyuncs.com/images/network-test/network-instructure.png" alt="network-instructure"><br>上图是整个 WiFi 网络环境的结构的简化图。</p>
+<ol>
+<li>同一 WiFi 由多个 AP 负责，它们使用同一个 SSID，密码，但是工作在不同的信道上。当任一 AP 故障时，连在 L3 交换机上的无线网络控制器，将负责故障的无缝转移。</li>
+<li>整个网络链路中，从 AP 开始到 Linux Server 上，均采用了链路聚合技术，而且呈网状连接，来达到容灾和负载均衡的功效。</li>
+<li>其中 L3 交换机部分，采用了 VRRP 协议组建成一个虚拟路由器冗余。</li>
+</ol>
+<blockquote>
+<p>链路聚合（英语：Link Aggregation）是一个计算机网络术语，指将多个物理端口汇聚在一起，形成一个逻辑端口，以实现出/入流量吞吐量在各成员端口的负荷分担，交换机根据用户配置的端口负荷分担策略决定网络封包从哪个成员端口发送到对端的交换机。当交换机检测到其中一个成员端口的链路发生故障时，就停止在此端口上发送封包，并根据负荷分担策略在剩下的链路中重新计算报文的发送端口，故障端口恢复后再次担任收发端口。链路聚合在增加链路带宽、实现链路传输弹性和工程冗余等方面是一项很重要的技术。<br>    <img src="/images/loading-cat.gif" data-original="https://bbm-hexo.oss-accelerate.aliyuncs.com/images/network-test/link-aggregation.png" alt="link-aggregation"><br>VRRP（Virtual Router Redundancy Protocol，虚拟路由器冗余协议）将可以承担网关功能的一组路由器加入到备份组中，形成一台虚拟路由器，这样主机的网关设置成虚拟网关，就能够实现冗余。<br>VRRP 将局域网内的一组路由器划分在一起，称为一个备份组。备份组由一个 Master 路由器和多个 Backup 路由器组成，功能上相当于一台虚拟路由器。<br>VRRP 备份组具有以下特点：</p>
+<ol>
+<li>虚拟路由器具有 IP 地址，称为虚拟 IP 地址。局域网内的主机仅需要知道这个虚拟路由器的 IP 地址，并将其设置为缺省路由的下一跳地址。</li>
+<li>网络内的主机通过这个虚拟路由器与外部网络进行通信。</li>
+<li>备份组内的路由器根据优先级，选举出 Master 路由器，承担网关功能。其他路由器作为 Backup 路由器，当 Master 路由器发生故障时，取代 Master 继续履行网关职责，从而保证网络内的主机不间断地与外部网络进行通信。</li>
+</ol>
+<p><img src="/images/loading-cat.gif" data-original="https://bbm-hexo.oss-accelerate.aliyuncs.com/images/network-test/VRRP.png" alt="VRRP"></p>
+</blockquote>
+<p>关于偏硬件这部分的内容，可能我的理解也不一定正确，如果哪位同学发现我理解的有问题，还望留言告诉我。</p>
+<h2 id="Linux-网络接口配置"><a href="#Linux-网络接口配置" class="headerlink" title="Linux 网络接口配置"></a>Linux 网络接口配置</h2><p>因为和 Linux Server 直接相连的的是一个基于 VRRP 的虚拟冗余路由，而且 Linux Server 上也使用了动态链路聚合技术，所以每台 Linux Server 上都有 4 个网络接口，每一个 L3 交换机会使用到其中的两个接口，这两个接口会聚合在一起。<br><img src="/images/loading-cat.gif" data-original="https://bbm-hexo.oss-accelerate.aliyuncs.com/images/network-test/linux-interface.png" alt="linux-interface"><br>在每台 Linux Server 上有四个物理网卡，它们两两组合。通过 Linux 提供的网卡 bonding 功能聚合在一起。不过在下面的介绍中，因为我没有可供实验的实体机，所以我将采用 2 对 veth peer 虚拟网卡的方式模拟 Linux Server 和一台 L3 交换机的连接过程。</p>
+<p>我这里创建了 2 对 veth peer 网卡，假设 veth1 veth3 是在 L3 交换机上的两个网卡，这样就能模拟出 Linux Server 与 L3 交换机之间通过两条网线连通，Linux Server 和 L3 交换机上各有 2 个网络接口的效果。</p>
+<figure class="highlight bash"><table><tbody><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># 创建两对 veth peer</span></span><br><span class="line">ip link add veth0 <span class="built_in">type</span> veth peer name veth1</span><br><span class="line">ip link add veth2 <span class="built_in">type</span> veth peer name veth3</span><br><span class="line"><span class="comment"># 启动四个 veth 接口</span></span><br><span class="line">ip link <span class="built_in">set</span> veth0 up</span><br><span class="line">ip link <span class="built_in">set</span> veth2 up</span><br><span class="line">ip link <span class="built_in">set</span> veth1 up</span><br><span class="line">ip link <span class="built_in">set</span> veth3 up</span><br><span class="line"><span class="comment"># 确认 Linux Server 上的网络接口</span></span><br><span class="line">ip addr</span><br><span class="line">1: lo: &lt;LOOPBACK,UP,LOWER_UP&gt; mtu 65536 qdisc noqueue state UNKNOWN group default qlen 1000</span><br><span class="line">    link/loopback 00:00:00:00:00:00 brd 00:00:00:00:00:00</span><br><span class="line">    inet 127.0.0.1/8 scope host lo</span><br><span class="line">       valid_lft forever preferred_lft forever</span><br><span class="line">2: eth0: &lt;BROADCAST,MULTICAST,UP,LOWER_UP&gt; mtu 1500 qdisc pfifo_fast state UP group default qlen 1000</span><br><span class="line">    link/ether fa:16:3f:ad:<span class="built_in">cd</span>:f8 brd ff:ff:ff:ff:ff:ff</span><br><span class="line">    inet 10.231.227.166/18 brd 10.231.255.255 scope global dynamic eth0</span><br><span class="line">       valid_lft 3492sec preferred_lft 3492sec</span><br><span class="line">3: veth3@veth2: &lt;BROADCAST,MULTICAST,UP,LOWER_UP&gt; mtu 1500 qdisc noqueue state UP group default qlen 1000</span><br><span class="line">    link/ether 62:30:f1:52:80:e2 brd ff:ff:ff:ff:ff:ff</span><br><span class="line">4: veth2@veth3: &lt;BROADCAST,MULTICAST,UP,LOWER_UP&gt; mtu 1500 qdisc noqueue state UP group default qlen 1000</span><br><span class="line">    link/ether b2:96:e5:2d:46:db brd ff:ff:ff:ff:ff:ff</span><br><span class="line">5: veth1@veth0: &lt;BROADCAST,MULTICAST,UP,LOWER_UP&gt; mtu 1500 qdisc noqueue state UP group default qlen 1000</span><br><span class="line">    link/ether 62:b0:ec:1e:03:b6 brd ff:ff:ff:ff:ff:ff</span><br><span class="line">6: veth0@veth1: &lt;BROADCAST,MULTICAST,UP,LOWER_UP&gt; mtu 1500 qdisc noqueue state UP group default qlen 1000</span><br><span class="line">    link/ether a6:04:98:44:<span class="built_in">cd</span>:5f brd ff:ff:ff:ff:ff:ff</span><br></pre></td></tr></tbody></table></figure>
+
+<p>接下来，我们创建两个 bond 将 Linux Server 上这两对 veth 网卡聚合在一起，这需要修改 <code>/etc/sysconfig/network-scripts/</code> 下的网卡配置。</p>
+<figure class="highlight bash"><table><tbody><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># 注意 DEVICE 需要和 ifcfg- 后面的文本内容一致，HWADDR 要和设备 MAC 地址一致</span></span><br><span class="line">vi /etc/sysconfig/network-scripts/ifcfg-bond0</span><br><span class="line">DEVICE=bond0</span><br><span class="line">ONBOOT=yes</span><br><span class="line">BOOTPROTO=static</span><br><span class="line">USERCTL=no</span><br><span class="line">BONDING_OPTS=<span class="string">"miimon=100 mode=4 xmit_hash_policy=2"</span></span><br><span class="line"></span><br><span class="line">vi /etc/sysconfig/network-scripts/ifcfg-bond1</span><br><span class="line">DEVICE=bond1</span><br><span class="line">ONBOOT=yes</span><br><span class="line">BOOTPROTO=static</span><br><span class="line">USERCTL=no</span><br><span class="line">BONDING_OPTS=<span class="string">"miimon=100 mode=4 xmit_hash_policy=2"</span></span><br><span class="line"></span><br><span class="line">vi /etc/sysconfig/network-scripts/ifcfg-veth0</span><br><span class="line">DEVICE=veth0</span><br><span class="line">ONBOOT=yes</span><br><span class="line">USERCTL=no</span><br><span class="line">MASTER=bond0</span><br><span class="line">SLAVE=yes</span><br><span class="line">BOOTPROTO=no</span><br><span class="line">HWADDR=a6:04:98:44:<span class="built_in">cd</span>:5f</span><br><span class="line"></span><br><span class="line">vi /etc/sysconfig/network-scripts/ifcfg-veth1</span><br><span class="line">DEVICE=veth1</span><br><span class="line">ONBOOT=yes</span><br><span class="line">USERCTL=no</span><br><span class="line">MASTER=bond1</span><br><span class="line">SLAVE=yes</span><br><span class="line">BOOTPROTO=no</span><br><span class="line">HWADDR=62:b0:ec:1e:03:b6</span><br><span class="line"></span><br><span class="line">vi /etc/sysconfig/network-scripts/ifcfg-veth2</span><br><span class="line">DEVICE=veth2</span><br><span class="line">ONBOOT=yes</span><br><span class="line">USERCTL=no</span><br><span class="line">MASTER=bond0</span><br><span class="line">SLAVE=yes</span><br><span class="line">BOOTPROTO=no</span><br><span class="line">HWADDR=b2:96:e5:2d:46:db</span><br><span class="line"></span><br><span class="line">vi /etc/sysconfig/network-scripts/ifcfg-veth3</span><br><span class="line">DEVICE=veth3</span><br><span class="line">ONBOOT=yes</span><br><span class="line">USERCTL=no</span><br><span class="line">MASTER=bond1</span><br><span class="line">SLAVE=yes</span><br><span class="line">BOOTPROTO=no</span><br><span class="line">HWADDR=62:30:f1:52:80:e2</span><br></pre></td></tr></tbody></table></figure>
+
+<p>在上述的配置中，我们先是创建了 bond0 和 bond1 网络接口，我们通过它们来 bonding 另外两对虚拟网卡，<code>BONDING_OPTS="miimon=100 mode=4 xmit_hash_policy=2</code> 说明这个 bond 接口我们使用了模式 4，也就是前面所说的 IEEE 802.3ad 动态链路聚合，连通性检查的间隔为 100 ms, <code>xmit_hash_policy=2</code> 表示哈希策略是 layer2 + layer3，根据 MAC 和 IP 地址进行。而另外两对虚拟网卡的配置中，需要设定其从属于其中一个 bond。</p>
+<p>配置完成后，我们重启网络模块，启用 bond0 接口并查看，就能看到刚才创建出的 bond0 接口，它的 MAC 地址会变成 veth0 的 MAC，此外 veth2 也会将自己的 MAC 地址虚拟为 veth0 的 MAC，bond1 网卡的情况也类似。</p>
+<figure class="highlight bash"><table><tbody><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># 重启网络</span></span><br><span class="line">service NetworkManager restart</span><br><span class="line">Redirecting to /bin/systemctl restart NetworkManager.service</span><br><span class="line"></span><br><span class="line">service network restart</span><br><span class="line"></span><br><span class="line">ip link <span class="built_in">set</span> bond0 up</span><br><span class="line">ip link <span class="built_in">set</span> bond1 up</span><br><span class="line"><span class="comment"># 确认当前 Linux Server 网络状况</span></span><br><span class="line">ip addr</span><br><span class="line">1: lo: &lt;LOOPBACK,UP,LOWER_UP&gt; mtu 65536 qdisc noqueue state UNKNOWN group default qlen 1000</span><br><span class="line">    link/loopback 00:00:00:00:00:00 brd 00:00:00:00:00:00</span><br><span class="line">    inet 127.0.0.1/8 scope host lo</span><br><span class="line">       valid_lft forever preferred_lft forever</span><br><span class="line">2: eth0: &lt;BROADCAST,MULTICAST,UP,LOWER_UP&gt; mtu 1500 qdisc pfifo_fast state UP group default qlen 1000</span><br><span class="line">    link/ether fa:16:3f:ad:<span class="built_in">cd</span>:f8 brd ff:ff:ff:ff:ff:ff</span><br><span class="line">    inet x.x.x.x/18 brd 10.231.255.255 scope global dynamic eth0</span><br><span class="line">       valid_lft 3063sec preferred_lft 3063sec</span><br><span class="line">3: veth3@veth2: &lt;BROADCAST,MULTICAST,SLAVE,UP,LOWER_UP&gt; mtu 1500 qdisc noqueue master bond1 state UP group default qlen 1000</span><br><span class="line">    link/ether 62:b0:ec:1e:03:b6 brd ff:ff:ff:ff:ff:ff</span><br><span class="line">4: veth2@veth3: &lt;BROADCAST,MULTICAST,SLAVE,UP,LOWER_UP&gt; mtu 1500 qdisc noqueue master bond0 state UP group default qlen 1000</span><br><span class="line">    link/ether a6:04:98:44:<span class="built_in">cd</span>:5f brd ff:ff:ff:ff:ff:ff</span><br><span class="line">5: veth1@veth0: &lt;BROADCAST,MULTICAST,SLAVE,UP,LOWER_UP&gt; mtu 1500 qdisc noqueue master bond1 state UP group default qlen 1000</span><br><span class="line">    link/ether 62:b0:ec:1e:03:b6 brd ff:ff:ff:ff:ff:ff</span><br><span class="line">6: veth0@veth1: &lt;BROADCAST,MULTICAST,SLAVE,UP,LOWER_UP&gt; mtu 1500 qdisc noqueue master bond0 state UP group default qlen 1000</span><br><span class="line">    link/ether a6:04:98:44:<span class="built_in">cd</span>:5f brd ff:ff:ff:ff:ff:ff</span><br><span class="line">7: bond1: &lt;BROADCAST,MULTICAST,MASTER,UP,LOWER_UP&gt; mtu 1500 qdisc noqueue state UP group default qlen 1000</span><br><span class="line">    link/ether 62:b0:ec:1e:03:b6 brd ff:ff:ff:ff:ff:ff</span><br><span class="line">8: bond0: &lt;BROADCAST,MULTICAST,MASTER,UP,LOWER_UP&gt; mtu 1500 qdisc noqueue state UP group default qlen 1000</span><br><span class="line">    link/ether a6:04:98:44:<span class="built_in">cd</span>:5f brd ff:ff:ff:ff:ff:ff</span><br></pre></td></tr></tbody></table></figure>
+
+<p>此外，我们还可以通过 <code>/proc/net/bonding/bond0</code> 查看当前 bond0 接口的状态，其中我们会看到该接口的 bonding 模式是动态链路聚合，hash 策略是 layer 2+3，还能看到其下的两块虚拟网卡 veth0 和 veth2 的原始 MAC 和使用的 MAC，以及该聚合链路对端的 MAC 地址，也就是 bond1 的 MAC 地址。同理，bond1 的信息也可以通过类似的方式查看。</p>
+<figure class="highlight bash"><table><tbody><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br><span class="line">73</span><br><span class="line">74</span><br><span class="line">75</span><br><span class="line">76</span><br><span class="line">77</span><br><span class="line">78</span><br><span class="line">79</span><br><span class="line">80</span><br><span class="line">81</span><br><span class="line">82</span><br><span class="line">83</span><br><span class="line">84</span><br><span class="line">85</span><br><span class="line">86</span><br><span class="line">87</span><br><span class="line">88</span><br><span class="line">89</span><br><span class="line">90</span><br><span class="line">91</span><br><span class="line">92</span><br><span class="line">93</span><br><span class="line">94</span><br><span class="line">95</span><br><span class="line">96</span><br><span class="line">97</span><br><span class="line">98</span><br><span class="line">99</span><br><span class="line">100</span><br><span class="line">101</span><br><span class="line">102</span><br><span class="line">103</span><br><span class="line">104</span><br><span class="line">105</span><br><span class="line">106</span><br><span class="line">107</span><br><span class="line">108</span><br><span class="line">109</span><br><span class="line">110</span><br><span class="line">111</span><br><span class="line">112</span><br><span class="line">113</span><br><span class="line">114</span><br><span class="line">115</span><br><span class="line">116</span><br><span class="line">117</span><br><span class="line">118</span><br><span class="line">119</span><br><span class="line">120</span><br><span class="line">121</span><br><span class="line">122</span><br><span class="line">123</span><br><span class="line">124</span><br><span class="line">125</span><br><span class="line">126</span><br><span class="line">127</span><br><span class="line">128</span><br><span class="line">129</span><br><span class="line">130</span><br><span class="line">131</span><br><span class="line">132</span><br><span class="line">133</span><br><span class="line">134</span><br><span class="line">135</span><br><span class="line">136</span><br><span class="line">137</span><br><span class="line">138</span><br><span class="line">139</span><br><span class="line">140</span><br><span class="line">141</span><br><span class="line">142</span><br><span class="line">143</span><br><span class="line">144</span><br><span class="line">145</span><br><span class="line">146</span><br><span class="line">147</span><br><span class="line">148</span><br><span class="line">149</span><br><span class="line">150</span><br><span class="line">151</span><br><span class="line">152</span><br><span class="line">153</span><br></pre></td><td class="code"><pre><span class="line">cat /proc/net/bonding/bond0</span><br><span class="line">Ethernet Channel Bonding Driver: v3.7.1 (April 27, 2011)</span><br><span class="line"></span><br><span class="line">Bonding Mode: IEEE 802.3ad Dynamic link aggregation</span><br><span class="line">Transmit Hash Policy: layer2+3 (2)</span><br><span class="line">MII Status: up</span><br><span class="line">MII Polling Interval (ms): 100</span><br><span class="line">Up Delay (ms): 0</span><br><span class="line">Down Delay (ms): 0</span><br><span class="line"></span><br><span class="line">802.3ad info</span><br><span class="line">LACP rate: slow</span><br><span class="line">Min links: 0</span><br><span class="line">Aggregator selection policy (ad_select): stable</span><br><span class="line">System priority: 65535</span><br><span class="line">System MAC address: a6:04:98:44:<span class="built_in">cd</span>:5f</span><br><span class="line">Active Aggregator Info:</span><br><span class="line">        Aggregator ID: 1</span><br><span class="line">        Number of ports: 2</span><br><span class="line">        Actor Key: 15</span><br><span class="line">        Partner Key: 15</span><br><span class="line">        Partner Mac Address: 62:b0:ec:1e:03:b6</span><br><span class="line"></span><br><span class="line">Slave Interface: veth0</span><br><span class="line">MII Status: up</span><br><span class="line">Speed: 10000 Mbps</span><br><span class="line">Duplex: full</span><br><span class="line">Link Failure Count: 0</span><br><span class="line">Permanent HW addr: a6:04:98:44:<span class="built_in">cd</span>:5f</span><br><span class="line">Slave queue ID: 0</span><br><span class="line">Aggregator ID: 1</span><br><span class="line">Actor Churn State: monitoring</span><br><span class="line">Partner Churn State: monitoring</span><br><span class="line">Actor Churned Count: 0</span><br><span class="line">Partner Churned Count: 0</span><br><span class="line">details actor lacp pdu:</span><br><span class="line">    system priority: 65535</span><br><span class="line">    system mac address: a6:04:98:44:<span class="built_in">cd</span>:5f</span><br><span class="line">    port key: 15</span><br><span class="line">    port priority: 255</span><br><span class="line">    port number: 1</span><br><span class="line">    port state: 61</span><br><span class="line">details partner lacp pdu:</span><br><span class="line">    system priority: 65535</span><br><span class="line">    system mac address: 62:b0:ec:1e:03:b6</span><br><span class="line">    oper key: 15</span><br><span class="line">    port priority: 255</span><br><span class="line">    port number: 1</span><br><span class="line">    port state: 61</span><br><span class="line"></span><br><span class="line">Slave Interface: veth2</span><br><span class="line">MII Status: up</span><br><span class="line">Speed: 10000 Mbps</span><br><span class="line">Duplex: full</span><br><span class="line">Link Failure Count: 0</span><br><span class="line">Permanent HW addr: b2:96:e5:2d:46:db</span><br><span class="line">Slave queue ID: 0</span><br><span class="line">Aggregator ID: 1</span><br><span class="line">Actor Churn State: monitoring</span><br><span class="line">Partner Churn State: monitoring</span><br><span class="line">Actor Churned Count: 0</span><br><span class="line">Partner Churned Count: 0</span><br><span class="line">details actor lacp pdu:</span><br><span class="line">    system priority: 65535</span><br><span class="line">    system mac address: a6:04:98:44:<span class="built_in">cd</span>:5f</span><br><span class="line">    port key: 15</span><br><span class="line">    port priority: 255</span><br><span class="line">    port number: 2</span><br><span class="line">    port state: 61</span><br><span class="line">details partner lacp pdu:</span><br><span class="line">    system priority: 65535</span><br><span class="line">    system mac address: 62:b0:ec:1e:03:b6</span><br><span class="line">    oper key: 15</span><br><span class="line">    port priority: 255</span><br><span class="line">    port number: 2</span><br><span class="line">    port state: 61</span><br><span class="line"></span><br><span class="line">cat /proc/net/bonding/bond1</span><br><span class="line">Ethernet Channel Bonding Driver: v3.7.1 (April 27, 2011)</span><br><span class="line"></span><br><span class="line">Bonding Mode: IEEE 802.3ad Dynamic link aggregation</span><br><span class="line">Transmit Hash Policy: layer2+3 (2)</span><br><span class="line">MII Status: up</span><br><span class="line">MII Polling Interval (ms): 100</span><br><span class="line">Up Delay (ms): 0</span><br><span class="line">Down Delay (ms): 0</span><br><span class="line"></span><br><span class="line">802.3ad info</span><br><span class="line">LACP rate: slow</span><br><span class="line">Min links: 0</span><br><span class="line">Aggregator selection policy (ad_select): stable</span><br><span class="line">System priority: 65535</span><br><span class="line">System MAC address: 62:b0:ec:1e:03:b6</span><br><span class="line">Active Aggregator Info:</span><br><span class="line">        Aggregator ID: 1</span><br><span class="line">        Number of ports: 2</span><br><span class="line">        Actor Key: 15</span><br><span class="line">        Partner Key: 15</span><br><span class="line">        Partner Mac Address: a6:04:98:44:<span class="built_in">cd</span>:5f</span><br><span class="line"></span><br><span class="line">Slave Interface: veth1</span><br><span class="line">MII Status: up</span><br><span class="line">Speed: 10000 Mbps</span><br><span class="line">Duplex: full</span><br><span class="line">Link Failure Count: 0</span><br><span class="line">Permanent HW addr: 62:b0:ec:1e:03:b6</span><br><span class="line">Slave queue ID: 0</span><br><span class="line">Aggregator ID: 1</span><br><span class="line">Actor Churn State: none</span><br><span class="line">Partner Churn State: none</span><br><span class="line">Actor Churned Count: 0</span><br><span class="line">Partner Churned Count: 0</span><br><span class="line">details actor lacp pdu:</span><br><span class="line">    system priority: 65535</span><br><span class="line">    system mac address: 62:b0:ec:1e:03:b6</span><br><span class="line">    port key: 15</span><br><span class="line">    port priority: 255</span><br><span class="line">    port number: 1</span><br><span class="line">    port state: 61</span><br><span class="line">details partner lacp pdu:</span><br><span class="line">    system priority: 65535</span><br><span class="line">    system mac address: a6:04:98:44:<span class="built_in">cd</span>:5f</span><br><span class="line">    oper key: 15</span><br><span class="line">    port priority: 255</span><br><span class="line">    port number: 1</span><br><span class="line">    port state: 61</span><br><span class="line"></span><br><span class="line">Slave Interface: veth3</span><br><span class="line">MII Status: up</span><br><span class="line">Speed: 10000 Mbps</span><br><span class="line">Duplex: full</span><br><span class="line">Link Failure Count: 0</span><br><span class="line">Permanent HW addr: 62:30:f1:52:80:e2</span><br><span class="line">Slave queue ID: 0</span><br><span class="line">Aggregator ID: 1</span><br><span class="line">Actor Churn State: none</span><br><span class="line">Partner Churn State: none</span><br><span class="line">Actor Churned Count: 0</span><br><span class="line">Partner Churned Count: 0</span><br><span class="line">details actor lacp pdu:</span><br><span class="line">    system priority: 65535</span><br><span class="line">    system mac address: 62:b0:ec:1e:03:b6</span><br><span class="line">    port key: 15</span><br><span class="line">    port priority: 255</span><br><span class="line">    port number: 2</span><br><span class="line">    port state: 61</span><br><span class="line">details partner lacp pdu:</span><br><span class="line">    system priority: 65535</span><br><span class="line">    system mac address: a6:04:98:44:<span class="built_in">cd</span>:5f</span><br><span class="line">    oper key: 15</span><br><span class="line">    port priority: 255</span><br><span class="line">    port number: 2</span><br><span class="line">    port state: 61</span><br></pre></td></tr></tbody></table></figure>
+
+<p>然后，我们需要为 bond0 创建两个 vlan，一条 vlan 用作控制流向 bond0 的流量，一条 vlan 用作控制流出 bond 0 的流量。我们同样需要修改 <code>/etc/sysconfig/network-scripts/</code> 下的配置。</p>
+<figure class="highlight bash"><table><tbody><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># 创建 vlan</span></span><br><span class="line">vi /etc/sysconfig/network-scripts/ifcfg-bond0.90</span><br><span class="line">DEVICE=<span class="string">"bond0.90"</span></span><br><span class="line">BOOTPROTO=none</span><br><span class="line">ONPARENT=yes</span><br><span class="line">IPADDR=192.168.10.1</span><br><span class="line">NETMASK=255.255.255.0</span><br><span class="line">VLAN=yes</span><br><span class="line">NM_CONTROLLED=no</span><br><span class="line"></span><br><span class="line">vi /etc/sysconfig/network-scripts/ifcfg-bond0.91</span><br><span class="line">DEVICE=<span class="string">"bond0.91"</span></span><br><span class="line">BOOTPROTO=none</span><br><span class="line">ONPARENT=yes</span><br><span class="line">IPADDR=192.168.11.1</span><br><span class="line">NETMASK=255.255.255.0</span><br><span class="line">VLAN=yes</span><br><span class="line">NM_CONTROLLED=no</span><br><span class="line"><span class="comment"># 启动 vlan</span></span><br><span class="line">ifup /etc/sysconfig/network-scripts/ifcfg-bond0.90</span><br><span class="line">ifup /etc/sysconfig/network-scripts/ifcfg-bond0.91</span><br><span class="line"><span class="comment"># 查看当前网络</span></span><br><span class="line">ip addr</span><br><span class="line">1: lo: &lt;LOOPBACK,UP,LOWER_UP&gt; mtu 65536 qdisc noqueue state UNKNOWN group default qlen 1000</span><br><span class="line">    link/loopback 00:00:00:00:00:00 brd 00:00:00:00:00:00</span><br><span class="line">    inet 127.0.0.1/8 scope host lo</span><br><span class="line">       valid_lft forever preferred_lft forever</span><br><span class="line">2: eth0: &lt;BROADCAST,MULTICAST,UP,LOWER_UP&gt; mtu 1500 qdisc pfifo_fast state UP group default qlen 1000</span><br><span class="line">    link/ether fa:16:3f:ad:<span class="built_in">cd</span>:f8 brd ff:ff:ff:ff:ff:ff</span><br><span class="line">    inet x.x.x.x/18 brd 10.231.255.255 scope global dynamic eth0</span><br><span class="line">       valid_lft 2482sec preferred_lft 2482sec</span><br><span class="line">3: veth3@veth2: &lt;BROADCAST,MULTICAST,SLAVE,UP,LOWER_UP&gt; mtu 1500 qdisc noqueue master bond1 state UP group default qlen 1000</span><br><span class="line">    link/ether 62:b0:ec:1e:03:b6 brd ff:ff:ff:ff:ff:ff</span><br><span class="line">4: veth2@veth3: &lt;BROADCAST,MULTICAST,SLAVE,UP,LOWER_UP&gt; mtu 1500 qdisc noqueue master bond0 state UP group default qlen 1000</span><br><span class="line">    link/ether a6:04:98:44:<span class="built_in">cd</span>:5f brd ff:ff:ff:ff:ff:ff</span><br><span class="line">5: veth1@veth0: &lt;BROADCAST,MULTICAST,SLAVE,UP,LOWER_UP&gt; mtu 1500 qdisc noqueue master bond1 state UP group default qlen 1000</span><br><span class="line">    link/ether 62:b0:ec:1e:03:b6 brd ff:ff:ff:ff:ff:ff</span><br><span class="line">6: veth0@veth1: &lt;BROADCAST,MULTICAST,SLAVE,UP,LOWER_UP&gt; mtu 1500 qdisc noqueue master bond0 state UP group default qlen 1000</span><br><span class="line">    link/ether a6:04:98:44:<span class="built_in">cd</span>:5f brd ff:ff:ff:ff:ff:ff</span><br><span class="line">7: bond1: &lt;BROADCAST,MULTICAST,MASTER,UP,LOWER_UP&gt; mtu 1500 qdisc noqueue state UP group default qlen 1000</span><br><span class="line">    link/ether 62:b0:ec:1e:03:b6 brd ff:ff:ff:ff:ff:ff</span><br><span class="line">8: bond0: &lt;BROADCAST,MULTICAST,MASTER,UP,LOWER_UP&gt; mtu 1500 qdisc noqueue state UP group default qlen 1000</span><br><span class="line">    link/ether a6:04:98:44:<span class="built_in">cd</span>:5f brd ff:ff:ff:ff:ff:ff</span><br><span class="line">9: bond0.90@bond0: &lt;BROADCAST,MULTICAST,UP,LOWER_UP&gt; mtu 1500 qdisc noqueue state UP group default qlen 1000</span><br><span class="line">    link/ether a6:04:98:44:<span class="built_in">cd</span>:5f brd ff:ff:ff:ff:ff:ff</span><br><span class="line">    inet 192.168.10.1/24 brd 192.168.10.255 scope global bond0.90</span><br><span class="line">       valid_lft forever preferred_lft forever</span><br><span class="line">10: bond0.91@bond0: &lt;BROADCAST,MULTICAST,UP,LOWER_UP&gt; mtu 1500 qdisc noqueue state UP group default qlen 1000</span><br><span class="line">    link/ether a6:04:98:44:<span class="built_in">cd</span>:5f brd ff:ff:ff:ff:ff:ff</span><br><span class="line">    inet 192.168.11.1/24 brd 192.168.11.255 scope global bond0.91</span><br><span class="line">       valid_lft forever preferred_lft forever</span><br></pre></td></tr></tbody></table></figure>
+
+<p>这时候 bond0.90 和 bond0.91 已经有 IP 了，不过 bond 1 还没有 IP 地址，这里我们假设 bond 0 代表了 Linux Server，bond1 代表了 L3 交换机，接下来的任务就是如何为 L3 交换机分配 IP 地址，bond 1 的 IP 分配和 bond 0类似，我们也为其分配两个 vlan，90 和 91，vlan 90 代表的是从 bond0(Linux Server) 发往 bond1(L3-Switch) 的数据，vlan 91 代表从 bond1(L3-Switch) 发往 bond0(Linux Server)的数据。总结来说 bond0.90 和 bond1.90 在一个 vlan 中，只是 IP 不同，同理 bond0.91 和 bond1.91 在一个 vlan 中，只是 IP 不同。</p>
+<figure class="highlight bash"><table><tbody><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># 创建 vlan</span></span><br><span class="line">vi /etc/sysconfig/network-scripts/ifcfg-bond1.90</span><br><span class="line">DEVICE=<span class="string">"bond1.90"</span></span><br><span class="line">BOOTPROTO=none</span><br><span class="line">ONPARENT=yes</span><br><span class="line">IPADDR=192.168.10.2</span><br><span class="line">NETMASK=255.255.255.0</span><br><span class="line">VLAN=yes</span><br><span class="line">NM_CONTROLLED=no</span><br><span class="line"></span><br><span class="line">vi /etc/sysconfig/network-scripts/ifcfg-bond1.91</span><br><span class="line">DEVICE=<span class="string">"bond1.91"</span></span><br><span class="line">BOOTPROTO=none</span><br><span class="line">ONPARENT=yes</span><br><span class="line">IPADDR=192.168.11.2</span><br><span class="line">NETMASK=255.255.255.0</span><br><span class="line">VLAN=yes</span><br><span class="line">NM_CONTROLLED=no</span><br><span class="line"></span><br><span class="line"><span class="comment"># 启动 vlan</span></span><br><span class="line">ifup /etc/sysconfig/network-scripts/ifcfg-bond1.90</span><br><span class="line">ifup /etc/sysconfig/network-scripts/ifcfg-bond1.91</span><br><span class="line"><span class="comment"># 查看网络设备</span></span><br><span class="line">ip addr</span><br><span class="line">1: lo: &lt;LOOPBACK,UP,LOWER_UP&gt; mtu 65536 qdisc noqueue state UNKNOWN group default qlen 1000</span><br><span class="line">    link/loopback 00:00:00:00:00:00 brd 00:00:00:00:00:00</span><br><span class="line">    inet 127.0.0.1/8 scope host lo</span><br><span class="line">       valid_lft forever preferred_lft forever</span><br><span class="line">2: eth0: &lt;BROADCAST,MULTICAST,UP,LOWER_UP&gt; mtu 1500 qdisc pfifo_fast state UP group default qlen 1000</span><br><span class="line">    link/ether fa:16:3f:ad:<span class="built_in">cd</span>:f8 brd ff:ff:ff:ff:ff:ff</span><br><span class="line">    inet x.x.x.x/18 brd 10.231.255.255 scope global dynamic eth0</span><br><span class="line">       valid_lft 2127sec preferred_lft 2127sec</span><br><span class="line">3: veth3@veth2: &lt;BROADCAST,MULTICAST,SLAVE,UP,LOWER_UP&gt; mtu 1500 qdisc noqueue master bond1 state UP group default qlen 1000</span><br><span class="line">    link/ether 62:b0:ec:1e:03:b6 brd ff:ff:ff:ff:ff:ff</span><br><span class="line">4: veth2@veth3: &lt;BROADCAST,MULTICAST,SLAVE,UP,LOWER_UP&gt; mtu 1500 qdisc noqueue master bond0 state UP group default qlen 1000</span><br><span class="line">    link/ether a6:04:98:44:<span class="built_in">cd</span>:5f brd ff:ff:ff:ff:ff:ff</span><br><span class="line">5: veth1@veth0: &lt;BROADCAST,MULTICAST,SLAVE,UP,LOWER_UP&gt; mtu 1500 qdisc noqueue master bond1 state UP group default qlen 1000</span><br><span class="line">    link/ether 62:b0:ec:1e:03:b6 brd ff:ff:ff:ff:ff:ff</span><br><span class="line">6: veth0@veth1: &lt;BROADCAST,MULTICAST,SLAVE,UP,LOWER_UP&gt; mtu 1500 qdisc noqueue master bond0 state UP group default qlen 1000</span><br><span class="line">    link/ether a6:04:98:44:<span class="built_in">cd</span>:5f brd ff:ff:ff:ff:ff:ff</span><br><span class="line">7: bond1: &lt;BROADCAST,MULTICAST,MASTER,UP,LOWER_UP&gt; mtu 1500 qdisc noqueue state UP group default qlen 1000</span><br><span class="line">    link/ether 62:b0:ec:1e:03:b6 brd ff:ff:ff:ff:ff:ff</span><br><span class="line">8: bond0: &lt;BROADCAST,MULTICAST,MASTER,UP,LOWER_UP&gt; mtu 1500 qdisc noqueue state UP group default qlen 1000</span><br><span class="line">    link/ether a6:04:98:44:<span class="built_in">cd</span>:5f brd ff:ff:ff:ff:ff:ff</span><br><span class="line">9: bond0.90@bond0: &lt;BROADCAST,MULTICAST,UP,LOWER_UP&gt; mtu 1500 qdisc noqueue state UP group default qlen 1000</span><br><span class="line">    link/ether a6:04:98:44:<span class="built_in">cd</span>:5f brd ff:ff:ff:ff:ff:ff</span><br><span class="line">    inet 192.168.10.1/24 brd 192.168.10.255 scope global bond0.90</span><br><span class="line">       valid_lft forever preferred_lft forever</span><br><span class="line">10: bond0.91@bond0: &lt;BROADCAST,MULTICAST,UP,LOWER_UP&gt; mtu 1500 qdisc noqueue state UP group default qlen 1000</span><br><span class="line">    link/ether a6:04:98:44:<span class="built_in">cd</span>:5f brd ff:ff:ff:ff:ff:ff</span><br><span class="line">    inet 192.168.11.1/24 brd 192.168.11.255 scope global bond0.91</span><br><span class="line">       valid_lft forever preferred_lft forever</span><br><span class="line">13: bond1.90@bond1: &lt;BROADCAST,MULTICAST,UP,LOWER_UP&gt; mtu 1500 qdisc noqueue state UP group default qlen 1000</span><br><span class="line">    link/ether 62:b0:ec:1e:03:b6 brd ff:ff:ff:ff:ff:ff</span><br><span class="line">    inet 192.168.10.2/24 brd 192.168.10.255 scope global bond1.90</span><br><span class="line">       valid_lft forever preferred_lft forever</span><br><span class="line">14: bond1.91@bond1: &lt;BROADCAST,MULTICAST,UP,LOWER_UP&gt; mtu 1500 qdisc noqueue state UP group default qlen 1000</span><br><span class="line">    link/ether 62:b0:ec:1e:03:b6 brd ff:ff:ff:ff:ff:ff</span><br><span class="line">    inet 192.168.11.2/24 brd 192.168.11.255 scope global bond1.91</span><br><span class="line">       valid_lft forever preferred_lft forever</span><br></pre></td></tr></tbody></table></figure>
+
+<p>上述的这套方案就是各个设备之间（Linux、L3 Switch、AP 控制器）连接的建立方式，因为我这里没有可用的物理设备做实验，所以只能以模拟的方式进行，不过即便是模拟的方式也和实际在物理机上进行的方案如出一辙，至少从网络接口的属性上来看和物理机上的状态是类似的。因为 veth 不能跨越多台 Linux 设备，也不能将 bond 设备放入命名空间中（我还尝试过在容器中创建 bond 设备，也不允许），所以接下来的部分我就不能以模拟的方式进行了。相反的，我会更多的以图文的形式介绍整个网络的组件过程。</p>
+<p>这里总结一下从 Linux Server 到 L3 Switch 的连接方式，之前说过它们之间的连接建立在双方的 2 条物理连接上（上例中通过 2 对 veth peer 模拟），这两条物理连接构成一个基于 LACP 协议的聚合链路。在物理链路上，我们创建了两个虚拟网络 vlan90 和 vlan91，分别对应了不同的数据流向。这时候，我们只需要配置一下路由表，就能保证 Linux 和 L3 Switch 之间的连通性，如下图所示。不仅 Linux 和 L3 Switch 之间采用了虚拟网络 vlan 的方式进行路由，L3 Switch 和 AP 控制器之间也是通过这种方式连接，我们后面会介绍到它。<br><img src="/images/loading-cat.gif" data-original="https://bbm-hexo.oss-accelerate.aliyuncs.com/images/network-test/linux-l3-switch-vlan.png" alt="linux-l3-switch-vlan"><br>这里之所以特意分出两个 vlan 代表不同的传输方向，是想要通过 vlan 网络接口控制网络的带宽，延迟等。因为，tc 只能控制从一个网卡发出的数据带宽和延迟，而不能控制从一个网卡接收到的数据带宽和延迟。所以，你会发现实际物理连接的对应接口 bond0 并没有绑定 IP 地址，IP 地址实际上绑定在了 bond0 下的 vlan 网络接口上，这时候当内核从 bond 0 收到一个数据包时，发现该包实际上对应的网络设备应该是 bond0.91，这时候内核就会将该包转发到 bond0.91 这个网络接口上，这就涉及到了向一个网卡发送数据的过程，也就是说只要将 tc（传输控制）规则加载 bond0.91 这个网卡上，就能达到控制流入数据包的效果。</p>
+<h2 id="IP-分配方案"><a href="#IP-分配方案" class="headerlink" title="IP 分配方案"></a>IP 分配方案</h2><p>理解了 vlan 的构建方式和 LACP 链路的构建方式之后，我们从更高的视角来看一下整个网络中是如何分配 IP 和路由的。这里我们假设 L3 交换机和 AP 控制器之间也是通过 LACP（L3 交换机使用 bond2 &lt;-&gt; bond3 连通 AP 控制器，L3 交换机使用 bond4 连通交换机，AP 1 使用 bond5，AP 2 使用 bond 6 连通交换机） 和 vlan 进行通讯，这不过这里的每个 vlan 已经不再代表一个方向了，而是一个 vlan 代表一个 AP 的双向数据，这也是很自然的，因为 tc 并不会作用于 AP 控制器和 L3 交换机之间，所以没必要再将每个方向的流量拆分成不同的虚拟网络。这时候路由表中需要新添加几项内容，才能保证 L3 交换机和 AP，AP 控制器之间的连通。<br><img src="/images/loading-cat.gif" data-original="https://bbm-hexo.oss-accelerate.aliyuncs.com/images/network-test/linux-l3-apc-vlan.png" alt="linux-l3-apc-vlan"><br>在上图中，L3 交换机与 AP 控制器之间是通过两条物理网线直接连接的，建立在这两条物理网线之上的 LACP 链路（bond2&lt;-&gt;bond3）上衍生出了 vlan 30 和 vlan31。而从 L3 交换机到 AP 之间是通过两个 L2 交换机连接的，L2 交换机到 L3 交换机之间的连接构成了一个 LACP 聚合链路（bond4）。各个 AP 又分别通过两个 L2 交换机构成了多条 LACP 链路(bond5 和 bond6)。</p>
+<p>最后，手机上的默认网关是 AP 控制器，数据从手机通过 L2 交换机 -&gt; L3 交换机-&gt; AP 控制器，AP 控制器的默认网关是 L3 交换机，数据再流回 L3 交换机，L3 交换机的默认网关是 Linux Server，数据通过 vlan 91 流向 Linux，Linux 再将数据包发给自己的 NAT 网关，通过它发送到互联网中。</p>
+<p>而从互联网中流回手机的数据包通过 NAT 网关流入 Linux Server，Linux Server 再通过 vlan90 将数据包传送给 L3 交换机，L3 交换机再将数据发给对应的手机。</p>
+<p>IP 划分的方案就已经介绍完了，接下来我们再说一下 IP 地址分配的方式，这里我们在 Linux Server 上使用到了 dnsmasq。dnsmasq 提供 DNS 缓存和 DHCP 服务功能。作为域名解析服务器(DNS)，dnsmasq 可以通过缓存 DNS 请求来提高对访问过的网址的连接速度。作为 DHCP 服务器，dnsmasq 可以用于为局域网电脑分配内网 IP 地址和提供路由。DNS 和 DHCP 两个功能可以同时或分别单独实现。dnsmasq 轻量且易配置，适用于个人用户或少于 50 台主机的网络。</p>
+<blockquote>
+<p>DHCP（动态主机配置协议）是一个局域网的网络协议。指的是由服务器控制一段 IP 地址范围，客户机登录服务器时就可以自动获得服务器分配的 IP 地址和子网掩码。它通常被应用在大型的局域网络环境中，主要作用是集中的管理、分配 IP 地址，使网络环境中的主机动态的获得 IP 地址、Gateway 地址、DNS 服务器地址等信息，并能够提升地址的使用率。DHCP 协议采用客户端/服务器模型，主机地址的动态分配任务由网络主机驱动。<br>当一个主机新加入局域网中时会以广播的形式发出 DHCP Discover 报文，一旦 DHCP Server 接收到 Discover 报文，就会向 DHCP Client 发送一个 Offer 报文，该报文中包含为 Client 分配的 IP 地址，这时候 Client 会选择一个 IP （一般按照 Offer 报文的先后顺序）并广播发送一个 Request 报文，其中包含选中的 DHCP Server IP 和自己准备使用的 IP 地址。如果 DHCP Server 收到该 Request 报文后，如果发现该 IP 就是自己刚才为该 Client 分配的 IP，就会回复一个 ACK 报文。之后 Client 会不断地续期该 IP。当 Client 不再需要该 IP 地址时，会向 DHCP Server 发送释放请求。<br><img src="/images/loading-cat.gif" data-original="https://bbm-hexo.oss-accelerate.aliyuncs.com/images/network-test/dhcp.png" alt="dhcp"></p>
+</blockquote>
+<p>理解了 dnsmasq 和 DHCP 的概念后，我们看看如何安装并使用它。</p>
+<figure class="highlight bash"><table><tbody><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># 安装 dnsmasq</span></span><br><span class="line">sudo yum install dnsmasq</span><br><span class="line"><span class="comment"># 修改配置</span></span><br><span class="line">vi /etc/dnsmasq.conf</span><br><span class="line"><span class="comment"># 注意这里需要监听的接口是 bond0.90 因为从这里发出的包才能发送到手机上</span></span><br><span class="line">interface=bond0.90</span><br><span class="line"><span class="comment"># 接下来是 ap1 和 ap2 的子网配置</span></span><br><span class="line">conf-file=/path/to/dhcp/option/option-ap1.conf</span><br><span class="line">dhcp-hostsfile=/path/to/dhcp/subnet/subnet-ap1.conf</span><br><span class="line">conf-file=/path/to/dhcp/option/option-ap2.conf</span><br><span class="line">dhcp-hostsfile=/path/to/dhcp/subnet/subnet-ap2.conf</span><br><span class="line"><span class="comment"># 我们以 ap1 为例介绍子网配置和 dhcp 配置</span></span><br><span class="line">vi /path/to/dhcp/option/option-ap1.conf</span><br><span class="line">dhcp-range=tag:ap1,192.168.12.3,192.168.12.199,12h <span class="comment"># IP 分配范围</span></span><br><span class="line">dhcp-option=tag:ap1,option:router,192.168.12.2 <span class="comment"># AP 控制器在 vlan30 网段的 ip</span></span><br><span class="line">dhcp-option=tag:ap1,option:dns-server,192.168.10.3 <span class="comment"># 自己搭设的一个 DNS 服务器</span></span><br><span class="line"><span class="comment"># 为了方便管理，这里我们为每个设备指定了其独享的 IP 地址</span></span><br><span class="line">vi /path/to/dhcp/subnet/subnet-ap1.conf</span><br><span class="line">11:11:11:11:11:11,<span class="built_in">set</span>:ap1,192.168.12.3,PHONE-001</span><br><span class="line">12:12:12:12:12:12,<span class="built_in">set</span>:ap1,192.168.12.4,PHONE-002</span><br><span class="line"><span class="comment"># ap2 的配置就十分类似了</span></span><br><span class="line">vi /path/to/dhcp/option/option-ap2.conf</span><br><span class="line">dhcp-range=tag:ap2,192.168.13.3,192.168.13.199,12h <span class="comment"># IP 分配范围</span></span><br><span class="line">dhcp-option=tag:ap2,option:router,192.168.13.2 <span class="comment"># AP 控制器在 vlan31 网段的 ip</span></span><br><span class="line">dhcp-option=tag:ap2,option:dns-server,192.168.10.3 <span class="comment"># 自己搭设的一个 DNS 服务器</span></span><br><span class="line"><span class="comment"># 为了方便管理，这里我们为每个设备指定了其独享的 IP 地址</span></span><br><span class="line">vi /path/to/dhcp/subnet/subnet-ap2.conf</span><br><span class="line">21:21:21:21:21:21,<span class="built_in">set</span>:ap2,192.168.13.3,PHONE-001</span><br><span class="line">22:22:22:22:22:22,<span class="built_in">set</span>:ap2,192.168.13.4,PHONE-002</span><br><span class="line"></span><br><span class="line"><span class="comment"># 配置好 dnsmasq 之后重启该服务</span></span><br><span class="line">sudo systemctl restart dnsmasq</span><br><span class="line"><span class="comment"># 查看 Linux log 就能看到 dnsmasq 的 DHCP 响应情况</span></span><br><span class="line">tail -f /var/<span class="built_in">log</span>/messages</span><br></pre></td></tr></tbody></table></figure>
+
+<h2 id="Linux-iptables-配置"><a href="#Linux-iptables-配置" class="headerlink" title="Linux iptables 配置"></a>Linux iptables 配置</h2><p>在我们的场景中需要通过 iptables 对数据包进行进行分类的工作，因为我们需要同时控制从手机到互联网的网络状况以及从互联网流向手机的网络情况，这就需要我们不仅要将不同手机的数据包识别出来，还要将同一手机的不同方向数据包识别出来，然后为各类数据包设定不同的网络限制。</p>
+<p>在介绍我们对 iptables 的使用之前，我们先简单地介绍一下 iptables 是什么。iptables 是一个配置 Linux 内核防火墙的命令行工具，它基于内核的 netfilter 机制。</p>
+<p>看过我之前的 Linux 系列文章的同学可能还对 netfilter 记忆犹新，netfilter 是 Linux 内核的包过滤框架，它提供了一系列的钩子（Hook）供其他模块控制包的流动。这些钩子包括</p>
+<ul>
+<li>NF_IP_PRE_ROUTING：刚刚通过数据链路层解包进入网络层的数据包通过此钩子，它在路由之前处理</li>
+<li>NF_IP_LOCAL_IN：经过路由查找后，送往本机（目的地址在本地）的包会通过此钩子</li>
+<li>NF_IP_FORWARD：不是本地产生的并且目的地不是本地的包（即转发的包）会通过此钩子</li>
+<li>NF_IP_LOCAL_OUT：所有本地生成的发往其他机器的包会通过该钩子</li>
+<li>NF_IP_POST_ROUTING：在包就要离开本机之前会通过该钩子，它在路由之后处理</li>
+</ul>
+<p><img src="/images/loading-cat.gif" data-original="https://bbm-hexo.oss-accelerate.aliyuncs.com/images/network-test/netfilter.png" alt="netfilter"><br>iptables 通过表和链来组织数据包的过滤规则，每条规则都包括匹配和动作两部分。默认情况下，每张表包括一些默认链，用户也可以添加自定义的链，这些链都是顺序排列的。这些表和链包括：</p>
+<ul>
+<li>raw 表用于决定数据包是否被状态跟踪机制处理，内建 PREROUTING 和 OUTPUT 两个链</li>
+<li>filter 表用于过滤，内建 INPUT（目的地是本地的包）、FORWARD（不是本地产生的并且目的地不是本地）和 OUTPUT（本地生成的包）等三个链</li>
+<li>nat 表用于网络地址转换，内建 PREROUTING（在包刚刚到达防火墙时改变它的目的地址）、INPUT、OUTPUT 和 POSTROUTING（要离开防火墙之前改变其源地址）等链</li>
+<li>mangle 表用于对报文进行修改，内建 PREROUTING、INPUT、FORWARD、OUTPUT 和 POSTROUTING 等链</li>
+<li>security 表用于根据安全策略处理数据包，内建 INPUT、FORWARD 和 OUTPUT 链</li>
+</ul>
+<p>在 iptables 中的默认链 PREROUTING，INPUT，FORWARD，OUTPUT，POSTROUTING 实际上就对应了 netfilter 中的各个钩子，也就是说如果我们在 iptables 中配置了一些网络包的处理策略，那么这些策略的真正执行，就会在 netfilter 框架在执行对应的钩子函数时进行。</p>
+<p>理解了 iptables 是什么之后，我们怎么用它才能达到我们的目的呢？我们需要使用 iptables 的 mangle 表，因为它可以对报文进行一些修改，我们要通过 IP 地址筛选出不同的手机，进一步地根据源 IP 地址和目标 IP 地址筛选出不同方向的数据包，然后将它们分到不同的类型中。这里所说的类型大家可能不是特别理解，简单地讲，我们可以将一批类似的数据包（比如：从手机 A 发出的包）分到一类中(类通过数字进行标示)，随后我们就可以在传输控制模块 tc 中对各个类型的数据包（根据类型编号）加上传输控制策略（比如带宽限制，延迟限制等）。</p>
+<p>理解了理论基础之后，终于到实际的操作环节了，不过你很可能会有些失望，实际的操作两行命令就够了。</p>
+<figure class="highlight bash"><table><tbody><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># 添加 iptables 策略，该策略在 FORWORD 钩子中执行，策略的内容是：从手机（192.168.13.3）发出的包，将其分配到 1:2 类型中</span></span><br><span class="line">iptables -t mangle -A FORWARD -s 192.168.13.3 -j CLASSIFY --<span class="built_in">set</span>-class 1:2</span><br><span class="line"><span class="comment"># 添加 iptables 策略，该策略在 FORWORD 钩子中执行，策略的内容是：发往手机（192.168.13.3）的包，将其分配到 1:3 类型中</span></span><br><span class="line">iptables -t mangle -A FORWARD -d 192.168.13.3 -j CLASSIFY --<span class="built_in">set</span>-class 1:3</span><br><span class="line"><span class="comment"># 查看现有规则</span></span><br><span class="line">iptables -t mangle -L</span><br><span class="line">Chain PREROUTING (policy ACCEPT)</span><br><span class="line">target     prot opt <span class="built_in">source</span>               destination</span><br><span class="line"></span><br><span class="line">Chain INPUT (policy ACCEPT)</span><br><span class="line">target     prot opt <span class="built_in">source</span>               destination</span><br><span class="line"></span><br><span class="line">Chain FORWARD (policy ACCEPT)</span><br><span class="line">target     prot opt <span class="built_in">source</span>               destination</span><br><span class="line">CLASSIFY   all  --  192.168.13.3         anywhere             CLASSIFY <span class="built_in">set</span> 1:2</span><br><span class="line">CLASSIFY   all  --  anywhere             192.168.13.3         CLASSIFY <span class="built_in">set</span> 1:3</span><br><span class="line"></span><br><span class="line">Chain OUTPUT (policy ACCEPT)</span><br><span class="line">target     prot opt <span class="built_in">source</span>               destination</span><br><span class="line"></span><br><span class="line">Chain POSTROUTING (policy ACCEPT)</span><br><span class="line">target     prot opt <span class="built_in">source</span>               destination</span><br><span class="line"><span class="comment"># 当我们不需要再为手机加网络传输控制时，可以通过如下指令删除刚才创建的分类策略</span></span><br><span class="line">iptables -t mangle -D FORWARD -s 192.168.13.3 -j CLASSIFY --<span class="built_in">set</span>-class 1:2</span><br><span class="line">iptables -t mangle -D FORWARD -d 192.168.13.3 -j CLASSIFY --<span class="built_in">set</span>-class 1:3</span><br></pre></td></tr></tbody></table></figure>
+
+<p>iptables 的操作命令很简单 <code>-t mangle</code> 表明我们要操作 mangle 表，<code>-A</code> 表示要添加规则，<code>-D</code> 表示要删除规则，随后的 <code>FORWARD</code> 表明我们要操作的是 FORWARD 链。<code>-s 192.168.13.3</code> 表示匹配源地址是 192.168.13.3 的包，<code>-d 192.168.13.3</code> 表示匹配目标地址是 192.168.13.3 的包。<code>-j CLASSIFY</code> 表示对于刚才匹配到的包要执行的目标操作是分类操作。<code>--set-class 1:2</code> 表示将匹配到的包分配到 1:2 类别中。</p>
+<p>这里大家可能会好奇为啥分的类由两部分组成（冒号分割），前面部分都是 1，后半部分各不一样。这部分内容，我们随后介绍 tc 的时候在说，这里我们只要保证各种数据包分配的类型是唯一的就行了，这就需要我们在自己的管理程序中维护当前类型分配的情况（我们是在 Java 中维护的，然后Java 再通过命令行操纵 iptables），在要分配新的类型时选择一个当前未被占用的类型即可。此外值得一提的是，因为手机上的数据包会通过网关进行转发才能到 Linux Server，所以我们只能通过 IP 地址来过滤出特定的手机，而不能使用报文的 MAC 地址过滤，这也就是为什么我们前面采用的是静态 DHCP 分配方案（每个 MAC 地址只会分配一个绑定的 IP 地址），而不是动态分配 IP。</p>
+<h2 id="Linux-tc-配置"><a href="#Linux-tc-配置" class="headerlink" title="Linux tc 配置"></a>Linux tc 配置</h2><p>为每个手机的每个方向分配不同的类型之后，我们终于可以加网络限制策略了，这里我们使用到的 tc 命令行工具。它是 Linux 操作系统中的流量控制器 TC（Traffic Control），它利用队列规定建立处理数据包的队列，并定义队列中的数据包被发送的方式，从而实现对流量的控制。</p>
+<p>tc 流量的处理由三种对象控制，它们是：qdisc(queueing discipline，排队规则)、class(类别) 和 filter(过滤器)。</p>
+<ul>
+<li>qdisc 通过队列将数据包缓存起来，用来控制网络收发的速度</li>
+<li>class 用来表示控制策略</li>
+<li>filter 用来将数据包划分到具体的控制策略中</li>
+</ul>
+<p>QDisc(排队规则)是 queueing discipline 的简写，它是理解流量控制(traffic control)的基础。无论何时，内核如果需要通过某个网络接口发送数据包，它都需要按照为这个接口配置的 qdisc(排队规则)把数据包加入队列。然后，内核会尽可能多地从 qdisc 里面取出数据包，把它们交给网络适配器驱动模块。最简单的 QDisc 是 pfifo 它不对进入的数据包做任何的处理，数据包采用先入先出的方式通过队列。不过，它会保存网络接口一时无法处理的数据包。</p>
+<p>QDisc 有分为可分类的和不可分类的，不可分类的可以认为是整个队列的处理规则加在整个网络接口上，所有从该接口出去的数据包都在这个 QDisc 管理。而可分类的 QDisc 可以向下细分出更多的子队列。</p>
+<p><strong>无类别 QDISC 包括:</strong></p>
+<ul>
+<li>p/b fifo<br>使用最简单的 qdisc，纯粹的先进先出。只有一个参数：limit，用来设置队列的长度, pfifo 是以数据包的个数为单位；bfifo是以字节数为单位。</li>
+<li>pfifo_fast<br>在编译内核时，如果打开了高级路由器(Advanced Router)编译选项，pfifo_fast 就是系统的标准 QDISC。它的队列包括三个波段(band)。在每个波段里面，使用先进先出规则。而三个波段(band)的优先级也不相同，band 0 的优先级最高，band 2 的最低。如果 band0 里面有数据包，系统就不会处理 band 1 里面的数据包，band 1 和 band 2 之间也是一样。数据包是按照服务类型(Type of Service,TOS) 被分配多三个波段(band)里面的。</li>
+<li>red<br>red 是 Random Early Detection(随机早期探测)的简写。如果使用这种 QDISC，当带宽的占用接近于规定的带宽时，系统会随机地丢弃一些数据包。它非常适合高带宽应用。</li>
+<li>sfq<br>sfq 是 Stochastic Fairness Queueing 的简写。它按照会话(session–对应于每个TCP连接或者UDP流)为流量进行排序，然后循环发送每个会话的数据包。</li>
+<li>tbf<br>tbf 是 Token Bucket Filter 的简写，适合于把流速降低到某个值。</li>
+</ul>
+<p><strong>可分类 QDISC 包括：</strong></p>
+<ul>
+<li>CBQ<br>CBQ 是 Class Based Queueing(基于类别排队)的缩写。<br>它实现了一个丰富的连接共享类别结构，既有限制(shaping)带宽的能力，也具有带宽优先级管理的能力。<br>带宽限制是通过计算连接的空闲时间完成的。<br>空闲时间的计算标准是数据包离队事件的频率和下层连接(数据链路层)的带宽。</li>
+<li>HTB<br>HTB 是 Hierarchy Token Bucket 的缩写。<br>通过在实践基础上的改进，它实现了一个丰富的连接共享类别体系。使用 HTB 可以很容易地保证每个类别的带宽，虽然它也允许特定的类可以突破带宽上限，占用别的类的带宽。<br><img src="/images/loading-cat.gif" data-original="https://bbm-hexo.oss-accelerate.aliyuncs.com/images/network-test/htb.png" alt="htb"><br>HTB 可以通过 TBF(Token Bucket Filter)实现带宽限制，也能够划分类别的优先级。<br><img src="/images/loading-cat.gif" data-original="https://bbm-hexo.oss-accelerate.aliyuncs.com/images/network-test/tbf.png" alt="tbf"><br>关于 HTB 算法的更详细介绍感兴趣，可以看一下这篇<span class="exturl" data-url="aHR0cHM6Ly93d3cuY25ibG9ncy5jb20vYWNvb2wvcC83Nzc5MTU5Lmh0bWw=" title="https://www.cnblogs.com/acool/p/7779159.html">文章<i class="fa fa-external-link"></i></span>。</li>
+<li>PRIO<br>PRIO QDisc 不能限制带宽，因为属于不同类别的数据包是顺序离队的。<br>使用 PRIO QDisc 可以很容易对流量进行优先级管理，只有属于高优先级类别的数据包全部发送完毕，才会发送属于低优先级类别的数据包。<br>为了方便管理，需要使用 iptables 或者 ipchains 处理数据包的服务类型(Type Of Service,ToS)。</li>
+</ul>
+<p><strong>class</strong><br>某些 QDisc(排队规则)可以包含一些类别，不同的类别中可以包含更深入的 QDisc(排队规则)，通过这些细分的 QDisc 还可以为进入的队列的数据包排队。通过设置各种类别数据包的离队次序，QDisc 可以为设置网络数据流量的优先级。</p>
+<p><strong>filter</strong><br>Filter(过滤器)用于为数据包分类，决定它们按照何种 QDisc 进入队列。无论何时数据包进入一个划分子类的类别中，都需要进行分类。分类的方法可以有多种，使用 fileter(过滤器)就是其中之一。使用 filter(过滤器)分类时，内核会调用附属于这个类(class)的所有过滤器，直到返回一个判决。如果没有判决返回，就作进一步的处理，而处理方式和 QDISC 有关。需要注意的是，filter(过滤器)是在 QDisc 内部，它们不能作为主体。</p>
+<p>tc 中的规则是按照网络接口各自隔离开的，每个网络接口中，会按照树形结构维护其下的所有规则，每个规则对应了树中的一个节点，每个节点都包含一个唯一的类别标识，又包含一个队列。而过滤器则是根据数据包的特征将其分到更下层规则中的选择器。<br><img src="/images/loading-cat.gif" data-original="https://bbm-hexo.oss-accelerate.aliyuncs.com/images/network-test/tc-structure.png" alt="tc-structure"><br>理解了 tc 中三个管理对象的角色之后，我们就开始实际的操作起来吧。因为分类的工作我们已经在 iptables 中处理完了，所以这里我们不会使用到 filter 对象，只会使用到 class 和 qdisc。</p>
+<figure class="highlight bash"><table><tbody><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># 为 bond0.90 和 bond0.91 这两个网络接口创建根规则</span></span><br><span class="line"><span class="comment"># dev bond0.9X 表明规则要加在哪个网卡</span></span><br><span class="line"><span class="comment"># root 表示为网卡添加的是一个根队列</span></span><br><span class="line"><span class="comment"># handle 1: 表示队列的句柄是 1:</span></span><br><span class="line"><span class="comment"># 队列类型是 htb</span></span><br><span class="line"><span class="comment"># default 9999 表示默认子类别是 9999（1:9999）</span></span><br><span class="line">tc qdisc add dev bond0.90 root handle 1: htb default 9999 r2q 100</span><br><span class="line">tc qdisc add dev bond0.91 root handle 1: htb default 9999 r2q 100</span><br><span class="line"><span class="comment"># 创建默认子规则，防止 iptables 没有分到类</span></span><br><span class="line"><span class="comment"># 这里指定新 class 的父节点是根队列 1:</span></span><br><span class="line"><span class="comment"># 类型编号是1:9999，就和父节点的 default 9999 对应</span></span><br><span class="line"><span class="comment"># 同样采用 htb 队列</span></span><br><span class="line"><span class="comment"># rate 1Gbit 表示带宽权重是 1Gbit，如果父节点带宽够大，则该子分类的带宽至少为 1Gbit</span></span><br><span class="line"><span class="comment"># 可能会获得更高的带宽（如果带宽有冗余），如果父节点带宽不够大，那么多个子节点按照 rate 的值进行等比例分配</span></span><br><span class="line"><span class="comment"># ceil 1Gbit 表示带宽最大值是 1Gbit</span></span><br><span class="line"><span class="comment"># prio 1 表示它们对报文处理的优先级是相同的，对于不同优先级的过滤器， 系统将按照从小到大的优先级处理</span></span><br><span class="line"><span class="comment"># burst cburst 表示突然要发送很大的数据包时，起始速度是多少</span></span><br><span class="line">tc class add dev bond0.90 parent 1: classid 1:9999 htb prio 1 rate 1Gbit ceil 1Gbit burst 1375b cburst 1375b</span><br><span class="line">tc class add dev bond0.91 parent 1: classid 1:9999 htb prio 1 rate 1Gbit ceil 1Gbit burst 1375b cburst 1375b</span><br><span class="line"><span class="comment"># 为 iptables 中分好的 1:2 和 1:3 指定规则</span></span><br><span class="line"><span class="comment"># 其中 1:2 对应从手机发出的包，所以规则应该加在 bond0.91 上</span></span><br><span class="line"><span class="comment"># 1:3 对应的是发往手机的包，所以规则应该加在 bond0.90 上</span></span><br><span class="line"><span class="comment"># 为 1:2 和 1:3 创建对应的 class 并限制它们的带宽</span></span><br><span class="line"><span class="comment"># 假设我们手机下载带宽设置为 100 Mbit，上传带宽设置为 50 Mbit</span></span><br><span class="line">tc class add dev bond0.90 parent 1: classid 1:3 htb prio 1 rate 100Mbit ceil 100Mbit burst 1600b cburst 1600b</span><br><span class="line">tc class add dev bond0.91 parent 1: classid 1:2 htb prio 1 rate 50Mbit ceil 50Mbit burst 1600b cburst 1600b</span><br><span class="line"><span class="comment"># 为 1:2 和 1:3 创建其下的队列，在队列规则中限定数据包的延迟</span></span><br><span class="line"><span class="comment"># 假设我们手机下载延迟设置为 100 ms，上传延迟设置为 50 ms</span></span><br><span class="line"><span class="comment"># netem 表示我们使用 Network Emulator 组件来模拟网络的延迟</span></span><br><span class="line"><span class="comment"># limit 1000 表示等待队列最多包含多少字节</span></span><br><span class="line"><span class="comment"># delay 100ms 表示数据包等待延迟</span></span><br><span class="line">tc qdisc add dev bond0.90 parent 1:3 handle 4: netem <span class="built_in">limit</span> 1000 delay 100ms</span><br><span class="line">tc qdisc add dev bond0.91 parent 1:2 handle 5: netem <span class="built_in">limit</span> 1000 delay 50ms</span><br><span class="line"><span class="comment"># 查看当前的所有规则</span></span><br><span class="line">tc class show dev bond0.90</span><br><span class="line">class htb 1:9999 root prio 1 rate 1Gbit ceil 1Gbit burst 1250b cburst 1250b</span><br><span class="line">class htb 1:3 root leaf 4: prio 1 rate 100Mbit ceil 100Mbit burst 1600b cburst 1600b</span><br><span class="line"></span><br><span class="line">tc class show dev bond0.91</span><br><span class="line">class htb 1:9999 root prio 1 rate 1Gbit ceil 1Gbit burst 1250b cburst 1250b</span><br><span class="line">class htb 1:2 root leaf 5: prio 1 rate 50Mbit ceil 50Mbit burst 1600b cburst 1600b</span><br><span class="line"></span><br><span class="line">tc qdisc show dev bond0.90</span><br><span class="line">qdisc htb 1: root refcnt 2 r2q 100 default 9999 direct_packets_stat 0 direct_qlen 1000</span><br><span class="line">qdisc netem 4: parent 1:3 <span class="built_in">limit</span> 1000 delay 100.0ms</span><br><span class="line"></span><br><span class="line">tc qdisc show dev bond0.91</span><br><span class="line">qdisc htb 1: root refcnt 2 r2q 100 default 9999 direct_packets_stat 0 direct_qlen 1000</span><br><span class="line">qdisc netem 5: parent 1:2 <span class="built_in">limit</span> 1000 delay 50.0ms</span><br></pre></td></tr></tbody></table></figure>
+
+<p>下图总结了上述的的配置内容，它们分别由网络接口出发，以树形结构维护，根节点是两个 qdisc 配置，这两个根节点只加了默认子类的设定 1:9999(带宽限制 1Gbit)，这两个默认子类是用来处理 iptables 中未分类的数据。对于 iptables 中分类的数据包，即手机的数据包，每个手机都有属于自己的子类，如 1:2 和 1:3，这两个类中分别定义了手机上传和下载的带宽。在这两个类型下，又细化地进行了队列的配置，从而限制了数据包的延迟。<br><img src="/images/loading-cat.gif" data-original="https://bbm-hexo.oss-accelerate.aliyuncs.com/images/network-test/tc-usage-example.png" alt="tc-usage-example"><br>这里除了简单的延迟之外，我们还可以定义很多与延迟相关的参数。</p>
+<ul>
+<li>JITTER：抖动，增加一个随机时间长度，让延迟时间出现在某个范围</li>
+<li>CORRELATION：相关，下一个报文延迟时间和上一个报文的相关系数</li>
+<li>distribution：分布，延迟的分布模式，可以选择的值有 uniform、normal、pareto 和 paretonormal</li>
+</ul>
+<p>JITTER 应该很好理解，如果设置 20ms，那么报文的延迟在会在 100ms +- 20 ms 之间波动。</p>
+<figure class="highlight bash"><table><tbody><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">tc qdisc add dev bond0.90 parent 1:3 handle 4: netem <span class="built_in">limit</span> 1000 delay 100ms 20ms</span><br></pre></td></tr></tbody></table></figure>
+
+<p>CORRELATION 指相关性，因为网络状况是平滑变化的，短时间里相邻报文的延迟应该是近似的而不是完全随机的。这个值是个百分比，如果为 100%，就退化到固定延迟的情况；如果是 0% 则退化到随机延迟的情况。</p>
+<figure class="highlight bash"><table><tbody><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">tc qdisc add dev bond0.90 parent 1:3 handle 4: netem <span class="built_in">limit</span> 1000 delay 100ms 20ms 50%</span><br></pre></td></tr></tbody></table></figure>
+
+<p>报文的分布和很多现实事件一样都满足某种统计规律，比如最常用的正态分布。因此为了更逼近现实情况，可以使用 distribution 参数来限制它的延迟分布模型。比如让报文延迟时间满足正态分布：</p>
+<figure class="highlight bash"><table><tbody><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">tc qdisc add dev bond0.90 parent 1:3 handle 4: netem <span class="built_in">limit</span> 1000 delay 100ms 20ms distribution normal</span><br></pre></td></tr></tbody></table></figure>
+
+<p>除了延迟相关的设置之外，我们还能指定诸如丢包率，重复包，坏包，乱序等情况，这里只做简单的演示，更详细的参数介绍可以参考文档。</p>
+<figure class="highlight bash"><table><tbody><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># 丢包</span></span><br><span class="line">tc qdisc add dev bond0.90 parent 1:3 handle 4: netem <span class="built_in">limit</span> 1000 delay 100ms loss 50%</span><br><span class="line"><span class="comment"># 重复包</span></span><br><span class="line">tc qdisc add dev bond0.90 parent 1:3 handle 4: netem <span class="built_in">limit</span> 1000 delay 100ms duplicate 50%</span><br><span class="line"><span class="comment"># 坏包</span></span><br><span class="line">tc qdisc add dev bond0.90 parent 1:3 handle 4: netem <span class="built_in">limit</span> 1000 delay 100ms corrupt 2%</span><br><span class="line"><span class="comment"># 乱序</span></span><br><span class="line">tc qdisc add dev bond0.90 parent 1:3 handle 4: netem <span class="built_in">limit</span> 1000 delay 100ms reorder 2%</span><br></pre></td></tr></tbody></table></figure>
+
+<h2 id="参考内容"><a href="#参考内容" class="headerlink" title="参考内容"></a>参考内容</h2><p>[1] <span class="exturl" data-url="aHR0cHM6Ly96aC53aWtpcGVkaWEub3JnL3dpa2kvJUU5JTkzJUJFJUU4JUI3JUFGJUU4JTgxJTlBJUU1JTkwJTg4" title="https://zh.wikipedia.org/wiki/%E9%93%BE%E8%B7%AF%E8%81%9A%E5%90%88">链路聚合<i class="fa fa-external-link"></i></span><br>[2] <span class="exturl" data-url="aHR0cDovL2tvb2xzaGFyZS5jbi90aHJlYWQtMTAwMDgtMS0xLmh0bWw=" title="http://koolshare.cn/thread-10008-1-1.html">主副路由ap模式下同ssid，同密码，信道是否需要相同？<i class="fa fa-external-link"></i></span><br>[3] <span class="exturl" data-url="aHR0cHM6Ly93d3cuamlhbnNodS5jb20vcC80YjQ2NTg2ZTc5YWE=" title="https://www.jianshu.com/p/4b46586e79aa">VRRP原理和分析<i class="fa fa-external-link"></i></span><br>[4] <span class="exturl" data-url="aHR0cDovL2Jsb2cuaXRwdWIubmV0LzMxMDE1NzMwL3ZpZXdzcGFjZS0yMTUwMTg1Lw==" title="http://blog.itpub.net/31015730/viewspace-2150185/">Linux下双网卡绑定bond配置实例详解<i class="fa fa-external-link"></i></span><br>[5] <span class="exturl" data-url="aHR0cHM6Ly9hY2Nlc3MucmVkaGF0LmNvbS9kb2N1bWVudGF0aW9uL2VuLXVzL3JlZF9oYXRfZW50ZXJwcmlzZV9saW51eC82L2h0bWwvZGVwbG95bWVudF9ndWlkZS9zZWMtY29uZmlndXJpbmdfYV92bGFuX292ZXJfYV9ib25k" title="https://access.redhat.com/documentation/en-us/red_hat_enterprise_linux/6/html/deployment_guide/sec-configuring_a_vlan_over_a_bond">CONFIGURING A VLAN OVER A BOND<i class="fa fa-external-link"></i></span><br>[6] <span class="exturl" data-url="aHR0cHM6Ly93d3cudGVjbWludC5jb20vc2V0dXAtYS1kbnMtZGhjcC1zZXJ2ZXItdXNpbmctZG5zbWFzcS1vbi1jZW50b3MtcmhlbC8=" title="https://www.tecmint.com/setup-a-dns-dhcp-server-using-dnsmasq-on-centos-rhel/">How to Setup a DNS/DHCP Server Using dnsmasq on CentOS/RHEL 8/7<i class="fa fa-external-link"></i></span><br>[7] <span class="exturl" data-url="aHR0cHM6Ly93d3cubGlqaWF3YW5nLm9yZy9wb3N0cy9saW51eC1ib25kLmh0bWw=" title="https://www.lijiawang.org/posts/linux-bond.html">网卡Bond介绍<i class="fa fa-external-link"></i></span><br>[8] <span class="exturl" data-url="aHR0cDovL2FiY2R4eXprLmdpdGh1Yi5pby9ibG9nLzIwMTYvMDMvMDkva2VybmVsLW5ldC1ib25kaW5nLw==" title="http://abcdxyzk.github.io/blog/2016/03/09/kernel-net-bonding/">七种网卡绑定模式详解<i class="fa fa-external-link"></i></span><br>[9] <span class="exturl" data-url="aHR0cDovL20uY2Zhbi5jb20uY24vcGNhcnRpY2xlLzEyNTk5Nw==" title="http://m.cfan.com.cn/pcarticle/125997">链路聚合？双网口是这么玩的——全2G家庭组网<i class="fa fa-external-link"></i></span><br>[10] <span class="exturl" data-url="aHR0cHM6Ly93d3cuY25ibG9ncy5jb20vZW1iZWRkZWQtbGludXgvcC85MzQ1ODk5Lmh0bWw=" title="https://www.cnblogs.com/embedded-linux/p/9345899.html">LACP-链路聚合<i class="fa fa-external-link"></i></span><br>[11] <span class="exturl" data-url="aHR0cHM6Ly9scml0YS5naXRodWIuaW8vaW1hZ2VzL3Bvc3RzL2xpbnV4LyVFNiVCNyVCMSVFNSVCQSVBNiVFNSU4OCU4NiVFNiU5RSU5MExpbnV4JUU0JUI4JThCJUU1JThGJThDJUU3JUJEJTkxJUU1JThEJUExJUU3JUJCJTkxJUU1JUFFJTlBJUU0JUI4JTgzJUU3JUE3JThEJUU2JUE4JUExJUU1JUJDJThGLnBkZg==" title="https://lrita.github.io/images/posts/linux/%E6%B7%B1%E5%BA%A6%E5%88%86%E6%9E%90Linux%E4%B8%8B%E5%8F%8C%E7%BD%91%E5%8D%A1%E7%BB%91%E5%AE%9A%E4%B8%83%E7%A7%8D%E6%A8%A1%E5%BC%8F.pdf">深度分析Linux下双网卡绑定七种模式<i class="fa fa-external-link"></i></span><br>[12] <span class="exturl" data-url="aHR0cHM6Ly9ibG9nLjUxY3RvLmNvbS9saW51eG5vdGUvMTY4MDMxNQ==" title="https://blog.51cto.com/linuxnote/1680315">Linux网卡bond的七种模式详解<i class="fa fa-external-link"></i></span><br>[13] <span class="exturl" data-url="aHR0cHM6Ly9ibG9nLjUxY3RvLmNvbS9saXhpbjE1LzE3NjkzMzg=" title="https://blog.51cto.com/lixin15/1769338">Linux双网卡绑定bond详解<i class="fa fa-external-link"></i></span><br>[14] <span class="exturl" data-url="aHR0cHM6Ly9zc3RvbXBraW5zLndvcmRwcmVzcy5jb20vMjAxMC8wNC8wMS8lRTUlOUIlOUUlRTUlQkYlODZsMmwzJUU0JUJBJUE0JUU2JThEJUEyJUU1JTk5JUE4JUU3JTlBJTg0JUU1JThFJTlGJUU3JTkwJTg2Lw==" title="https://sstompkins.wordpress.com/2010/04/01/%E5%9B%9E%E5%BF%86l2l3%E4%BA%A4%E6%8D%A2%E5%99%A8%E7%9A%84%E5%8E%9F%E7%90%86/">回忆l2l3交换器的原理<i class="fa fa-external-link"></i></span><br>[15] <span class="exturl" data-url="aHR0cHM6Ly9ibG9nLmNzZG4ubmV0L3BlbmdwZW5nankvYXJ0aWNsZS9kZXRhaWxzLzc5MDU3MjUy" title="https://blog.csdn.net/pengpengjy/article/details/79057252">浅谈L2层交换机与L3层交换在架构上的不同<i class="fa fa-external-link"></i></span><br>[16] <span class="exturl" data-url="aHR0cHM6Ly93aWtpLmFyY2hsaW51eC5vcmcvaW5kZXgucGhwL0Ruc21hc3FfKCVFNyVBRSU4MCVFNCVCRCU5MyVFNCVCOCVBRCVFNiU5NiU4Nyk=" title="https://wiki.archlinux.org/index.php/Dnsmasq_(%E7%AE%80%E4%BD%93%E4%B8%AD%E6%96%87)">Dnsmasq<i class="fa fa-external-link"></i></span><br>[17] <span class="exturl" data-url="aHR0cHM6Ly9iYWlrZS5iYWlkdS5jb20vaXRlbS9ESENQ" title="https://baike.baidu.com/item/DHCP">DHCP<i class="fa fa-external-link"></i></span><br>[18] <span class="exturl" data-url="aHR0cHM6Ly90b255ZGVuZy5naXRodWIuaW8vc2RuLWhhbmRib29rL2xpbnV4L2lwdGFibGVzLmh0bWw=" title="https://tonydeng.github.io/sdn-handbook/linux/iptables.html">iptables/netfilter<i class="fa fa-external-link"></i></span><br>[19] <span class="exturl" data-url="aHR0cHM6Ly9xd2VydHd3d2UuZ2l0aHViLmlvL0xpbnV4LWlwdGFibGVzLWluZm9ybWF0aW9uLw==" title="https://qwertwwwe.github.io/Linux-iptables-information/">Linux iptables 详解<i class="fa fa-external-link"></i></span><br>[20] <span class="exturl" data-url="aHR0cHM6Ly90b255ZGVuZy5naXRodWIuaW8vc2RuLWhhbmRib29rL2Jhc2ljL2RoY3AuaHRtbA==" title="https://tonydeng.github.io/sdn-handbook/basic/dhcp.html">DHCP和DNS<i class="fa fa-external-link"></i></span><br>[21] <span class="exturl" data-url="aHR0cDovL2NvZGVzaG9sZC5tZS8yMDE3LzAxL3RjX2RldGFpbF9pbnJvLmh0bWw=" title="http://codeshold.me/2017/01/tc_detail_inro.html">流量控制工具TC详细说明<i class="fa fa-external-link"></i></span><br>[22] <span class="exturl" data-url="aHR0cHM6Ly9ibG9nLjdzdHJlZXQudG9wLzIwMTgvMDMvMjcvdGMv" title="https://blog.7street.top/2018/03/27/tc/">TC介绍<i class="fa fa-external-link"></i></span><br>[23] <span class="exturl" data-url="aHR0cHM6Ly93d3cuY25ibG9ncy5jb20vQ2Fzb25DaGFuL3AvNTAzMzk1Ni5odG1s" title="https://www.cnblogs.com/CasonChan/p/5033956.html">Linux TC流量控制HOWTO中文版<i class="fa fa-external-link"></i></span><br>[24] <span class="exturl" data-url="aHR0cHM6Ly9jaXppeHMuY29tLzIwMTcvMTAvMjMvdGMtbmV0ZW0tZm9yLXRlcnJpYmxlLW5ldHdvcmsv" title="https://cizixs.com/2017/10/23/tc-netem-for-terrible-network/">使用 tc netem 模拟网络异常<i class="fa fa-external-link"></i></span><br>[25] <span class="exturl" data-url="aHR0cHM6Ly93d3cuY25ibG9ncy5jb20vYWNvb2wvcC83Nzc5MTU5Lmh0bWw=" title="https://www.cnblogs.com/acool/p/7779159.html">linux网络流控-htb算法简析<i class="fa fa-external-link"></i></span><br>[26] <span class="exturl" data-url="aHR0cDovL3BlcnRoY2hhcmxlcy5naXRodWIuaW8vMjAxNS8wNi8xMi90Yy10dXRvcmlhbC8=" title="http://perthcharles.github.io/2015/06/12/tc-tutorial/">TC 实践<i class="fa fa-external-link"></i></span></p>
+
+    </div>
+
+    
+    
+    
+
+      
+        <div id="wechat_subscriber" style="display: block; padding: 10px 0; margin: 20px auto; width: 100%; text-align: center">
+  <img id="wechat_subscriber_qcode" src="/images/qrcode_for_wechat.jpg" alt="贝克街的流浪猫 wechat" style="width: 400px; max-width: 100%;">
+  <div></div>
+</div>
+
+      
+        <div class="reward-container">
+  <div>您的打赏将鼓励我继续分享!</div>
+  <button disable="enable" onclick="var qr = document.getElementById(&quot;qr&quot;); qr.style.display = (qr.style.display === 'none') ? 'block' : 'none';">
+    打赏
+  </button>
+  <div id="qr" style="display: none;">
+      
+      <div style="display: inline-block;">
+        <img src="/images/wechat.jpg" alt="贝克街的流浪猫 微信支付">
+        <p>微信支付</p>
+      </div>
+      
+      <div style="display: inline-block;">
+        <img src="/images/alipay.jpg" alt="贝克街的流浪猫 支付宝">
+        <p>支付宝</p>
+      </div>
+
+  </div>
+</div>
+
+        
+
+<div>
+<ul class="post-copyright">
+  <li class="post-copyright-author">
+    <strong>本文作者： </strong>贝克街的流浪猫
+  </li>
+  <li class="post-copyright-link">
+    <strong>本文链接：</strong>
+    <a href="https://www.beikejiedeliulangmao.top/network/build-network-test-environment/" title="在 CentOS 上构建无线网络测试环境">https://www.beikejiedeliulangmao.top/network/build-network-test-environment/</a>
+  </li>
+  <li class="post-copyright-license">
+    <strong>版权声明： </strong>本博客所有文章除特别声明外，均采用 <span class="exturl" data-url="aHR0cHM6Ly9jcmVhdGl2ZWNvbW1vbnMub3JnL2xpY2Vuc2VzL2J5LW5jLXNhLzQuMC9udWxs"><i class="fa fa-fw fa-creative-commons"></i>BY-NC-SA</span> 许可协议，转载请注明出处！
+  </li>
+  <li class="post-copyright-license">
+    <strong>创作声明： </strong>本文基于上述所有参考内容进行创作，其中可能涉及复制、修改或者转换，图片均来自网络，如有侵权请联系我，我会第一时间进行删除。
+  </li>
+</ul>
+</div>
+
+
+      <footer class="post-footer">
+          <div class="post-tags">
+              <a href="/tags/Linux/" rel="tag"># Linux</a>
+              <a href="/tags/DHCP/" rel="tag"># DHCP</a>
+              <a href="/tags/DNS/" rel="tag"># DNS</a>
+              <a href="/tags/AP/" rel="tag"># AP</a>
+              <a href="/tags/WiFi/" rel="tag"># WiFi</a>
+              <a href="/tags/tc/" rel="tag"># tc</a>
+              <a href="/tags/iptables/" rel="tag"># iptables</a>
+          </div>
+
+        
+
+          <div class="post-nav">
+            <div class="post-nav-next post-nav-item">
+                <a href="/linux/introduction/" rel="next" title="Linux 简介">
+                  <i class="fa fa-chevron-left"></i> Linux 简介
+                </a>
+            </div>
+
+            <span class="post-nav-divider"></span>
+
+            <div class="post-nav-prev post-nav-item">
+                <a href="/container/docker/config-tls-4-docker/" rel="prev" title="为 Docker 配置 TLS">
+                  为 Docker 配置 TLS <i class="fa fa-chevron-right"></i>
+                </a>
+            </div>
+          </div>
+      </footer>
+    
+  </article>
+  
+  
+  
+
+  </div>
+
+
+          </div>
+          
+    <div class="comments" id="gitalk-container"></div>
+
+        </div>
+          
+  
+  <div class="toggle sidebar-toggle">
+    <span class="toggle-line toggle-line-first"></span>
+    <span class="toggle-line toggle-line-middle"></span>
+    <span class="toggle-line toggle-line-last"></span>
+  </div>
+
+  <aside class="sidebar">
+    <div class="sidebar-inner">
+
+      <ul class="sidebar-nav motion-element">
+        <li class="sidebar-nav-toc">
+          文章目录
+        </li>
+        <li class="sidebar-nav-overview">
+          站点概览
+        </li>
+      </ul>
+
+      <!--noindex-->
+      <div class="post-toc-wrap sidebar-panel">
+          <div class="post-toc motion-element"><ol class="nav"><li class="nav-item nav-level-2"><a class="nav-link" href="#%E5%BC%95%E8%A8%80"><span class="nav-number">1.</span> <span class="nav-text">引言</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E7%BD%91%E7%BB%9C%E7%BB%93%E6%9E%84"><span class="nav-number">2.</span> <span class="nav-text">网络结构</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#Linux-%E7%BD%91%E7%BB%9C%E6%8E%A5%E5%8F%A3%E9%85%8D%E7%BD%AE"><span class="nav-number">3.</span> <span class="nav-text">Linux 网络接口配置</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#IP-%E5%88%86%E9%85%8D%E6%96%B9%E6%A1%88"><span class="nav-number">4.</span> <span class="nav-text">IP 分配方案</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#Linux-iptables-%E9%85%8D%E7%BD%AE"><span class="nav-number">5.</span> <span class="nav-text">Linux iptables 配置</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#Linux-tc-%E9%85%8D%E7%BD%AE"><span class="nav-number">6.</span> <span class="nav-text">Linux tc 配置</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E5%8F%82%E8%80%83%E5%86%85%E5%AE%B9"><span class="nav-number">7.</span> <span class="nav-text">参考内容</span></a></li></ol></div>
+      </div>
+      <!--/noindex-->
+
+      <div class="site-overview-wrap sidebar-panel">
+        <div class="site-author motion-element" itemprop="author" itemscope="" itemtype="http://schema.org/Person">
+    <img class="site-author-image" itemprop="image" alt="贝克街的流浪猫" src="/images/avatar.jpg">
+  <p class="site-author-name" itemprop="name">贝克街的流浪猫</p>
+  <div class="site-description" itemprop="description">贝贝猫</div>
+</div>
+<div class="site-state-wrap motion-element">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+          <a href="/archives/">
+        
+          <span class="site-state-item-count">120</span>
+          <span class="site-state-item-name">日志</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-categories">
+            <a href="/categories/">
+          
+        <span class="site-state-item-count">24</span>
+        <span class="site-state-item-name">分类</span></a>
+      </div>
+      <div class="site-state-item site-state-tags">
+            <a href="/tags/">
+          
+        <span class="site-state-item-count">158</span>
+        <span class="site-state-item-name">标签</span></a>
+      </div>
+  </nav>
+</div>
+  <div class="feed-link motion-element">
+    <a href="/atom.xml" rel="alternate">
+      <i class="fa fa-rss"></i>RSS
+    </a>
+  </div>
+  <div class="links-of-author motion-element">
+      <span class="links-of-author-item">
+        <span class="exturl" data-url="aHR0cHM6Ly9naXRodWIuY29tL0JlaUtlSmllRGVMaXVMYW5nTWFv" title="GitHub → https://github.com/BeiKeJieDeLiuLangMao"><i class="fa fa-fw fa-github"></i></span>
+      </span>
+      <span class="links-of-author-item">
+        <span class="exturl" data-url="aHR0cHM6Ly96aHVhbmxhbi56aGlodS5jb20vY18xMTY3NDI5NTg4NzExMzM3OTg1" title="知乎 → https://zhuanlan.zhihu.com/c_1167429588711337985"><i class="fa fa-fw fa-book"></i></span>
+      </span>
+      <span class="links-of-author-item">
+        <span class="exturl" data-url="bWFpbHRvOjUxNzM3NTY4NUBxcS5jb20=" title="E-Mail → mailto:517375685@qq.com"><i class="fa fa-fw fa-envelope"></i></span>
+      </span>
+      <span class="links-of-author-item">
+        <span class="exturl" data-url="aHR0cHM6Ly9zdGFja292ZXJmbG93LmNvbS91c2Vycy84NzgyOTY0L3lhbmctY2hlbj90YWI9cHJvZmlsZQ==" title="StackOverflow → https://stackoverflow.com/users/8782964/yang-chen?tab=profile"><i class="fa fa-fw fa-stack-overflow"></i></span>
+      </span>
+  </div>
+
+
+
+      </div>
+        <div class="back-to-top motion-element">
+          <i class="fa fa-arrow-up"></i>
+          <span>0%</span>
+        </div>
+
+    </div>
+  </aside>
+  <div id="sidebar-dimmer"></div>
+
+
+      </div>
+    </main>
+
+    <footer class="footer">
+      <div class="footer-inner">
+        
+  <div class="beian"><span class="exturl" data-url="aHR0cDovL3d3dy5iZWlhbi5taWl0Lmdvdi5jbg==">辽ICP备19017854号 </span>
+  </div>
+
+<div class="copyright">
+  
+  © 2019 – 
+  <span itemprop="copyrightYear">2021</span>
+  <span class="with-love">
+    <i class="fa fa-heart"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">贝克街的流浪猫</span>
+    <span class="post-meta-divider">|</span>
+    <span class="post-meta-item-icon">
+      <i class="fa fa-area-chart"></i>
+    </span>
+      <span class="post-meta-item-text">站点总字数：</span>
+    <span title="站点总字数">1.5m</span>
+    <span class="post-meta-divider">|</span>
+    <span class="post-meta-item-icon">
+      <i class="fa fa-coffee"></i>
+    </span>
+      <span class="post-meta-item-text">站点阅读时长 ≈</span>
+    <span title="站点阅读时长">22:36</span>
+</div>
+
+        
+<div class="busuanzi-count">
+  <script async="" src="https://busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js"></script>
+    <span class="post-meta-item" id="busuanzi_container_site_uv" style="display: none;">
+      <span class="post-meta-item-icon">
+        <i class="fa fa-user"></i>
+      </span>
+      <span class="site-uv" title="总访客量">
+        贝贝猫有
+        <span id="busuanzi_value_site_uv"></span>
+        位同学
+      </span>
+    </span>
+    <span class="post-meta-divider">|</span>
+    <span class="post-meta-item" id="busuanzi_container_site_pv" style="display: none;">
+      <span class="post-meta-item-icon">
+        <i class="fa fa-eye"></i>
+      </span>
+      <span class="site-pv" title="总访问量">
+        笔记被翻阅
+        <span id="busuanzi_value_site_pv"></span>
+        次
+      </span>
+    </span>
+</div>
+
+
+
+
+
+
+  
+
+
+
+
+
+
+        
+      </div>
+    </footer>
+  </div>
+
+  
+  
+  <script src="//cdn.jsdelivr.net/npm/medium-zoom@1/dist/medium-zoom.min.js"></script>
+  <script src="//cdn.jsdelivr.net/npm/pangu@4/dist/browser/pangu.min.js"></script>
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+
+
+
+
+  
+
+<script src="//cdn.jsdelivr.net/npm/instantsearch.js@2/dist/instantsearch.min.js"></script>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+  
+  <script src="//cdn.jsdelivr.net/npm/quicklink@1/dist/quicklink.umd.js"></script>
+  
+
+
+
+
+
+
+
+<script type="text/javascript" src="/bundle.js"></script><script type="text/javascript">function leancloudSelector(url) {
+    return document.getElementById(url).querySelector('.leancloud-visitors-count');
+  }
+  if (CONFIG.page.isPost) {
+    function addCount(Counter) {
+      var visitors = document.querySelector('.leancloud_visitors');
+      var url = visitors.getAttribute('id').trim();
+      var title = visitors.getAttribute('data-flag-title').trim();
+
+      Counter('get', `/classes/Counter?where=${JSON.stringify({ url })}`)
+        .then(response => response.json())
+        .then(({ results }) => {
+          if (results.length > 0) {
+            var counter = results[0];
+              leancloudSelector(url).innerText = counter.time + 1;
+            Counter('put', '/classes/Counter/' + counter.objectId, { time: { '__op': 'Increment', 'amount': 1 } })
+              .then(response => response.json())
+              .catch(error => {
+                console.log('Failed to save visitor count', error);
+              })
+          } else {
+              leancloudSelector(url).innerText = 'Counter not initialized! More info at console err msg.';
+              console.error('ATTENTION! LeanCloud counter has security bug, see how to solve it here: https://github.com/theme-next/hexo-leancloud-counter-security. \n However, you can still use LeanCloud without security, by setting `security` option to `false`.');
+            
+          }
+        })
+        .catch(error => {
+          console.log('LeanCloud Counter Error', error);
+        });
+    }
+  } else {
+    function showTime(Counter) {
+      var visitors = document.querySelectorAll('.leancloud_visitors');
+      var entries = [...visitors].map(element => {
+        return element.getAttribute('id').trim();
+      });
+
+      Counter('get', `/classes/Counter?where=${JSON.stringify({ url: { '$in': entries } })}`)
+        .then(response => response.json())
+        .then(({ results }) => {
+          if (results.length === 0) {
+            document.querySelectorAll('.leancloud_visitors .leancloud-visitors-count').forEach(element => {
+              element.innerText = 0;
+            });
+            return;
+          }
+          for (var i = 0; i < results.length; i++) {
+            var item = results[i];
+            var url = item.url;
+            var time = item.time;
+            leancloudSelector(url).innerText = time;
+          }
+          for (var i = 0; i < entries.length; i++) {
+            var url = entries[i];
+            var element = leancloudSelector(url);
+            if (element.innerText == '') {
+              element.innerText = 0;
+            }
+          }
+        })
+        .catch(error => {
+          console.log('LeanCloud Counter Error', error);
+        });
+    }
+  }
+
+  fetch('https://app-router.leancloud.cn/2/route?appId=gmT3IkYtHVMymcwAjbwHhtiv-gzGzoHsz')
+    .then(response => response.json())
+    .then(({ api_server }) => {
+      var Counter = (method, url, data) => {
+        return fetch(`https://${api_server}/1.1${url}`, {
+          method: method,
+          headers: {
+            'X-LC-Id': 'gmT3IkYtHVMymcwAjbwHhtiv-gzGzoHsz',
+            'X-LC-Key': 'co6tpmcyS9za2D1uqQyMFtnN',
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(data)
+        });
+      };
+      if (CONFIG.page.isPost) {
+        const localhost = /http:\/\/(localhost|127.0.0.1|0.0.0.0)/;
+        if (localhost.test(document.URL)) return;
+        addCount(Counter);
+      } else if (document.querySelectorAll('.post-title-link').length >= 1) {
+        showTime(Counter);
+      }
+    });;(function(){
+      var bp = document.createElement('script');
+      var curProtocol = window.location.protocol.split(':')[0];
+      bp.src = (curProtocol === 'https') ? 'https://zz.bdstatic.com/linksubmit/push.js' : 'http://push.zhanzhang.baidu.com/push.js';
+      var s = document.getElementsByTagName("script")[0];
+      s.parentNode.insertBefore(bp, s);
+    })();;if (document.querySelectorAll('pre.mermaid').length) {
+  NexT.utils.getScript('//cdn.jsdelivr.net/npm/mermaid@8/dist/mermaid.min.js', () => {
+    mermaid.initialize({
+      theme: 'forest',
+      logLevel: 3,
+      flowchart: { curve: 'linear' },
+      gantt: { axisFormat: '%m/%d/%Y' },
+      sequence: { actorMargin: 50 }
+    });
+  }, window.mermaid);
+};window.addEventListener('load', () => {
+      quicklink({
+        timeout: 3000,
+        priority: true,
+        ignores: [uri => uri.includes('#'),uri => uri == 'https://www.beikejiedeliulangmao.top/network/build-network-test-environment/',]
+      });
+      });;NexT.utils.getScript('//cdn.jsdelivr.net/npm/gitalk@1/dist/gitalk.min.js', () => {
+    var gitalk = new Gitalk({
+      clientID: '6201d1cc2825a93aa161',
+      clientSecret: '71c60f650595a3eedba64b844f811b90acac3798',
+      repo: 'HexoBlogComment',
+      owner: 'BeiKeJieDeLiuLangMao',
+      admin: ['BeiKeJieDeLiuLangMao'],
+      id: 'e9e4f7de5845657d3f7c7198941e36c5',
+        language: 'zh-CN',
+      distractionFreeMode: 'true'
+    });
+    gitalk.render('gitalk-container');
+  }, window.Gitalk);;window.imageLazyLoadSetting = {
+                isSPA: false,
+                processImages: null,
+            };;window.addEventListener("load",function(){var t=/\.(gif|jpg|jpeg|tiff|png)$/i,r=/^data:image\/[a-z]+;base64,/;Array.prototype.slice.call(document.querySelectorAll("img[data-original]")).forEach(function(a){var e=a.parentNode;"A"===e.tagName&&(e.href.match(t)||e.href.match(r))&&(e.href=a.dataset.original)})});;!function(n){n.imageLazyLoadSetting.processImages=o;var i=n.imageLazyLoadSetting.isSPA,l=Array.prototype.slice.call(document.querySelectorAll("img[data-original]"));function o(){i&&(l=Array.prototype.slice.call(document.querySelectorAll("img[data-original]")));for(var r=0;r<l.length;r++)t=l[r],void 0,0<=(e=t.getBoundingClientRect()).bottom&&0<=e.left&&e.top<=(n.innerHeight||document.documentElement.clientHeight)&&function(t){var e,n,i,o,a=l[r];e=a,n=function(){l=l.filter(function(t){return a!==t})},i=new Image,o=e.getAttribute("data-original"),i.onload=function(){e.src=o,n&&n()},i.src=o}();var t,e}o(),n.addEventListener("scroll",function(){var t,e;t=o,e=n,clearTimeout(t.tId),t.tId=setTimeout(function(){t.call(e)},500)})}(this);</script></body></html>

@@ -1,0 +1,3921 @@
+<!DOCTYPE html><html lang="zh-CN"><head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 5.1.1">
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/avatar.jpg">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/avatar.jpg">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/avatar.jpg">
+  <link rel="mask-icon" href="/images/avatar.jpg" color="#222">
+  <link rel="alternate" href="/atom.xml" title="贝克街的流浪猫" type="application/atom+xml">
+  <meta http-equiv="Cache-Control" content="no-transform">
+  <meta http-equiv="Cache-Control" content="no-siteapp">
+  <meta name="google-site-verification" content="PB8pKbwvyCztAdFAxM1AdLMfqXY7wDk6xWZIy3BYn0M">
+  <meta name="baidu-site-verification" content="lHxDkbImj8">
+
+
+
+
+
+  
+  
+
+
+<script id="hexo-configurations">
+  var NexT = window.NexT || {};
+  var CONFIG = {
+    root: '/',
+    scheme: 'Gemini',
+    version: '7.5.0',
+    exturl: true,
+    sidebar: {"position":"left","display":"post","offset":12,"onmobile":false},
+    copycode: {"enable":true,"show_result":true,"style":null},
+    back2top: {"enable":true,"sidebar":true,"scrollpercent":true},
+    bookmark: {"enable":false,"color":"#222","save":"auto"},
+    fancybox: false,
+    mediumzoom: true,
+    lazyload: false,
+    pangu: true,
+    algolia: {
+      appID: 'XKULKGLQCN',
+      apiKey: '59d463bff59108a7719f93aa31f249f3',
+      indexName: 'Hexo Blog',
+      hits: {"per_page":10},
+      labels: {"input_placeholder":"文章查询","hits_empty":"很抱歉，贝贝猫没有发表关于 \"${query}\" 的文章","hits_stats":"找到了 ${hits} 篇文章，耗时 ${time} 毫秒"}
+    },
+    localsearch: {"enable":false,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false},
+    path: '',
+    motion: {"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},
+    sidebarPadding: 40
+  };
+</script>
+
+  <meta name="description" content="引言本系列文章将整理各路流媒体传输协议，包括RTP/RTCP，RTMP，希望通过深入理解各个流媒体传输协议的设计细节，对今后流媒体部分的开发工作有一定的启发。">
+<meta property="og:type" content="article">
+<meta property="og:title" content="流媒体传输协议之 RTMP">
+<meta property="og:url" content="https://www.beikejiedeliulangmao.top/protocol/rtmp/index.html">
+<meta property="og:site_name" content="贝克街的流浪猫">
+<meta property="og:description" content="引言本系列文章将整理各路流媒体传输协议，包括RTP/RTCP，RTMP，希望通过深入理解各个流媒体传输协议的设计细节，对今后流媒体部分的开发工作有一定的启发。">
+<meta property="og:locale" content="zh_CN">
+<meta property="og:image" content="https://www.beikejiedeliulangmao.top/images/loading-cat.gif">
+<meta property="og:image" content="https://www.beikejiedeliulangmao.top/images/loading-cat.gif">
+<meta property="og:image" content="https://www.beikejiedeliulangmao.top/images/loading-cat.gif">
+<meta property="og:image" content="https://www.beikejiedeliulangmao.top/images/loading-cat.gif">
+<meta property="og:image" content="https://www.beikejiedeliulangmao.top/images/loading-cat.gif">
+<meta property="og:image" content="https://www.beikejiedeliulangmao.top/images/loading-cat.gif">
+<meta property="og:image" content="https://www.beikejiedeliulangmao.top/images/loading-cat.gif">
+<meta property="og:image" content="https://www.beikejiedeliulangmao.top/images/loading-cat.gif">
+<meta property="og:image" content="https://www.beikejiedeliulangmao.top/images/loading-cat.gif">
+<meta property="og:image" content="https://www.beikejiedeliulangmao.top/images/loading-cat.gif">
+<meta property="og:image" content="https://www.beikejiedeliulangmao.top/images/loading-cat.gif">
+<meta property="og:image" content="https://www.beikejiedeliulangmao.top/images/loading-cat.gif">
+<meta property="og:image" content="https://www.beikejiedeliulangmao.top/images/loading-cat.gif">
+<meta property="og:image" content="https://www.beikejiedeliulangmao.top/images/loading-cat.gif">
+<meta property="og:image" content="https://www.beikejiedeliulangmao.top/images/loading-cat.gif">
+<meta property="og:image" content="https://www.beikejiedeliulangmao.top/images/loading-cat.gif">
+<meta property="og:image" content="https://www.beikejiedeliulangmao.top/images/loading-cat.gif">
+<meta property="og:image" content="https://www.beikejiedeliulangmao.top/images/loading-cat.gif">
+<meta property="og:image" content="https://www.beikejiedeliulangmao.top/images/loading-cat.gif">
+<meta property="og:image" content="https://www.beikejiedeliulangmao.top/images/loading-cat.gif">
+<meta property="og:image" content="https://www.beikejiedeliulangmao.top/images/loading-cat.gif">
+<meta property="og:image" content="https://www.beikejiedeliulangmao.top/images/loading-cat.gif">
+<meta property="og:image" content="https://www.beikejiedeliulangmao.top/images/loading-cat.gif">
+<meta property="og:image" content="https://www.beikejiedeliulangmao.top/images/loading-cat.gif">
+<meta property="og:image" content="https://www.beikejiedeliulangmao.top/images/loading-cat.gif">
+<meta property="og:image" content="https://www.beikejiedeliulangmao.top/images/loading-cat.gif">
+<meta property="og:image" content="https://www.beikejiedeliulangmao.top/images/loading-cat.gif">
+<meta property="og:image" content="https://www.beikejiedeliulangmao.top/images/loading-cat.gif">
+<meta property="og:image" content="https://www.beikejiedeliulangmao.top/images/loading-cat.gif">
+<meta property="og:image" content="https://www.beikejiedeliulangmao.top/images/loading-cat.gif">
+<meta property="og:image" content="https://www.beikejiedeliulangmao.top/images/loading-cat.gif">
+<meta property="og:image" content="https://www.beikejiedeliulangmao.top/images/loading-cat.gif">
+<meta property="og:image" content="https://www.beikejiedeliulangmao.top/images/loading-cat.gif">
+<meta property="og:image" content="https://www.beikejiedeliulangmao.top/images/loading-cat.gif">
+<meta property="og:image" content="https://www.beikejiedeliulangmao.top/images/loading-cat.gif">
+<meta property="og:image" content="https://www.beikejiedeliulangmao.top/images/loading-cat.gif">
+<meta property="og:image" content="https://www.beikejiedeliulangmao.top/images/loading-cat.gif">
+<meta property="og:image" content="https://www.beikejiedeliulangmao.top/images/loading-cat.gif">
+<meta property="og:image" content="https://www.beikejiedeliulangmao.top/images/loading-cat.gif">
+<meta property="og:image" content="https://www.beikejiedeliulangmao.top/images/loading-cat.gif">
+<meta property="og:image" content="https://www.beikejiedeliulangmao.top/images/loading-cat.gif">
+<meta property="og:image" content="https://www.beikejiedeliulangmao.top/images/loading-cat.gif">
+<meta property="og:image" content="https://www.beikejiedeliulangmao.top/images/loading-cat.gif">
+<meta property="og:image" content="https://www.beikejiedeliulangmao.top/images/loading-cat.gif">
+<meta property="og:image" content="https://www.beikejiedeliulangmao.top/images/loading-cat.gif">
+<meta property="og:image" content="https://www.beikejiedeliulangmao.top/images/loading-cat.gif">
+<meta property="og:image" content="https://www.beikejiedeliulangmao.top/images/loading-cat.gif">
+<meta property="og:image" content="https://www.beikejiedeliulangmao.top/images/loading-cat.gif">
+<meta property="og:image" content="https://www.beikejiedeliulangmao.top/images/loading-cat.gif">
+<meta property="og:image" content="https://www.beikejiedeliulangmao.top/images/loading-cat.gif">
+<meta property="og:image" content="https://www.beikejiedeliulangmao.top/images/loading-cat.gif">
+<meta property="article:published_time" content="2019-03-05T08:06:32.000Z">
+<meta property="article:modified_time" content="2021-01-17T04:25:40.566Z">
+<meta property="article:author" content="贝克街的流浪猫">
+<meta property="article:tag" content="Stream Media">
+<meta property="article:tag" content="RTSP">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="https://www.beikejiedeliulangmao.top/images/loading-cat.gif">
+
+<link rel="canonical" href="https://www.beikejiedeliulangmao.top/protocol/rtmp/">
+
+
+<script id="page-configurations">
+  // https://hexo.io/docs/variables.html
+  CONFIG.page = {
+    sidebar: "",
+    isHome: false,
+    isPost: true,
+    isPage: false,
+    isArchive: false
+  };
+</script>
+
+  <title>流媒体传输协议之 RTMP | 贝克街的流浪猫</title>
+  
+    <script>
+      function sendPageView() {
+        var host = window.location.hostname;
+        if (host == "localhost" && true) return;
+        var uid = localStorage.getItem('uid') || (Math.random() + '.' + Math.random());
+        localStorage.setItem('uid', uid);
+        navigator.sendBeacon('https://www.google-analytics.com/collect', new URLSearchParams({
+          v  : 1,
+          tid: 'UA-146830566-1',
+          cid: uid,
+          t  : 'pageview',
+          dp : encodeURIComponent(location.pathname)
+        }));
+      }
+      document.addEventListener('pjax:complete', sendPageView);
+      sendPageView();
+    </script>
+
+
+  <script>
+    var _hmt = _hmt || [];
+    (function() {
+      var hm = document.createElement("script");
+      hm.src = "https://hm.baidu.com/hm.js?818a8e6061ff2bd0b5531a739f216601";
+      var s = document.getElementsByTagName("script")[0];
+      s.parentNode.insertBefore(hm, s);
+    })();
+  </script>
+
+
+
+
+  <style>body {
+  background-image: url("https://www.beikejiedeliulangmao.top/images/background.jpeg") !important;
+  background-attachment: fixed !important;
+  background-repeat: no-repeat !important;
+  background-size: 100% 100% !important;
+}
+.bg_content {
+  position: fixed;
+  top: 0;
+  z-index: -1;
+  width: 100%;
+  height: 100%;
+}
+.copyright {
+  color: #000;
+}
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+  background-color: #fff;
+}
+::-webkit-scrollbar-button {
+  width: 0;
+  height: 0;
+}
+::-webkit-scrollbar-button:start:increment,
+::-webkit-scrollbar-button:end:decrement {
+  display: none;
+}
+::-webkit-scrollbar-corner {
+  display: block;
+}
+::-webkit-scrollbar-thumb {
+  border-radius: 6px;
+  background-color: rgba(0,0,0,0.4);
+}
+::-webkit-scrollbar-thumb:hover {
+  border-radius: 6px;
+  background-color: rgba(0,0,0,0.6);
+}
+::-webkit-scrollbar-track,
+::-webkit-scrollbar-thumb {
+  border-right: 1px solid transparent;
+  border-left: 1px solid transparent;
+}
+::-webkit-scrollbar-button:start {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-button:end {
+  width: 6px;
+  height: 6px;
+}
+html {
+  line-height: 1.15; 
+  -webkit-text-size-adjust: 100%; 
+}
+body {
+  margin: 0;
+}
+main {
+  display: block;
+}
+h1 {
+  font-size: 2em;
+  margin: 0.67em 0;
+}
+hr {
+  box-sizing: content-box; 
+  height: 0; 
+  overflow: visible; 
+}
+pre {
+  font-family: monospace, monospace; 
+  font-size: 1em; 
+}
+a {
+  background: transparent;
+}
+abbr[title] {
+  border-bottom: none; 
+  text-decoration: underline; 
+  text-decoration: underline dotted; 
+}
+b,
+strong {
+  font-weight: bolder;
+}
+code,
+kbd,
+samp {
+  font-family: monospace, monospace; 
+  font-size: 1em; 
+}
+small {
+  font-size: 80%;
+}
+sub,
+sup {
+  font-size: 75%;
+  line-height: 0;
+  position: relative;
+  vertical-align: baseline;
+}
+sub {
+  bottom: -0.25em;
+}
+sup {
+  top: -0.5em;
+}
+img {
+  border-style: none;
+}
+button,
+input,
+optgroup,
+select,
+textarea {
+  font-family: inherit; 
+  font-size: 100%; 
+  line-height: 1.15; 
+  margin: 0; 
+}
+button,
+input {
+
+  overflow: visible;
+}
+button,
+select {
+
+  text-transform: none;
+}
+button,
+[type='button'],
+[type='reset'],
+[type='submit'] {
+  -webkit-appearance: button;
+}
+button::-moz-focus-inner,
+[type='button']::-moz-focus-inner,
+[type='reset']::-moz-focus-inner,
+[type='submit']::-moz-focus-inner {
+  border-style: none;
+  padding: 0;
+}
+button:-moz-focusring,
+[type='button']:-moz-focusring,
+[type='reset']:-moz-focusring,
+[type='submit']:-moz-focusring {
+  outline: 1px dotted ButtonText;
+}
+fieldset {
+  padding: 0.35em 0.75em 0.625em;
+}
+legend {
+  box-sizing: border-box; 
+  color: inherit; 
+  display: table; 
+  max-width: 100%; 
+  padding: 0; 
+  white-space: normal; 
+}
+progress {
+  vertical-align: baseline;
+}
+textarea {
+  overflow: auto;
+}
+[type='checkbox'],
+[type='radio'] {
+  box-sizing: border-box; 
+  padding: 0; 
+}
+[type='number']::-webkit-inner-spin-button,
+[type='number']::-webkit-outer-spin-button {
+  height: auto;
+}
+[type='search'] {
+  outline-offset: -2px; 
+  -webkit-appearance: textfield; 
+}
+[type='search']::-webkit-search-decoration {
+  -webkit-appearance: none;
+}
+::-webkit-file-upload-button {
+  font: inherit; 
+  -webkit-appearance: button; 
+}
+details {
+  display: block;
+}
+summary {
+  display: list-item;
+}
+template {
+  display: none;
+}
+[hidden] {
+  display: none;
+}
+::selection {
+  background: #262a30;
+  color: #fff;
+}
+html,
+body {
+  height: 100%;
+}
+body {
+  background: #eee;
+  color: #555;
+  font-family: 'Monda', "PingFang SC", "Microsoft YaHei", sans-serif;
+  font-size: 1em;
+  line-height: 2;
+}
+@media (max-width: 991px) {
+  body {
+    padding-left: 0 !important;
+    padding-right: 0 !important;
+  }
+}
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+  font-family: 'Roboto Slab', 'Monda', "PingFang SC", "Microsoft YaHei", sans-serif;
+  font-weight: bold;
+  line-height: 1.5;
+  margin: 20px 0 15px;
+  padding: 0;
+}
+h1 {
+  font-size: 1.5em;
+}
+h2 {
+  font-size: 1.375em;
+}
+h3 {
+  font-size: 1.25em;
+}
+h4 {
+  font-size: 1.125em;
+}
+h5 {
+  font-size: 1em;
+}
+h6 {
+  font-size: 0.875em;
+}
+p {
+  margin: 0 0 20px 0;
+}
+a,
+span.exturl {
+  border-bottom: 1px solid #999;
+  color: #555;
+  outline: 0;
+  text-decoration: none;
+  overflow-wrap: break-word;
+  word-wrap: break-word;
+  cursor: pointer;
+}
+a:hover,
+span.exturl:hover {
+  border-bottom-color: #222;
+  color: #222;
+}
+iframe,
+img,
+video {
+  display: block;
+  margin-left: auto;
+  margin-right: auto;
+  max-width: 100%;
+}
+hr {
+  background-color: #ddd;
+  background-image: repeating-linear-gradient(-45deg, #fff, #fff 4px, transparent 4px, transparent 8px);
+  border: 0;
+  height: 3px;
+  margin: 40px 0;
+}
+blockquote {
+  border-left: 4px solid #ddd;
+  color: #666;
+  margin: 0;
+  padding: 0 15px;
+}
+blockquote cite::before {
+  content: '-';
+  padding: 0 5px;
+}
+dt {
+  font-weight: 700;
+}
+dd {
+  margin: 0;
+  padding: 0;
+}
+kbd {
+  background-color: #f5f5f5;
+  background-image: linear-gradient(#eee, #fff, #eee);
+  border: 1px solid #ccc;
+  border-radius: 0.2em;
+  box-shadow: 0.1em 0.1em 0.2em rgba(0,0,0,0.1);
+  font-family: inherit;
+  padding: 0.1em 0.3em;
+  white-space: nowrap;
+}
+.table-container {
+  -webkit-overflow-scrolling: touch;
+  overflow: auto;
+}
+table {
+  border-collapse: collapse;
+  border-spacing: 0;
+  font-size: 0.875em;
+  margin: 0 0 20px 0;
+  width: 100%;
+}
+tbody tr:nth-of-type(odd) {
+  background: #f9f9f9;
+}
+tbody tr:hover {
+  background: #f5f5f5;
+}
+caption,
+th,
+td {
+  font-weight: normal;
+  padding: 8px;
+  text-align: left;
+  vertical-align: middle;
+}
+th,
+td {
+  border: 1px solid #ddd;
+  border-bottom: 3px solid #ddd;
+}
+th {
+  font-weight: 700;
+  padding-bottom: 10px;
+}
+td {
+  border-bottom-width: 1px;
+}
+.btn {
+  background: #fff;
+  border: 2px solid #555;
+  border-radius: 2px;
+  color: #555;
+  display: inline-block;
+  font-size: 0.875em;
+  line-height: 2;
+  padding: 0 20px;
+  text-decoration: none;
+  transition-property: background-color;
+  transition-delay: 0s;
+  transition-duration: 0.2s;
+  transition-timing-function: ease-in-out;
+}
+.btn:hover {
+  background: #222;
+  border-color: #222;
+  color: #fff;
+}
+.btn + .btn {
+  margin: 0 0 8px 8px;
+}
+.btn .fa-fw {
+  text-align: left;
+  width: 1.285714285714286em;
+}
+.toggle {
+  line-height: 0;
+}
+.toggle .toggle-line {
+  background: #fff;
+  display: inline-block;
+  height: 2px;
+  left: 0;
+  position: relative;
+  top: 0;
+  transition: all 0.4s;
+  vertical-align: top;
+  width: 100%;
+}
+.toggle .toggle-line:not(:first-child) {
+  margin-top: 3px;
+}
+.toggle.toggle-arrow .toggle-line-first {
+  left: 50%;
+  top: 2px;
+  transform: rotate(45deg);
+  width: 50%;
+}
+.toggle.toggle-arrow .toggle-line-middle {
+  left: 2px;
+  width: 90%;
+}
+.toggle.toggle-arrow .toggle-line-last {
+  left: 50%;
+  top: -2px;
+  transform: rotate(-45deg);
+  width: 50%;
+}
+.toggle.toggle-close .toggle-line-first {
+  transform: rotate(-45deg);
+  top: 5px;
+}
+.toggle.toggle-close .toggle-line-middle {
+  opacity: 0;
+}
+.toggle.toggle-close .toggle-line-last {
+  transform: rotate(45deg);
+  top: -5px;
+}
+.highlight-container {
+  position: relative;
+}
+.highlight-container:hover .copy-btn,
+.highlight-container .copy-btn:focus {
+  opacity: 1;
+}
+.copy-btn {
+  color: #333;
+  cursor: pointer;
+  display: inline-block;
+  font-weight: 700;
+  line-height: 1.6;
+  opacity: 0;
+  outline: 0;
+  padding: 2px 6px;
+  position: absolute;
+  transition: opacity 0.3s ease-in-out;
+  vertical-align: middle;
+  white-space: nowrap;
+  -moz-user-select: none;
+  -ms-user-select: none;
+  -webkit-user-select: none;
+  user-select: none;
+  background-color: #eee;
+  background-image: linear-gradient(#fcfcfc, #eee);
+  border: 1px solid #d5d5d5;
+  border-radius: 3px;
+  font-size: 0.8125em;
+  right: 4px;
+  top: 8px;
+}
+.highlight,
+pre {
+  background: #f7f7f7;
+  color: #4d4d4c;
+  line-height: 1.6;
+  margin: 0 auto 20px;
+}
+pre,
+code {
+  font-family: 'PT Mono', consolas, Menlo, monospace, "PingFang SC", "Microsoft YaHei";
+}
+code {
+  background: #eee;
+  border-radius: 3px;
+  color: #555;
+  padding: 2px 4px;
+  overflow-wrap: break-word;
+  word-wrap: break-word;
+}
+.highlight *::selection {
+  background: #d6d6d6;
+}
+.highlight pre {
+  border: 0;
+  margin: 0;
+  padding: 0;
+}
+.highlight table {
+  border: 0;
+  margin: 0;
+  width: auto;
+}
+.highlight tr:first-child pre {
+  padding-top: 10px;
+}
+.highlight tr:last-child pre {
+  padding-bottom: 10px;
+}
+.highlight td {
+  border: 0;
+  padding: 0;
+}
+.highlight figcaption {
+  background: #eee;
+  color: #4d4d4c;
+  font-size: 0.875em;
+  line-height: 1.2;
+  padding: 0.5em;
+}
+.highlight figcaption::before,
+.highlight figcaption::after {
+  content: ' ';
+  display: table;
+}
+.highlight figcaption::after {
+  clear: both;
+}
+.highlight figcaption a {
+  color: #4d4d4c;
+  float: right;
+}
+.highlight figcaption a:hover {
+  border-bottom-color: #4d4d4c;
+}
+.highlight .gutter pre {
+  background: #eff2f3;
+  color: #869194;
+  padding-left: 10px;
+  padding-right: 10px;
+  text-align: right;
+  -moz-user-select: none;
+  -ms-user-select: none;
+  -webkit-user-select: none;
+  user-select: none;
+}
+.highlight .code pre {
+  background: #f7f7f7;
+  padding-left: 10px;
+  width: 100%;
+}
+.gist table {
+  width: auto;
+}
+.gist table td {
+  border: 0;
+}
+pre {
+  overflow: auto;
+  padding: 10px;
+}
+pre code {
+  background: none;
+  color: #4d4d4c;
+  font-size: 0.875em;
+  padding: 0;
+  text-shadow: none;
+}
+pre .deletion {
+  background: #fdd;
+}
+pre .addition {
+  background: #dfd;
+}
+pre .meta {
+  color: #eab700;
+  -moz-user-select: none;
+  -ms-user-select: none;
+  -webkit-user-select: none;
+  user-select: none;
+}
+pre .comment {
+  color: #8e908c;
+}
+pre .variable,
+pre .attribute,
+pre .tag,
+pre .name,
+pre .regexp,
+pre .ruby .constant,
+pre .xml .tag .title,
+pre .xml .pi,
+pre .xml .doctype,
+pre .html .doctype,
+pre .css .id,
+pre .css .class,
+pre .css .pseudo {
+  color: #c82829;
+}
+pre .number,
+pre .preprocessor,
+pre .built_in,
+pre .builtin-name,
+pre .literal,
+pre .params,
+pre .constant,
+pre .command {
+  color: #f5871f;
+}
+pre .ruby .class .title,
+pre .css .rules .attribute,
+pre .string,
+pre .symbol,
+pre .value,
+pre .inheritance,
+pre .header,
+pre .ruby .symbol,
+pre .xml .cdata,
+pre .special,
+pre .formula {
+  color: #718c00;
+}
+pre .title,
+pre .css .hexcolor {
+  color: #3e999f;
+}
+pre .function,
+pre .python .decorator,
+pre .python .title,
+pre .ruby .function .title,
+pre .ruby .title .keyword,
+pre .perl .sub,
+pre .javascript .title,
+pre .coffeescript .title {
+  color: #4271ae;
+}
+pre .keyword,
+pre .javascript .function {
+  color: #8959a8;
+}
+.blockquote-center {
+  border-left: none;
+  margin: 40px 0;
+  padding: 0;
+  position: relative;
+  text-align: center;
+}
+.blockquote-center::before,
+.blockquote-center::after {
+  background-repeat: no-repeat;
+  background-size: 22px 22px;
+  content: ' ';
+  display: block;
+  height: 24px;
+  opacity: 0.2;
+  position: absolute;
+  width: 100%;
+}
+.blockquote-center::before {
+  background-image: url("../images/quote-l.svg");
+  background-position: 0 -6px;
+  border-top: 1px solid #ccc;
+  top: -20px;
+}
+.blockquote-center::after {
+  background-image: url("../images/quote-r.svg");
+  background-position: 100% 8px;
+  border-bottom: 1px solid #ccc;
+  bottom: -20px;
+}
+.blockquote-center p,
+.blockquote-center div {
+  text-align: center;
+}
+.post-body .group-picture img {
+  border: 0;
+  margin: 0 auto;
+  padding: 0 3px;
+}
+.group-picture-row {
+  margin-bottom: 6px;
+  overflow: hidden;
+}
+.group-picture-column {
+  float: left;
+  margin-bottom: 10px;
+}
+.post-body .label {
+  display: inline;
+  padding: 0 2px;
+}
+.post-body .label.default {
+  background: #f0f0f0;
+}
+.post-body .label.primary {
+  background: #efe6f7;
+}
+.post-body .label.info {
+  background: #e5f2f8;
+}
+.post-body .label.success {
+  background: #e7f4e9;
+}
+.post-body .label.warning {
+  background: #fcf6e1;
+}
+.post-body .label.danger {
+  background: #fae8eb;
+}
+.post-body .tabs {
+  margin-bottom: 20px;
+}
+.post-body .tabs,
+.tabs-comment {
+  display: block;
+  padding-top: 10px;
+  position: relative;
+}
+.post-body .tabs ul.nav-tabs,
+.tabs-comment ul.nav-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  margin: 0;
+  margin-bottom: -1px;
+  padding: 0;
+}
+@media (max-width: 413px) {
+  .post-body .tabs ul.nav-tabs,
+  .tabs-comment ul.nav-tabs {
+    display: block;
+    margin-bottom: 5px;
+  }
+}
+.post-body .tabs ul.nav-tabs li.tab,
+.tabs-comment ul.nav-tabs li.tab {
+  background: #fff;
+  border-bottom: 1px solid #ddd;
+  border-left: 1px solid transparent;
+  border-right: 1px solid transparent;
+  border-top: 3px solid transparent;
+  flex-grow: 1;
+  list-style-type: none;
+}
+@media (max-width: 413px) {
+  .post-body .tabs ul.nav-tabs li.tab,
+  .tabs-comment ul.nav-tabs li.tab {
+    border-bottom: 1px solid transparent;
+    border-left: 3px solid transparent;
+    border-right: 1px solid transparent;
+    border-top: 1px solid transparent;
+  }
+}
+.post-body .tabs ul.nav-tabs li.tab a,
+.tabs-comment ul.nav-tabs li.tab a {
+  border-bottom: initial;
+  display: block;
+  line-height: 1.8;
+  outline: 0;
+  padding: 0.25em 0.75em;
+  text-align: center;
+  transition-delay: 0s;
+  transition-duration: 0.2s;
+  transition-timing-function: ease-out;
+}
+.post-body .tabs ul.nav-tabs li.tab a i,
+.tabs-comment ul.nav-tabs li.tab a i {
+  width: 1.285714285714286em;
+}
+.post-body .tabs ul.nav-tabs li.tab.active,
+.tabs-comment ul.nav-tabs li.tab.active {
+  border-bottom: 1px solid transparent;
+  border-left: 1px solid #ddd;
+  border-right: 1px solid #ddd;
+  border-top: 3px solid #fc6423;
+}
+@media (max-width: 413px) {
+  .post-body .tabs ul.nav-tabs li.tab.active,
+  .tabs-comment ul.nav-tabs li.tab.active {
+    border-bottom: 1px solid #ddd;
+    border-left: 3px solid #fc6423;
+    border-right: 1px solid #ddd;
+    border-top: 1px solid #ddd;
+  }
+}
+.post-body .tabs ul.nav-tabs li.tab.active a,
+.tabs-comment ul.nav-tabs li.tab.active a {
+  color: #555;
+  cursor: default;
+}
+.post-body .tabs .tab-content .tab-pane,
+.tabs-comment .tab-content .tab-pane {
+  border: 1px solid #ddd;
+  padding: 20px 20px 0 20px;
+}
+.post-body .tabs .tab-content .tab-pane:not(.active),
+.tabs-comment .tab-content .tab-pane:not(.active) {
+  display: none;
+}
+.post-body .tabs .tab-content .tab-pane.active,
+.tabs-comment .tab-content .tab-pane.active {
+  display: block;
+}
+.post-body .note {
+  margin-bottom: 20px;
+  padding: 15px;
+  position: relative;
+  border: 1px solid #eee;
+  border-left-width: 5px;
+  border-radius: 3px;
+}
+.post-body .note h2,
+.post-body .note h3,
+.post-body .note h4,
+.post-body .note h5,
+.post-body .note h6 {
+  margin-top: 0;
+  border-bottom: initial;
+  margin-bottom: 0;
+  padding-top: 0;
+}
+.post-body .note p:first-child,
+.post-body .note ul:first-child,
+.post-body .note ol:first-child,
+.post-body .note table:first-child,
+.post-body .note pre:first-child,
+.post-body .note blockquote:first-child,
+.post-body .note img:first-child {
+  margin-top: 0;
+}
+.post-body .note p:last-child,
+.post-body .note ul:last-child,
+.post-body .note ol:last-child,
+.post-body .note table:last-child,
+.post-body .note pre:last-child,
+.post-body .note blockquote:last-child,
+.post-body .note img:last-child {
+  margin-bottom: 0;
+}
+.post-body .note.default {
+  border-left-color: #777;
+}
+.post-body .note.default h2,
+.post-body .note.default h3,
+.post-body .note.default h4,
+.post-body .note.default h5,
+.post-body .note.default h6 {
+  color: #777;
+}
+.post-body .note.primary {
+  border-left-color: #6f42c1;
+}
+.post-body .note.primary h2,
+.post-body .note.primary h3,
+.post-body .note.primary h4,
+.post-body .note.primary h5,
+.post-body .note.primary h6 {
+  color: #6f42c1;
+}
+.post-body .note.info {
+  border-left-color: #428bca;
+}
+.post-body .note.info h2,
+.post-body .note.info h3,
+.post-body .note.info h4,
+.post-body .note.info h5,
+.post-body .note.info h6 {
+  color: #428bca;
+}
+.post-body .note.success {
+  border-left-color: #5cb85c;
+}
+.post-body .note.success h2,
+.post-body .note.success h3,
+.post-body .note.success h4,
+.post-body .note.success h5,
+.post-body .note.success h6 {
+  color: #5cb85c;
+}
+.post-body .note.warning {
+  border-left-color: #f0ad4e;
+}
+.post-body .note.warning h2,
+.post-body .note.warning h3,
+.post-body .note.warning h4,
+.post-body .note.warning h5,
+.post-body .note.warning h6 {
+  color: #f0ad4e;
+}
+.post-body .note.danger {
+  border-left-color: #d9534f;
+}
+.post-body .note.danger h2,
+.post-body .note.danger h3,
+.post-body .note.danger h4,
+.post-body .note.danger h5,
+.post-body .note.danger h6 {
+  color: #d9534f;
+}
+.pagination .prev,
+.pagination .next,
+.pagination .page-number,
+.pagination .space {
+  display: inline-block;
+  margin: 0 10px;
+  padding: 0 11px;
+  position: relative;
+  top: -1px;
+}
+@media (max-width: 767px) {
+  .pagination .prev,
+  .pagination .next,
+  .pagination .page-number,
+  .pagination .space {
+    margin: 0 5px;
+  }
+}
+.pagination {
+  border-top: 1px solid #eee;
+  margin: 120px 0 0;
+  text-align: center;
+}
+.pagination .prev,
+.pagination .next,
+.pagination .page-number {
+  border-bottom: 0;
+  border-top: 1px solid #eee;
+  transition-property: border-color;
+  transition-delay: 0s;
+  transition-duration: 0.2s;
+  transition-timing-function: ease-in-out;
+}
+.pagination .prev:hover,
+.pagination .next:hover,
+.pagination .page-number:hover {
+  border-top-color: #222;
+}
+.pagination .space {
+  margin: 0;
+  padding: 0;
+}
+.pagination .prev {
+  margin-left: 0;
+}
+.pagination .next {
+  margin-right: 0;
+}
+.pagination .page-number.current,
+.algolia-pagination .current .page-number {
+  background: #ccc;
+  border-top-color: #ccc;
+  color: #fff;
+}
+@media (max-width: 767px) {
+  .pagination {
+    border-top: none;
+  }
+  .pagination .prev,
+  .pagination .next,
+  .pagination .page-number {
+    border-bottom: 1px solid #eee;
+    border-top: 0;
+    margin-bottom: 10px;
+    padding: 0 10px;
+  }
+  .pagination .prev:hover,
+  .pagination .next:hover,
+  .pagination .page-number:hover {
+    border-bottom-color: #222;
+  }
+}
+.comments {
+  margin: 60px 20px 0;
+  overflow: hidden;
+}
+.comment-button-group {
+  display: flex;
+  flex-wrap: wrap-reverse;
+  justify-content: center;
+  margin: 1em 0;
+}
+.comment-button-group .comment-button {
+  margin: 0.1em 0.2em;
+}
+.comment-button-group .comment-button.active {
+  background: #222;
+  border-color: #222;
+  color: #fff;
+}
+.comment-position {
+  display: none;
+}
+.comment-position.active {
+  display: block;
+}
+.tabs-comment {
+  background: #fff;
+  margin-top: 4em;
+  padding-top: 0;
+}
+.tabs-comment .comments {
+  border: 0;
+  box-shadow: none;
+  margin-top: 0;
+  padding-top: 0;
+}
+.container {
+  min-height: 100%;
+  position: relative;
+}
+.main-inner {
+  margin: 0 auto;
+  width: calc(100% - 20px);
+}
+@media (min-width: 1200px) {
+  .main-inner {
+    width: 1160px;
+  }
+}
+@media (min-width: 1600px) {
+  .main-inner {
+    width: 73%;
+  }
+}
+.header {
+  background: transparent;
+}
+.header-inner {
+  margin: 0 auto;
+  position: relative;
+  width: calc(100% - 20px);
+}
+@media (min-width: 1200px) {
+  .header-inner {
+    width: 1160px;
+  }
+}
+@media (min-width: 1600px) {
+  .header-inner {
+    width: 73%;
+  }
+}
+.headband {
+  background: #222;
+  height: 3px;
+}
+.site-meta {
+  margin: 0;
+  text-align: center;
+}
+@media (max-width: 767px) {
+  .site-meta {
+    text-align: center;
+  }
+}
+.brand {
+  background: #222;
+  border-bottom: none;
+  color: #fff;
+  display: inline-block;
+  line-height: 1.375em;
+  padding: 0 40px;
+  position: relative;
+}
+.brand:hover {
+  color: #fff;
+}
+.site-title {
+  display: inline-block;
+  font-family: 'Monda', "PingFang SC", "Microsoft YaHei", sans-serif;
+  font-size: 1.375em;
+  font-weight: normal;
+  line-height: 1.5;
+  vertical-align: top;
+}
+.site-subtitle {
+  color: #ddd;
+  font-size: 0.8125em;
+  margin-top: 10px;
+}
+.use-motion .brand {
+  opacity: 0;
+}
+.use-motion .site-title,
+.use-motion .site-subtitle,
+.use-motion .custom-logo-image {
+  opacity: 0;
+  position: relative;
+  top: -10px;
+}
+.site-nav-toggle {
+  display: none;
+  left: 10px;
+  position: absolute;
+}
+@media (max-width: 767px) {
+  .site-nav-toggle {
+    display: block;
+  }
+}
+.site-nav-toggle .toggle {
+  background: transparent;
+  border: 0;
+  margin-top: 2px;
+  padding: 10px;
+  width: 22px;
+}
+.site-nav-toggle .toggle .toggle-line {
+  background: #555;
+  border-radius: 1px;
+}
+.site-nav {
+  display: block;
+}
+@media (max-width: 767px) {
+  .site-nav {
+    border-top: 1px solid #ddd;
+    clear: both;
+    display: none;
+    margin: 0 -10px;
+    padding: 0 10px;
+  }
+}
+.site-nav.site-nav-on {
+  display: block;
+}
+.menu {
+  margin-top: 20px;
+  padding-left: 0;
+  text-align: center;
+}
+.menu-item {
+  display: inline-block;
+  list-style: none;
+  margin: 0 10px;
+}
+@media (max-width: 767px) {
+  .menu-item {
+    margin-top: 10px;
+  }
+}
+.menu-item a,
+.menu-item span.exturl {
+  border-bottom: 0;
+  display: block;
+  font-size: 0.8125em;
+  transition-property: border-color;
+  transition-delay: 0s;
+  transition-duration: 0.2s;
+  transition-timing-function: ease-in-out;
+}
+@media (hover: none) {
+  .menu-item a:hover,
+  .menu-item span.exturl:hover {
+    border-bottom-color: transparent !important;
+  }
+}
+.menu-item .fa {
+  margin-right: 8px;
+}
+.menu-item .badge {
+  display: inline-block;
+  font-weight: 700;
+  line-height: 1;
+  margin-left: 0.35em;
+  margin-top: 0.35em;
+  text-align: center;
+  white-space: nowrap;
+}
+@media (max-width: 767px) {
+  .menu-item .badge {
+    float: right;
+    margin-left: 0;
+  }
+}
+.use-motion .menu-item {
+  opacity: 0;
+}
+.github-corner :hover .octo-arm {
+  animation: octocat-wave 560ms ease-in-out;
+}
+.github-corner svg {
+  border: 0;
+  color: #fff;
+  fill: #222;
+  position: absolute;
+  right: 0;
+  top: 0;
+  z-index: 1000;
+}
+@media (max-width: 991px) {
+  .github-corner svg {
+    color: #222;
+    fill: #fff;
+  }
+  .github-corner .github-corner:hover .octo-arm {
+    animation: none;
+  }
+  .github-corner .github-corner .octo-arm {
+    animation: octocat-wave 560ms ease-in-out;
+  }
+}
+@-moz-keyframes octocat-wave {
+  0%, 100% {
+    transform: rotate(0);
+  }
+  20%, 60% {
+    transform: rotate(-25deg);
+  }
+  40%, 80% {
+    transform: rotate(10deg);
+  }
+}
+@-webkit-keyframes octocat-wave {
+  0%, 100% {
+    transform: rotate(0);
+  }
+  20%, 60% {
+    transform: rotate(-25deg);
+  }
+  40%, 80% {
+    transform: rotate(10deg);
+  }
+}
+@-o-keyframes octocat-wave {
+  0%, 100% {
+    transform: rotate(0);
+  }
+  20%, 60% {
+    transform: rotate(-25deg);
+  }
+  40%, 80% {
+    transform: rotate(10deg);
+  }
+}
+@keyframes octocat-wave {
+  0%, 100% {
+    transform: rotate(0);
+  }
+  20%, 60% {
+    transform: rotate(-25deg);
+  }
+  40%, 80% {
+    transform: rotate(10deg);
+  }
+}
+.sidebar {
+  background: #222;
+  bottom: 0;
+  box-shadow: inset 0 2px 6px #000;
+  position: fixed;
+  top: 0;
+  z-index: 1200;
+}
+.sidebar a,
+.sidebar span.exturl {
+  border-bottom-color: #555;
+  color: #999;
+}
+.sidebar a:hover,
+.sidebar span.exturl:hover {
+  border-bottom-color: #eee;
+  color: #eee;
+}
+@media (max-width: 991px) {
+  .sidebar {
+    display: none;
+  }
+}
+.sidebar-inner {
+  color: #999;
+  padding: 20px 10px;
+  text-align: center;
+}
+.site-overview-wrap {
+  overflow-x: hidden;
+  overflow-y: auto;
+}
+.cc-license {
+  margin-top: 10px;
+  text-align: center;
+}
+.cc-license .cc-opacity {
+  border-bottom: none;
+  opacity: 0.7;
+}
+.cc-license .cc-opacity:hover {
+  opacity: 0.9;
+}
+.cc-license img {
+  display: inline-block;
+}
+.site-author-image {
+  border: 1px solid #eee;
+  display: block;
+  height: auto;
+  margin: 0 auto;
+  max-width: 120px;
+  padding: 2px;
+  border-radius: 50%;
+}
+.site-author-name {
+  color: #222;
+  font-weight: 600;
+  margin: 0;
+  text-align: center;
+}
+.site-description {
+  color: #999;
+  font-size: 0.8125em;
+  margin-top: 0;
+  text-align: center;
+}
+.links-of-author {
+  margin-top: 15px;
+}
+.links-of-author a,
+.links-of-author span.exturl {
+  border-bottom-color: #555;
+  display: inline-block;
+  font-size: 0.8125em;
+  margin-bottom: 10px;
+  margin-right: 10px;
+  vertical-align: middle;
+  transition-delay: 0s;
+  transition-duration: 0.2s;
+  transition-timing-function: ease-in-out;
+}
+.links-of-author a::before,
+.links-of-author span.exturl::before {
+  background: #0ab5cd;
+  border-radius: 50%;
+  content: ' ';
+  display: inline-block;
+  height: 4px;
+  margin-right: 3px;
+  vertical-align: middle;
+  width: 4px;
+}
+.feed-link,
+.chat {
+  margin-top: 15px;
+}
+.feed-link a,
+.chat a {
+  border: 1px solid #fc6423;
+  border-radius: 4px;
+  color: #fc6423;
+  display: inline-block;
+  padding: 0 15px;
+}
+.feed-link a .fa,
+.chat a .fa {
+  margin-right: 5px;
+}
+.feed-link a:hover,
+.chat a:hover {
+  background: #fc6423;
+  border: 1px solid #fc6423;
+  color: #fff;
+}
+.feed-link a:hover .fa,
+.chat a:hover .fa {
+  color: #fff;
+}
+.links-of-blogroll {
+  font-size: 0.8125em;
+  margin-top: 10px;
+}
+.links-of-blogroll-title {
+  font-size: 0.875em;
+  font-weight: 600;
+  margin-top: 0;
+}
+.links-of-blogroll-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.links-of-blogroll-item {
+  padding: 2px 10px;
+}
+.links-of-blogroll-item a,
+.links-of-blogroll-item span.exturl {
+  box-sizing: border-box;
+  display: inline-block;
+  max-width: 280px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+#sidebar-dimmer {
+  display: none;
+}
+@media (max-width: 767px) {
+  #sidebar-dimmer {
+    background: #000;
+    display: block;
+    height: 100%;
+    left: 100%;
+    opacity: 0;
+    position: fixed;
+    top: 0;
+    width: 100%;
+    z-index: 1100;
+  }
+  .sidebar-active + #sidebar-dimmer {
+    opacity: 0.7;
+    transform: translateX(-100%);
+    transition: opacity 0.5s;
+  }
+}
+.sidebar-nav {
+  margin: 0;
+  padding-bottom: 20px;
+  padding-left: 0;
+}
+.sidebar-nav li {
+  border-bottom: 1px solid transparent;
+  color: #555;
+  cursor: pointer;
+  display: inline-block;
+  font-size: 0.875em;
+}
+.sidebar-nav li.sidebar-nav-overview {
+  margin-left: 10px;
+}
+.sidebar-nav li:hover {
+  color: #fc6423;
+}
+.sidebar-nav .sidebar-nav-active {
+  border-bottom-color: #fc6423;
+  color: #fc6423;
+}
+.sidebar-nav .sidebar-nav-active:hover {
+  color: #fc6423;
+}
+.sidebar-panel {
+  display: none;
+}
+.sidebar-panel-active {
+  display: block;
+}
+.sidebar-toggle {
+  background: #222;
+  bottom: 45px;
+  cursor: pointer;
+  height: 14px;
+  left: 30px;
+  padding: 5px;
+  position: fixed;
+  width: 14px;
+  z-index: 1300;
+}
+@media (max-width: 991px) {
+  .sidebar-toggle {
+    left: 20px;
+    opacity: 0.8;
+    display: none;
+  }
+}
+.sidebar-toggle:hover .toggle-line {
+  background: #fc6423;
+}
+.post-toc-wrap {
+  overflow-x: hidden;
+  overflow-y: auto;
+}
+.post-toc {
+  font-size: 0.875em;
+}
+.post-toc ol {
+  list-style: none;
+  margin: 0;
+  padding: 0 2px 5px 10px;
+  text-align: left;
+}
+.post-toc ol > ol {
+  padding-left: 0;
+}
+.post-toc ol a {
+  border-bottom-color: #ccc;
+  color: #666;
+  transition-property: all;
+  transition-delay: 0s;
+  transition-duration: 0.2s;
+  transition-timing-function: ease-in-out;
+}
+.post-toc ol a:hover {
+  border-bottom-color: #000;
+  color: #000;
+}
+.post-toc .nav-item {
+  line-height: 1.8;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.post-toc .nav .nav-child {
+  display: none;
+}
+.post-toc .nav .active > .nav-child {
+  display: block;
+}
+.post-toc .nav .active-current > .nav-child {
+  display: block;
+}
+.post-toc .nav .active-current > .nav-child > .nav-item {
+  display: block;
+}
+.post-toc .nav .active > a {
+  border-bottom-color: #fc6423;
+  color: #fc6423;
+}
+.post-toc .nav .active-current > a {
+  color: #fc6423;
+}
+.post-toc .nav .active-current > a:hover {
+  color: #fc6423;
+}
+.site-state {
+  display: flex;
+  justify-content: center;
+  line-height: 1.4;
+  margin-top: 10px;
+  overflow: hidden;
+  text-align: center;
+  white-space: nowrap;
+}
+.site-state-item {
+  padding: 0 15px;
+}
+.site-state-item:not(:first-child) {
+  border-left: 1px solid #eee;
+}
+.site-state-item a {
+  border-bottom: none;
+}
+.site-state-item-count {
+  color: inherit;
+  display: block;
+  font-size: 1em;
+  font-weight: 600;
+  text-align: center;
+}
+.site-state-item-name {
+  color: #999;
+  font-size: 0.8125em;
+}
+.footer {
+  color: #999;
+  font-size: 0.875em;
+  padding: 20px 0;
+}
+.footer.footer-fixed {
+  bottom: 0;
+  left: 0;
+  position: absolute;
+  right: 0;
+}
+.footer img {
+  border: 0;
+}
+.footer-inner {
+  box-sizing: border-box;
+  margin: 0 auto;
+  text-align: center;
+  width: calc(100% - 20px);
+}
+@media (min-width: 1200px) {
+  .footer-inner {
+    width: 1160px;
+  }
+}
+@media (min-width: 1600px) {
+  .footer-inner {
+    width: 73%;
+  }
+}
+.with-love {
+  color: red;
+  display: inline-block;
+  margin: 0 5px;
+  animation: iconAnimate 1.33s ease-in-out infinite;
+}
+.powered-by,
+.theme-info {
+  display: inline-block;
+}
+@-moz-keyframes iconAnimate {
+  0%, 100% {
+    transform: scale(1);
+  }
+  10%, 30% {
+    transform: scale(0.9);
+  }
+  20%, 40%, 60%, 80% {
+    transform: scale(1.1);
+  }
+  50%, 70% {
+    transform: scale(1.1);
+  }
+}
+@-webkit-keyframes iconAnimate {
+  0%, 100% {
+    transform: scale(1);
+  }
+  10%, 30% {
+    transform: scale(0.9);
+  }
+  20%, 40%, 60%, 80% {
+    transform: scale(1.1);
+  }
+  50%, 70% {
+    transform: scale(1.1);
+  }
+}
+@-o-keyframes iconAnimate {
+  0%, 100% {
+    transform: scale(1);
+  }
+  10%, 30% {
+    transform: scale(0.9);
+  }
+  20%, 40%, 60%, 80% {
+    transform: scale(1.1);
+  }
+  50%, 70% {
+    transform: scale(1.1);
+  }
+}
+@keyframes iconAnimate {
+  0%, 100% {
+    transform: scale(1);
+  }
+  10%, 30% {
+    transform: scale(0.9);
+  }
+  20%, 40%, 60%, 80% {
+    transform: scale(1.1);
+  }
+  50%, 70% {
+    transform: scale(1.1);
+  }
+}
+.back-to-top {
+  background: #eee;
+  font-size: 12px;
+  margin: 8px -10px -20px;
+  opacity: 0;
+  text-align: center;
+  transition-delay: 0s;
+  transition-duration: 0.2s;
+  transition-timing-function: ease-in-out;
+}
+.back-to-top.back-to-top-on {
+  cursor: pointer;
+  opacity: 0.6;
+}
+.back-to-top.back-to-top-on:hover {
+  opacity: 0.8;
+}
+.post-body {
+  font-family: 'Monda', "PingFang SC", "Microsoft YaHei", sans-serif;
+  overflow-wrap: break-word;
+  word-wrap: break-word;
+}
+@media (min-width: 1200px) {
+  .post-body {
+    font-size: 1.125em;
+  }
+}
+.post-body span.exturl .fa {
+  font-size: 0.875em;
+  margin-left: 4px;
+}
+.post-body .image-caption,
+.post-body .figure .caption {
+  color: #999;
+  font-size: 0.875em;
+  font-weight: bold;
+  line-height: 1;
+  margin: -20px auto 15px;
+  text-align: center;
+}
+.post-sticky-flag {
+  display: inline-block;
+  transform: rotate(30deg);
+}
+.post-button {
+  margin-top: 40px;
+  text-align: center;
+}
+.use-motion .post-block,
+.use-motion .pagination,
+.use-motion .comments {
+  opacity: 0;
+}
+.use-motion .post-header {
+  opacity: 0;
+}
+.use-motion .post-body {
+  opacity: 0;
+}
+.use-motion .collection-header {
+  opacity: 0;
+}
+.posts-collapse {
+  margin-left: 55px;
+  position: relative;
+}
+@media (max-width: 767px) {
+  .posts-collapse {
+    margin-left: 20px;
+    margin-right: 20px;
+  }
+}
+.posts-collapse .collection-title {
+  font-size: 1.125em;
+  position: relative;
+}
+.posts-collapse .collection-title::before {
+  background: #999;
+  border: 1px solid #fff;
+  border-radius: 50%;
+  content: ' ';
+  height: 10px;
+  left: 0;
+  margin-left: -6px;
+  margin-top: -4px;
+  position: absolute;
+  top: 50%;
+  width: 10px;
+}
+.posts-collapse .collection-year {
+  margin: 60px 0;
+  position: relative;
+}
+.posts-collapse .collection-year::before {
+  background: #bbb;
+  border-radius: 50%;
+  content: ' ';
+  height: 8px;
+  left: 0;
+  margin-left: -4px;
+  margin-top: -4px;
+  position: absolute;
+  top: 50%;
+  width: 8px;
+}
+.posts-collapse .collection-header {
+  display: inline-block;
+  margin: 0 0 0 20px;
+}
+.posts-collapse .collection-header small {
+  color: #bbb;
+  margin-left: 5px;
+}
+.posts-collapse .post-header {
+  border-bottom: 1px dashed #ccc;
+  margin: 30px 0;
+  padding-left: 15px;
+  position: relative;
+  transition-property: border;
+  transition-delay: 0s;
+  transition-duration: 0.2s;
+  transition-timing-function: ease-in-out;
+}
+.posts-collapse .post-header::before {
+  background: #bbb;
+  border: 1px solid #fff;
+  border-radius: 50%;
+  content: ' ';
+  height: 6px;
+  left: 0;
+  margin-left: -4px;
+  position: absolute;
+  top: 0.75em;
+  transition-property: background;
+  width: 6px;
+  transition-delay: 0s;
+  transition-duration: 0.2s;
+  transition-timing-function: ease-in-out;
+}
+.posts-collapse .post-header:hover {
+  border-bottom-color: #666;
+}
+.posts-collapse .post-header:hover::before {
+  background: #222;
+}
+.posts-collapse .post-meta {
+  display: inline;
+  font-size: 0.75em;
+  margin-right: 10px;
+}
+.posts-collapse .post-title {
+  display: inline;
+  font-size: 1em;
+  font-weight: normal;
+  margin-bottom: 0;
+  margin-top: 0;
+}
+.posts-collapse .post-title a,
+.posts-collapse .post-title span.exturl {
+  border-bottom: none;
+  color: #666;
+}
+.posts-collapse::before {
+  background: #f5f5f5;
+  content: ' ';
+  height: 100%;
+  left: 0;
+  margin-left: -2px;
+  position: absolute;
+  top: 1.25em;
+  width: 4px;
+}
+.posts-collapse .fa-external-link {
+  font-size: 0.875em;
+  margin-left: 5px;
+}
+.post-eof {
+  background: #ccc;
+  height: 1px;
+  margin: 80px auto 60px;
+  text-align: center;
+  width: 8%;
+}
+.post-block:last-child .post-eof {
+  display: none;
+}
+.posts-expand {
+  padding-top: 40px;
+}
+@media (max-width: 767px) {
+  .posts-expand {
+    margin: 0 20px;
+  }
+}
+@media (min-width: 992px) {
+  .post-body {
+    text-align: left;
+  }
+}
+@media (max-width: 991px) {
+  .post-body {
+    text-align: left;
+  }
+}
+.post-body h2,
+.post-body h3,
+.post-body h4,
+.post-body h5,
+.post-body h6 {
+  padding-top: 10px;
+}
+.post-body h2 .header-anchor,
+.post-body h3 .header-anchor,
+.post-body h4 .header-anchor,
+.post-body h5 .header-anchor,
+.post-body h6 .header-anchor {
+  border-bottom-style: none;
+  color: #ccc;
+  float: right;
+  margin-left: 10px;
+  visibility: hidden;
+}
+.post-body h2 .header-anchor:hover,
+.post-body h3 .header-anchor:hover,
+.post-body h4 .header-anchor:hover,
+.post-body h5 .header-anchor:hover,
+.post-body h6 .header-anchor:hover {
+  color: inherit;
+}
+.post-body h2:hover .header-anchor,
+.post-body h3:hover .header-anchor,
+.post-body h4:hover .header-anchor,
+.post-body h5:hover .header-anchor,
+.post-body h6:hover .header-anchor {
+  visibility: visible;
+}
+.post-body img {
+  border: 1px solid #ddd;
+  box-sizing: border-box;
+  padding: 3px;
+}
+@media (max-width: 767px) {
+  .post-body img {
+    padding: initial;
+  }
+}
+.post-body iframe,
+.post-body img,
+.post-body video {
+  margin-bottom: 20px;
+}
+.post-body .video-container {
+  height: 0;
+  margin-bottom: 20px;
+  overflow: hidden;
+  padding-top: 75%;
+  position: relative;
+  width: 100%;
+}
+.post-body .video-container iframe,
+.post-body .video-container object,
+.post-body .video-container embed {
+  height: 100%;
+  left: 0;
+  margin: 0;
+  position: absolute;
+  top: 0;
+  width: 100%;
+}
+.post-gallery {
+  border-collapse: separate;
+  display: table;
+  table-layout: fixed;
+  width: 100%;
+}
+.post-gallery .post-gallery-img {
+  border: 0;
+  display: table-cell;
+  text-align: center;
+  vertical-align: middle;
+}
+.post-gallery .post-gallery-img img {
+  border: 0;
+  max-height: 100%;
+  max-width: 100%;
+}
+.post-gallery-row {
+  display: table-row;
+}
+.posts-expand .post-header {
+  font-size: 1.125em;
+}
+.posts-expand .post-title {
+  font-weight: 400;
+  margin: initial;
+  text-align: center;
+  overflow-wrap: break-word;
+  word-wrap: break-word;
+}
+.posts-expand .post-title-link {
+  border-bottom: none;
+  color: #555;
+  display: inline-block;
+  position: relative;
+  vertical-align: top;
+}
+.posts-expand .post-title-link::before {
+  background: #000;
+  bottom: 0;
+  content: '';
+  height: 2px;
+  left: 0;
+  position: absolute;
+  transform: scaleX(0);
+  visibility: hidden;
+  width: 100%;
+  transition-delay: 0s;
+  transition-duration: 0.2s;
+  transition-timing-function: ease-in-out;
+}
+.posts-expand .post-title-link:hover::before {
+  transform: scaleX(1);
+  visibility: visible;
+}
+.posts-expand .post-title-link .fa {
+  font-size: 0.875em;
+  margin-left: 5px;
+}
+.posts-expand .post-meta {
+  color: #999;
+  font-family: 'Monda', "PingFang SC", "Microsoft YaHei", sans-serif;
+  font-size: 0.75em;
+  margin: 3px 0 60px 0;
+  text-align: center;
+}
+.posts-expand .post-meta .post-description {
+  font-size: 0.875em;
+  margin-top: 2px;
+}
+.posts-expand .post-meta time {
+  border-bottom: 1px dashed #999;
+  cursor: pointer;
+}
+.post-meta .post-meta-item + .post-meta-item::before {
+  content: '|';
+  margin: 0 0.5em;
+}
+.post-meta-divider {
+  margin: 0 0.5em;
+}
+.post-meta-item-icon {
+  margin-right: 3px;
+}
+@media (max-width: 991px) {
+  .post-meta-item-icon {
+    display: inline-block;
+  }
+}
+@media (max-width: 991px) {
+  .post-meta-item-text {
+    display: none;
+  }
+}
+.post-nav {
+  border-top: 1px solid #eee;
+  display: table;
+  margin-top: 15px;
+  width: 100%;
+}
+.post-nav-divider {
+  display: table-cell;
+  width: 10%;
+}
+.post-nav-item {
+  display: table-cell;
+  padding: 10px 0 0 0;
+  vertical-align: top;
+  width: 45%;
+}
+.post-nav-item a {
+  border-bottom: none;
+  color: #555;
+  display: block;
+  font-size: 0.875em;
+  line-height: 1.6;
+  position: relative;
+}
+.post-nav-item a:hover {
+  border-bottom: none;
+  color: #222;
+}
+.post-nav-item a:active {
+  top: 2px;
+}
+.post-nav-item .fa {
+  font-size: 0.75em;
+  margin-right: 5px;
+}
+.post-nav-next a {
+  padding-left: 5px;
+}
+.post-nav-prev {
+  text-align: right;
+}
+.post-nav-prev a {
+  padding-right: 5px;
+}
+.post-nav-prev .fa {
+  margin-left: 5px;
+}
+.rtl.post-body p,
+.rtl.post-body a,
+.rtl.post-body h1,
+.rtl.post-body h2,
+.rtl.post-body h3,
+.rtl.post-body h4,
+.rtl.post-body h5,
+.rtl.post-body h6,
+.rtl.post-body li,
+.rtl.post-body ul,
+.rtl.post-body ol {
+  direction: rtl;
+  font-family: UKIJ Ekran;
+}
+.rtl.post-title {
+  font-family: UKIJ Ekran;
+}
+.post-tags {
+  margin-top: 40px;
+  text-align: center;
+}
+.post-tags a {
+  display: inline-block;
+  font-size: 0.8125em;
+}
+.post-tags a:not(:last-child) {
+  margin-right: 10px;
+}
+.post-widgets {
+  border-top: 1px solid #eee;
+  margin-top: 15px;
+  text-align: center;
+}
+.wp_rating {
+  height: 20px;
+  line-height: 20px;
+  margin-top: 10px;
+  padding-top: 6px;
+  text-align: center;
+}
+.social-like {
+  display: flex;
+  font-size: 0.875em;
+  justify-content: center;
+  text-align: center;
+}
+.reward-container {
+  margin: 20px auto;
+  padding: 10px 0;
+  text-align: center;
+  width: 90%;
+}
+.reward-container button {
+  background: #ff2a2a;
+  border: 0;
+  border-radius: 5px;
+  color: #fff;
+  cursor: pointer;
+  line-height: 2;
+  outline: 0;
+  padding: 0 15px;
+  vertical-align: text-top;
+}
+.reward-container button:hover {
+  background: #f55;
+}
+#qr {
+  padding-top: 20px;
+}
+#qr a {
+  border: 0;
+}
+#qr img {
+  display: inline-block;
+  margin: 0.8em 2em 0 2em;
+  max-width: 100%;
+  width: 180px;
+}
+#qr p {
+  text-align: center;
+}
+.post-copyright {
+  background: #f5f5f5;
+  border-left: 3px solid #ff2a2a;
+  list-style: none;
+  margin: 2em 0 0;
+  padding: 0.5em 1em;
+}
+.category-all-page .category-all-title {
+  text-align: center;
+}
+.category-all-page .category-all {
+  margin-top: 20px;
+}
+.category-all-page .category-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.category-all-page .category-list-item {
+  margin: 5px 10px;
+}
+.category-all-page .category-list-count {
+  color: #bbb;
+}
+.category-all-page .category-list-count::before {
+  content: ' (';
+  display: inline;
+}
+.category-all-page .category-list-count::after {
+  content: ') ';
+  display: inline;
+}
+.category-all-page .category-list-child {
+  padding-left: 10px;
+}
+.event-list {
+  padding: 0;
+}
+.event-list hr {
+  background: #222;
+  margin: 20px 0 45px 0;
+}
+.event-list hr::after {
+  background: #222;
+  color: #fff;
+  content: 'NOW';
+  display: inline-block;
+  font-weight: bold;
+  padding: 0 5px;
+  text-align: right;
+}
+.event-list .event {
+  background: #222;
+  margin: 20px 0;
+  min-height: 40px;
+  padding: 15px 0 15px 10px;
+}
+.event-list .event .event-summary {
+  color: #fff;
+  margin: 0;
+  padding-bottom: 3px;
+}
+.event-list .event .event-summary::before {
+  animation: dot-flash 1s alternate infinite ease-in-out;
+  color: #fff;
+  content: '\f111';
+  display: inline-block;
+  font-family: 'FontAwesome';
+  font-size: 10px;
+  margin-right: 25px;
+  vertical-align: middle;
+}
+.event-list .event .event-relative-time {
+  color: #bbb;
+  display: inline-block;
+  font-size: 12px;
+  font-weight: 400;
+  padding-left: 12px;
+}
+.event-list .event .event-details {
+  color: #fff;
+  display: block;
+  line-height: 18px;
+  margin-left: 56px;
+  padding-bottom: 6px;
+  padding-top: 3px;
+  text-indent: -24px;
+}
+.event-list .event .event-details::before {
+  color: #fff;
+  display: inline-block;
+  font-family: 'FontAwesome';
+  margin-right: 9px;
+  text-align: center;
+  text-indent: 0;
+  width: 14px;
+}
+.event-list .event .event-details.event-location::before {
+  content: '\f041';
+}
+.event-list .event .event-details.event-duration::before {
+  content: '\f017';
+}
+.event-list .event-past {
+  background: #f5f5f5;
+}
+.event-list .event-past .event-summary,
+.event-list .event-past .event-details {
+  color: #bbb;
+  opacity: 0.9;
+}
+.event-list .event-past .event-summary::before,
+.event-list .event-past .event-details::before {
+  animation: none;
+  color: #bbb;
+}
+@-moz-keyframes dot-flash {
+  from {
+    opacity: 1;
+    transform: scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: scale(0.8);
+  }
+}
+@-webkit-keyframes dot-flash {
+  from {
+    opacity: 1;
+    transform: scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: scale(0.8);
+  }
+}
+@-o-keyframes dot-flash {
+  from {
+    opacity: 1;
+    transform: scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: scale(0.8);
+  }
+}
+@keyframes dot-flash {
+  from {
+    opacity: 1;
+    transform: scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: scale(0.8);
+  }
+}
+ul.breadcrumb {
+  font-size: 0.75em;
+  list-style: none;
+  margin: 1em 0;
+  padding: 0 2em;
+  text-align: center;
+}
+ul.breadcrumb li {
+  display: inline;
+}
+ul.breadcrumb li + li::before {
+  content: '/\00a0';
+  font-weight: normal;
+  padding: 0.5em;
+}
+ul.breadcrumb li + li:last-child {
+  font-weight: bold;
+}
+.tag-cloud {
+  text-align: center;
+}
+.tag-cloud a {
+  display: inline-block;
+  margin: 10px;
+}
+.tag-cloud a:hover {
+  color: #222 !important;
+}
+.gt-header a,
+.gt-comments a,
+.gt-popup a {
+  border-bottom: none;
+}
+.gt-container .gt-popup .gt-action.is--active::before {
+  top: 0.7em;
+}
+.search-pop-overlay {
+  background: rgba(0,0,0,0.3);
+  display: none;
+  height: 100%;
+  left: 0;
+  overflow: hidden;
+  position: fixed;
+  top: 0;
+  width: 100%;
+  z-index: 1400;
+}
+.search-popup {
+  background: #fff;
+  border-radius: 5px;
+  color: #333;
+  display: none;
+  height: 80%;
+  left: 50%;
+  margin-left: -350px;
+  padding: 0;
+  position: fixed;
+  top: 10%;
+  width: 700px;
+  z-index: 1500;
+}
+@media (max-width: 767px) {
+  .search-popup {
+    border-radius: 0;
+    height: 100%;
+    left: 0;
+    margin: 0;
+    padding: 0;
+    top: 0;
+    width: 100%;
+  }
+}
+.search-popup .search-icon,
+.search-popup .popup-btn-close {
+  color: #999;
+  display: inline-block;
+  font-size: 18px;
+  height: 36px;
+  padding-left: 10px;
+  padding-right: 10px;
+  width: 18px;
+}
+.search-popup .popup-btn-close {
+  border-left: 1px solid #eee;
+  cursor: pointer;
+  float: right;
+}
+.search-popup .popup-btn-close:hover .fa {
+  color: #222;
+}
+.search-popup .search-header {
+  background: #f5f5f5;
+  border-top-left-radius: 5px;
+  border-top-right-radius: 5px;
+  padding: 5px;
+}
+.search-input {
+  display: inline-block;
+  width: calc(90% - 30px);
+}
+.search-input input {
+  background: transparent;
+  border: 0;
+  outline: 0;
+  padding: 5px 0;
+  width: 100%;
+}
+.search-input .ais-search-box--magnifier svg,
+.search-input .ais-search-box--reset svg {
+  display: none;
+}
+.algolia-powered {
+  float: right;
+}
+.algolia-powered img {
+  display: inline-block;
+  height: 18px;
+  vertical-align: middle;
+}
+.algolia-results {
+  height: calc(100% - 55px);
+  overflow: auto;
+  padding: 5px 30px;
+  position: relative;
+}
+.algolia-results hr {
+  margin: 10px 0;
+}
+.algolia-results .highlight {
+  color: #f00;
+  font-size: inherit;
+  font-style: normal;
+  margin: 0;
+  padding: 0 2px;
+}
+.algolia-hits {
+  margin-top: 20px;
+}
+.algolia-hit-item {
+  margin: 15px 0;
+}
+.algolia-hit-item-link {
+  border-bottom: 1px dashed #ccc;
+  display: block;
+  transition-delay: 0s;
+  transition-duration: 0.2s;
+  transition-timing-function: ease-in-out;
+}
+.algolia-pagination .pagination {
+  border-top: none;
+  margin: 40px 0;
+  opacity: 1;
+  padding: 0;
+}
+.algolia-pagination .pagination-item {
+  display: inline-block;
+}
+.algolia-pagination .page-number {
+  border-top: none;
+}
+.algolia-pagination .page-number:hover {
+  border-bottom: 1px solid #222;
+}
+.algolia-pagination .disabled-item {
+  visibility: hidden;
+}
+.header {
+  margin: 0 auto;
+  position: relative;
+  width: calc(100% - 20px);
+}
+@media (min-width: 1200px) {
+  .header {
+    width: 1160px;
+  }
+}
+@media (min-width: 1600px) {
+  .header {
+    width: 73%;
+  }
+}
+@media (max-width: 991px) {
+  .header {
+    width: auto;
+  }
+}
+.header-inner {
+  background: #fff;
+  border-radius: initial;
+  box-shadow: 0 2px 2px 0 rgba(0,0,0,0.12), 0 3px 1px -2px rgba(0,0,0,0.06), 0 1px 5px 0 rgba(0,0,0,0.12);
+  overflow: hidden;
+  padding: 0;
+  position: absolute;
+  top: 0;
+  width: 240px;
+}
+@media (min-width: 1200px) {
+  .header-inner {
+    width: 240px;
+  }
+}
+@media (max-width: 991px) {
+  .header-inner {
+    border-radius: initial;
+    position: relative;
+    width: auto;
+  }
+}
+.main::before,
+.main::after {
+  content: ' ';
+  display: table;
+}
+.main::after {
+  clear: both;
+}
+@media (max-width: 991px) {
+  .main-inner {
+    width: auto;
+  }
+}
+.content-wrap {
+  background: #fff;
+  border-radius: initial;
+  box-shadow: 0 2px 2px 0 rgba(0,0,0,0.12), 0 3px 1px -2px rgba(0,0,0,0.06), 0 1px 5px 0 rgba(0,0,0,0.12);
+  box-sizing: border-box;
+  float: right;
+  padding: 40px;
+  width: calc(100% - 252px);
+}
+@media (max-width: 991px) {
+  .content-wrap {
+    border-radius: initial;
+    padding: 20px;
+    width: 100%;
+  }
+}
+.sidebar {
+  background: #eee;
+  box-shadow: none;
+  float: left;
+  position: static;
+  width: 240px;
+}
+@media (max-width: 991px) {
+  .sidebar {
+    display: none;
+  }
+}
+.sidebar-toggle {
+  display: none;
+}
+.footer-inner {
+  padding-left: 260px;
+}
+.back-to-top {
+  left: auto;
+  right: 30px;
+}
+@media (max-width: 991px) {
+  .back-to-top {
+    right: 20px;
+  }
+}
+@media (max-width: 991px) {
+  .footer-inner {
+    padding-left: 0;
+    padding-right: 0;
+    width: auto;
+  }
+}
+.site-brand-container {
+  position: relative;
+}
+.site-meta {
+  background: #222;
+  color: #fff;
+  padding: 20px 0;
+}
+@media (max-width: 991px) {
+  .site-meta {
+    box-shadow: 0 0 16px rgba(0,0,0,0.5);
+  }
+}
+.brand {
+  background: none;
+  padding: 0;
+}
+.brand:hover {
+  color: #fff;
+}
+.site-subtitle {
+  font-weight: initial;
+  margin: 10px 10px 0;
+}
+.custom-logo-image {
+  margin-top: 20px;
+}
+@media (max-width: 991px) {
+  .custom-logo-image {
+    display: none;
+  }
+}
+.site-nav-toggle {
+  left: 20px;
+  top: 50%;
+  transform: translateY(-50%);
+}
+@media (min-width: 768px) and (max-width: 991px) {
+  .site-nav-toggle {
+    display: block;
+  }
+}
+.site-nav-toggle .toggle .toggle-line {
+  background: #fff;
+}
+.site-nav {
+  border-top: none;
+}
+@media (min-width: 768px) and (max-width: 991px) {
+  .site-nav {
+    display: none;
+  }
+}
+.menu-item-active a,
+.menu .menu-item a:hover,
+.menu .menu-item span.exturl:hover {
+  background: #f5f5f5;
+}
+.menu-item-active a::after,
+.menu .menu-item a:hover::after,
+.menu .menu-item span.exturl:hover::after {
+  background: #bbb;
+  border-radius: 50%;
+  content: ' ';
+  height: 6px;
+  margin-top: -3px;
+  position: absolute;
+  right: 15px;
+  top: 50%;
+  width: 6px;
+}
+.menu .menu-item {
+  display: block;
+  margin: 0;
+}
+.menu .menu-item a,
+.menu .menu-item span.exturl {
+  padding: 5px 20px;
+  position: relative;
+  text-align: left;
+  transition-property: background-color;
+}
+.menu .menu-item .badge {
+  background: #ccc;
+  border-radius: 10px;
+  color: #fff;
+  float: right;
+  padding: 2px 5px;
+  text-shadow: 1px 1px 0 rgba(0,0,0,0.1);
+  vertical-align: middle;
+}
+.sub-menu {
+  background: #fff;
+  border-bottom: 1px solid #ddd;
+  margin: 0;
+  padding: 6px 0;
+}
+.sub-menu .menu-item {
+  display: inline-block;
+}
+.sub-menu .menu-item a,
+.sub-menu .menu-item span.exturl {
+  margin: 5px 10px;
+  padding: initial;
+}
+.sub-menu .menu-item a:hover,
+.sub-menu .menu-item span.exturl:hover {
+  background: initial;
+  color: #fc6423;
+}
+.sub-menu .menu-item a::after,
+.sub-menu .menu-item span.exturl::after {
+  content: initial !important;
+}
+.sub-menu .menu-item-active a {
+  background: #fff;
+  border-bottom-color: #fc6423;
+  color: #fc6423;
+}
+.sub-menu .menu-item-active a:hover {
+  background: #fff;
+  border-bottom-color: #fc6423;
+}
+.sidebar {
+  bottom: auto;
+  right: auto;
+}
+.sidebar a,
+.sidebar span.exturl {
+  color: #555;
+}
+.sidebar a:hover,
+.sidebar span.exturl:hover {
+  border-bottom-color: #222;
+  color: #222;
+}
+.sidebar-inner {
+  background: #fff;
+  border-radius: initial;
+  box-shadow: 0 2px 2px 0 rgba(0,0,0,0.12), 0 3px 1px -2px rgba(0,0,0,0.06), 0 1px 5px 0 rgba(0,0,0,0.12), 0 -1px 0.5px 0 rgba(0,0,0,0.09);
+  box-sizing: border-box;
+  color: #555;
+  width: 240px;
+  opacity: 0;
+}
+.sidebar-inner.affix {
+  position: fixed;
+  top: 12px;
+}
+.sidebar-inner.affix-bottom {
+  position: absolute;
+}
+.site-state-item {
+  padding: 0 10px;
+}
+.feed-link,
+.chat {
+  border-bottom: 1px dotted #ccc;
+  border-top: 1px dotted #ccc;
+  margin-top: 10px;
+  text-align: center;
+}
+.feed-link a,
+.chat a {
+  border: 0;
+  color: #fc6423;
+  display: block;
+}
+.feed-link a:hover,
+.chat a:hover {
+  background: none;
+  border: 0;
+  color: #e34603;
+}
+.feed-link a:hover .fa,
+.chat a:hover .fa {
+  color: #e34603;
+}
+.links-of-author {
+  display: flex;
+  flex-wrap: wrap;
+  margin-top: 10px;
+  justify-content: center;
+}
+.links-of-author-item {
+  margin: 5px 0 0;
+}
+.links-of-author-item a,
+.links-of-author-item span.exturl {
+  box-sizing: border-box;
+  display: inline-block;
+  margin-bottom: 0;
+  margin-right: 0;
+  max-width: 216px;
+  overflow: hidden;
+  padding: 0 5px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.links-of-author-item a,
+.links-of-author-item span.exturl {
+  border-bottom: none;
+  display: block;
+  text-decoration: none;
+}
+.links-of-author-item a::before,
+.links-of-author-item span.exturl::before {
+  display: none;
+}
+.links-of-author-item a:hover,
+.links-of-author-item span.exturl:hover {
+  background: #eee;
+  border-radius: 4px;
+}
+.links-of-author-item .fa {
+  margin-right: 2px;
+}
+.links-of-blogroll-item {
+  padding: 0;
+}
+.content-wrap {
+  background: initial;
+  box-shadow: initial;
+  padding: initial;
+}
+.post-block {
+  background: #fff;
+  border-radius: initial;
+  box-shadow: 0 2px 2px 0 rgba(0,0,0,0.12), 0 3px 1px -2px rgba(0,0,0,0.06), 0 1px 5px 0 rgba(0,0,0,0.12);
+  padding: 40px;
+}
+.post-block + .post-block {
+  border-radius: initial;
+  box-shadow: 0 2px 2px 0 rgba(0,0,0,0.12), 0 3px 1px -2px rgba(0,0,0,0.06), 0 1px 5px 0 rgba(0,0,0,0.12), 0 -1px 0.5px 0 rgba(0,0,0,0.09);
+  margin-top: 12px;
+}
+.comments {
+  background: #fff;
+  border-radius: initial;
+  box-shadow: 0 2px 2px 0 rgba(0,0,0,0.12), 0 3px 1px -2px rgba(0,0,0,0.06), 0 1px 5px 0 rgba(0,0,0,0.12), 0 -1px 0.5px 0 rgba(0,0,0,0.09);
+  margin: auto;
+  margin-top: 12px;
+  padding: 40px;
+}
+.tabs-comment {
+  margin-top: 1em;
+}
+.posts-expand {
+  padding-top: initial;
+}
+.post-nav-divider {
+  width: 4%;
+}
+.post-nav-item {
+  width: 48%;
+}
+.post-eof {
+  display: none;
+}
+.pagination {
+  background: #fff;
+  border-radius: initial;
+  border-top: initial;
+  box-shadow: 0 2px 2px 0 rgba(0,0,0,0.12), 0 3px 1px -2px rgba(0,0,0,0.06), 0 1px 5px 0 rgba(0,0,0,0.12), 0 -1px 0.5px 0 rgba(0,0,0,0.09);
+  margin: 12px 0 0;
+  padding: 10px 0 10px;
+}
+.pagination .prev,
+.pagination .next,
+.pagination .page-number {
+  margin-bottom: initial;
+  top: initial;
+}
+.main {
+  padding-bottom: initial;
+}
+.footer {
+  bottom: auto;
+}
+.sub-menu {
+  border-bottom: initial;
+  box-shadow: 0 2px 2px 0 rgba(0,0,0,0.12), 0 3px 1px -2px rgba(0,0,0,0.06), 0 1px 5px 0 rgba(0,0,0,0.12);
+}
+.sub-menu + .content .post-block {
+  box-shadow: 0 2px 2px 0 rgba(0,0,0,0.12), 0 3px 1px -2px rgba(0,0,0,0.06), 0 1px 5px 0 rgba(0,0,0,0.12), 0 -1px 0.5px 0 rgba(0,0,0,0.09);
+  margin-top: 12px;
+}
+@media (min-width: 768px) and (max-width: 991px) {
+  .sub-menu + .content .post-block {
+    margin-top: 10px;
+  }
+}
+@media (max-width: 767px) {
+  .sub-menu + .content .post-block {
+    margin-top: 8px;
+  }
+}
+.post-body h1,
+.post-body h2 {
+  border-bottom: 1px solid #eee;
+}
+.post-body h3 {
+  border-bottom: 1px solid #eee;
+}
+.post-body h4 {
+  border-bottom: 1px dotted #eee;
+}
+@media (min-width: 768px) and (max-width: 991px) {
+  .content-wrap {
+    padding: 10px;
+  }
+  .posts-expand {
+    margin: initial;
+  }
+  .posts-expand .post-button {
+    margin-top: 20px;
+  }
+  .post-block {
+    border-radius: initial;
+    box-shadow: 0 2px 2px 0 rgba(0,0,0,0.12), 0 3px 1px -2px rgba(0,0,0,0.06), 0 1px 5px 0 rgba(0,0,0,0.12), 0 -1px 0.5px 0 rgba(0,0,0,0.09);
+    padding: 20px;
+  }
+  .post-block + .post-block {
+    margin-top: 10px;
+  }
+  .comments {
+    margin-top: 10px;
+    padding: 10px 20px;
+  }
+  .pagination {
+    margin: 10px 0 0;
+  }
+}
+@media (max-width: 767px) {
+  .content-wrap {
+    padding: 8px;
+  }
+  .posts-expand {
+    margin: initial;
+  }
+  .posts-expand .post-button {
+    margin: 12px 0;
+  }
+  .post-block {
+    border-radius: initial;
+    box-shadow: 0 2px 2px 0 rgba(0,0,0,0.12), 0 3px 1px -2px rgba(0,0,0,0.06), 0 1px 5px 0 rgba(0,0,0,0.12), 0 -1px 0.5px 0 rgba(0,0,0,0.09);
+    min-height: auto;
+    padding: 12px;
+  }
+  .post-block + .post-block {
+    margin-top: 8px;
+  }
+  .comments {
+    margin-top: 8px;
+    padding: 10px 12px;
+  }
+  .pagination {
+    margin: 8px 0 0;
+  }
+}</style><noscript>
+  <style>
+  .use-motion .brand,
+  .use-motion .menu-item,
+  .sidebar-inner,
+  .use-motion .post-block,
+  .use-motion .pagination,
+  .use-motion .comments,
+  .use-motion .post-header,
+  .use-motion .post-body,
+  .use-motion .collection-header { opacity: initial; }
+
+  .use-motion .site-title,
+  .use-motion .site-subtitle {
+    opacity: initial;
+    top: initial;
+  }
+
+  .use-motion .logo-line-before i { left: initial; }
+  .use-motion .logo-line-after i { right: initial; }
+  </style>
+</noscript>
+
+<script>function loadCss(l){var d=document,h=d.head,s=d.createElement('link');s.rel='stylesheet';s.href=l;!function e(f){if (d.body)return f();setTimeout(function(){e(f)})}(function(){h.appendChild(s);});}loadCss('/style.css');loadCss('//fonts.googleapis.com/css?family=Monda:300,300italic,400,400italic,700,700italic|Roboto Slab:300,300italic,400,400italic,700,700italic|PT Mono:300,300italic,400,400italic,700,700italic&display=swap&subset=latin,latin-ext');loadCss('//cdn.jsdelivr.net/npm/instantsearch.js@2/dist/instantsearch.min.css');loadCss('//cdn.jsdelivr.net/npm/gitalk@1/dist/gitalk.min.css');</script><noscript><link rel="stylesheet" href="/style.css"><link rel="stylesheet" href="//fonts.googleapis.com/css?family=Monda:300,300italic,400,400italic,700,700italic|Roboto Slab:300,300italic,400,400italic,700,700italic|PT Mono:300,300italic,400,400italic,700,700italic&amp;display=swap&amp;subset=latin,latin-ext"><link rel="stylesheet" href="//cdn.jsdelivr.net/npm/instantsearch.js@2/dist/instantsearch.min.css"><link rel="stylesheet" href="//cdn.jsdelivr.net/npm/gitalk@1/dist/gitalk.min.css"></noscript></head>
+
+<body itemscope="" itemtype="http://schema.org/WebPage">
+  <div class="container use-motion">
+    <div class="headband"></div>
+
+    <header class="header" itemscope="" itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-container">
+  <div class="site-meta">
+
+    <div>
+      <a href="/" class="brand" rel="start">
+        <span class="logo-line-before"><i></i></span>
+        <span class="site-title">贝克街的流浪猫</span>
+        <span class="logo-line-after"><i></i></span>
+      </a>
+    </div>
+        <h1 class="site-subtitle" itemprop="description">技术博客</h1>
+      
+  </div>
+
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="切换导航栏">
+      <span class="toggle-line toggle-line-first"></span>
+      <span class="toggle-line toggle-line-middle"></span>
+      <span class="toggle-line toggle-line-last"></span>
+    </div>
+  </div>
+</div>
+
+
+<nav class="site-nav">
+  
+  <ul id="menu" class="menu">
+        <li class="menu-item menu-item-home">
+
+    <a href="/" rel="section"><i class="fa fa-fw fa-home"></i>首页</a>
+
+  </li>
+        <li class="menu-item menu-item-tags">
+
+    <a href="/tags/" rel="section"><i class="fa fa-fw fa-tags"></i>标签</a>
+
+  </li>
+        <li class="menu-item menu-item-categories">
+
+    <a href="/categories/" rel="section"><i class="fa fa-fw fa-th"></i>分类</a>
+
+  </li>
+        <li class="menu-item menu-item-archives">
+
+    <a href="/archives/" rel="section"><i class="fa fa-fw fa-archive"></i>归档</a>
+
+  </li>
+        <li class="menu-item menu-item-about">
+
+    <a href="/about/" rel="section"><i class="fa fa-fw fa-user"></i>关于</a>
+
+  </li>
+      <li class="menu-item menu-item-search">
+        <a role="button" class="popup-trigger"><i class="fa fa-search fa-fw"></i>搜索
+        </a>
+      </li>
+  </ul>
+
+</nav>
+  <div class="site-search">
+    <div class="popup search-popup">
+    <div class="search-header">
+  <span class="search-icon">
+    <i class="fa fa-search"></i>
+  </span>
+  <div class="search-input" id="search-input"></div>
+  <span class="popup-btn-close">
+    <i class="fa fa-times-circle"></i>
+  </span>
+</div>
+<div class="algolia-results">
+  <div id="algolia-stats"></div>
+  <div id="algolia-hits"></div>
+  <div id="algolia-pagination" class="algolia-pagination"></div>
+</div>
+
+  
+</div>
+<div class="search-pop-overlay"></div>
+
+  </div>
+</div>
+    </header>
+
+    
+
+  <span class="exturl github-corner" data-url="aHR0cHM6Ly9naXRodWIuY29tL0JlaUtlSmllRGVMaXVMYW5nTWFv" title="欢迎关注我的 GitHub" aria-label="欢迎关注我的 GitHub"><svg width="80" height="80" viewBox="0 0 250 250" aria-hidden="true"><path d="M0,0 L115,115 L130,115 L142,142 L250,250 L250,0 Z"></path><path d="M128.3,109.0 C113.8,99.7 119.0,89.6 119.0,89.6 C122.0,82.7 120.5,78.6 120.5,78.6 C119.2,72.0 123.4,76.3 123.4,76.3 C127.3,80.9 125.5,87.3 125.5,87.3 C122.9,97.6 130.6,101.9 134.4,103.2" fill="currentColor" style="transform-origin: 130px 106px;" class="octo-arm"></path><path d="M115.0,115.0 C114.9,115.1 118.7,116.5 119.8,115.4 L133.7,101.6 C136.9,99.2 139.9,98.4 142.2,98.6 C133.8,88.0 127.5,74.4 143.8,58.0 C148.5,53.4 154.0,51.2 159.7,51.0 C160.3,49.4 163.2,43.6 171.4,40.1 C171.4,40.1 176.1,42.5 178.8,56.2 C183.1,58.6 187.2,61.8 190.9,65.4 C194.5,69.0 197.7,73.2 200.1,77.6 C213.8,80.2 216.3,84.9 216.3,84.9 C212.7,93.1 206.9,96.0 205.4,96.6 C205.1,102.4 203.0,107.8 198.3,112.5 C181.9,128.9 168.3,122.5 157.7,114.1 C157.9,116.9 156.7,120.9 152.7,124.9 L141.0,136.5 C139.8,137.7 141.6,141.9 141.8,141.8 Z" fill="currentColor" class="octo-body"></path></svg></span>
+
+
+    <main class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          
+
+          <div class="content">
+            
+
+  <div class="posts-expand">
+      
+  
+  
+  <article itemscope="" itemtype="http://schema.org/Article" class="post-block " lang="zh-CN">
+    <link itemprop="mainEntityOfPage" href="https://www.beikejiedeliulangmao.top/protocol/rtmp/">
+
+    <span hidden="" itemprop="author" itemscope="" itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.jpg">
+      <meta itemprop="name" content="贝克街的流浪猫">
+      <meta itemprop="description" content="贝贝猫">
+    </span>
+
+    <span hidden="" itemprop="publisher" itemscope="" itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="贝克街的流浪猫">
+    </span>
+      <header class="post-header">
+        <h2 class="post-title" itemprop="name headline">
+          流媒体传输协议之 RTMP
+        </h2>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="fa fa-calendar-o"></i>
+              </span>
+              <span class="post-meta-item-text">发表于</span>
+
+              <time title="创建时间：2019-03-05 16:06:32" itemprop="dateCreated datePublished" datetime="2019-03-05T16:06:32+08:00">2019-03-05</time>
+            </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="fa fa-folder-o"></i>
+              </span>
+              <span class="post-meta-item-text">分类于</span>
+                <span itemprop="about" itemscope="" itemtype="http://schema.org/Thing">
+                  <a href="/categories/Protocol/" itemprop="url" rel="index">
+                    <span itemprop="name">Protocol</span>
+                  </a>
+                </span>
+            </span>
+
+          
+            <span id="/protocol/rtmp/" class="post-meta-item leancloud_visitors" data-flag-title="流媒体传输协议之 RTMP" title="阅读次数">
+              <span class="post-meta-item-icon">
+                <i class="fa fa-eye"></i>
+              </span>
+              <span class="post-meta-item-text">阅读次数：</span>
+              <span class="leancloud-visitors-count"></span>
+            </span><br>
+            <span class="post-meta-item" title="本文字数">
+              <span class="post-meta-item-icon">
+                <i class="fa fa-file-word-o"></i>
+              </span>
+                <span class="post-meta-item-text">本文字数：</span>
+              <span>13k</span>
+            </span>
+            <span class="post-meta-item" title="阅读时长">
+              <span class="post-meta-item-icon">
+                <i class="fa fa-clock-o"></i>
+              </span>
+                <span class="post-meta-item-text">阅读时长 ≈</span>
+              <span>12 分钟</span>
+            </span>
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+        <h2 id="引言"><a href="#引言" class="headerlink" title="引言"></a>引言</h2><p>本系列文章将整理各路流媒体传输协议，包括RTP/RTCP，RTMP，希望通过深入理解各个流媒体传输协议的设计细节，对今后流媒体部分的开发工作有一定的启发。</p>
+<a id="more"></a>
+
+<h2 id="简介"><a href="#简介" class="headerlink" title="简介"></a>简介</h2><p>RTMP在可靠流式传输（TCP）的基础上提供了双向的消息多路复用服务，在通讯双方之间传输与时间相关的并行流数据，如音频，视频和数据消息。协议实现方通常为不同的消息类型指定不同的优先级，这样在网络带宽受限时能改变底层传输顺序。</p>
+<h2 id="定义"><a href="#定义" class="headerlink" title="定义"></a>定义</h2><ul>
+<li>负载：包中所承载的数据。例如音频或视频数据。</li>
+<li>包：一个数据包由固定头部和所承载的数据组成。一些底层协议可能需要定义数据包的封装格式。</li>
+<li>端口：在一个计算机中用于区分不同目标的抽象定义。在TCP/IP协议中用一个小的正整数来表示端口。OSI传输层的传输选择器就相当于端口。</li>
+<li>传输地址：标识一个传输终端的网络地址和端口的组合，例如IP地址和TCP端口的组合。</li>
+<li>消息流：允许消息传播的逻辑通道。</li>
+<li>消息流ID：每个消息都会有一个对应的ID，用于标识其所在的消息流。</li>
+<li>块：消息的一个片段。消息在传输之前会被分割成更小的片段，因为每一块都很小，以至于可以给不同的块指定各自的优先级，通过这种方式保证多个流中数据可以按照时间戳的顺序传输。</li>
+<li>块流：块向某一确定方向传播的逻辑通道。可以是客户端到服务端，也可以是服务端到客户端。</li>
+<li>块流ID：每个块都会有一个对应的ID，用于标识其所在的块流。</li>
+<li>复用：将独立的音频/视频数据整合为统一的音视频流，可以使多个音视频流同步传输。</li>
+<li>复用分离：复用的逆向过程。将合并的音视频数据分离为原始的音频和视频数据。</li>
+<li>远程过程调用：客户端或服务端调用另一端的功能。</li>
+<li>元数据：媒体数据的描述信息。</li>
+<li>应用实例：服务器上可以和Client建立连接的应用。</li>
+<li>动作消息格式：一个可用于序列化ActionScript对象图的紧凑的二进制格式。</li>
+<li>字节序：字节的顺序，即多字节类型的数据在内存中的存放顺序。TCP/IP各层协议将字节序定义为大端字节序，因此TCP/IP协议中使用的字节序通常称之为网络字节序。</li>
+<li>大字节序：高位字节排放在内存的低地址，低位字节排放在内存的高地址。</li>
+<li>小字节序：低位字节排放在内存的低地址，高位字节排放在内存的高地址。</li>
+</ul>
+<h2 id="字节序，校准，时间格式"><a href="#字节序，校准，时间格式" class="headerlink" title="字节序，校准，时间格式"></a>字节序，校准，时间格式</h2><p>所有整数都是以网络字节序来表示的。除非另行说明，本文中的所有数字都是十进制数。<br>在没有特殊说明的情况下，RTMP中的数据都是字节对齐的。如果有填充的话，填充字节应该用0。<br>RTMP中的时间戳是用一个整数来表示的，代表相对于一个起始时间的毫秒数。通常每个流的时间戳都从0开始，但这不是必须的，只要通讯双方使用统一的起始时间就可以了。要注意的是，跨流的时间同步（不同主机之间）需要额外的机制来实现。<br>由于时间戳的长度只有32位，所以只能在50天内循环（49天17小时2分钟47.296秒）。而流是可以不断运行的，可能多年才会结束。所以RTMP应用在处理时间戳是应该使用连续的数字算法，并且应该支持回环处理。例如：一个应用可以假设所有相邻的时间戳间隔不超过2^31-1毫秒，在此基础上，10000在4000000000之后，3000000000在4000000000之前。<br>时间戳增量也是以毫秒为单位的无符号整数。时间戳增量可能会是24位长度也可能是32位长度。</p>
+<h2 id="RTMP块流"><a href="#RTMP块流" class="headerlink" title="RTMP块流"></a>RTMP块流</h2><p>块流为上层流媒体协议提供复用和分包的功能。RTMP块流是为配合RTMP协议而设计，但它可以使用在任何发送消息流的协议中。每个消息包含时间戳和负载类型信息。RTMP块流和RTMP协议组合可以适用于多种音视频应用，从一对一或一对多直播到视频会议都能很好的满足。<br>当使用可靠传输协议（如TCP）时，RTMP块流为所有消息提供了可靠的跨流端对端按时间戳顺序发送的机制。RTMP块流不提供优先级控制，但是可以由上层协议提供这样的优先级。例如：当某个客户端网络比较慢时，可能会选择抛弃一些视频消息来保证声音消息能够及时接收。<br>RTMP块流除自身内置的协议控制消息外，还为上层协议提供了用户控制消息的机制。</p>
+<h3 id="消息格式"><a href="#消息格式" class="headerlink" title="消息格式"></a>消息格式</h3><p>消息格式由上层协议定义，消息可以被分成多个块以支持多路复用。消息应该包含分块功能所需的所有字段，具体内容如下：</p>
+<ul>
+<li>时间戳（4-byte)：消息的时间戳。</li>
+<li>长度（3-byte）：消息有效负载的长度，如果消息头不能被省略，则消息头的长度也应该包含在长度中。</li>
+<li>类型ID（1-byte）：消息类型ID。一些类型ID是为协议控制消息保留的，这些消息所表示的信息同时供RTMP块流协议和上层协议使用。所有其他类型ID都用于上层协议，RTMP块流对这些ID做不透明处理。实际上，RTMP块流不需要用这些值来区分类型，所有消息都可以是相同的类型，应用也可以用本字段来区分同步轨道而不是区分类型。</li>
+<li>消息流ID（4-byte)：消息流ID可以是任意值。被复合到同一个块流的消息流，依据消息流ID进行分离。另外，就相关的块流而言，这个值是不透明的。这个字段使用小字节序。</li>
+</ul>
+<h3 id="握手"><a href="#握手" class="headerlink" title="握手"></a>握手</h3><p>RTMP连接以握手开始，它的握手过程可能和其他协议不同，这里的握手由3个固定大小的块组成，而不是可变大小的块加上固定大小的头。</p>
+<h4 id="握手流程"><a href="#握手流程" class="headerlink" title="握手流程"></a>握手流程</h4><p>握手由客户端发送C0和C1块开始。<br>客户端必须等接收到S1之后才可以发送C2。客户端必须等接收到S2之后才可以发送其他数据。<br>服务器必须等接收到C0之后才可以发送S0和S1，也可能接收到C1之后发送。服务器必须等接收到C1之后才可以发送S2。服务器必须等接收到C2之后才可以发送其他数据。</p>
+<h4 id="C0和S0格式"><a href="#C0和S0格式" class="headerlink" title="C0和S0格式"></a>C0和S0格式</h4><p>C0和S0是单独的一个字节，可以当做一个8bit的整数字段来对待。<br><img src="/images/loading-cat.gif" data-original="https://bbm-hexo.oss-accelerate.aliyuncs.com/images/rtmp/rtmp-c0-s0.png" alt="rtmp-c0-s0"><br>以下是CO和S0包的字段解释：</p>
+<ul>
+<li>版本号（8位）： 在C0包中，该字段表示客户端请求的RTMP版本。在S0中，该字段表示服务器选择的RTMP版本。本规范所定义的版本是3。可选值中，0-2是早期版本所用的，已被丢弃，4-31保留在未来使用，32-255不允许使用（为了区分其他以某一可见字符开始的文本协议）。如果服务器不能识别客户端请求的版本，应该返回3，客户端可能选择降级到版本3，也可能放弃握手。</li>
+</ul>
+<h4 id="C1和S1格式"><a href="#C1和S1格式" class="headerlink" title="C1和S1格式"></a>C1和S1格式</h4><p>C1和S1包固定为1536字节，包含以下字段：<br><img src="/images/loading-cat.gif" data-original="https://bbm-hexo.oss-accelerate.aliyuncs.com/images/rtmp/rtmp-c1-s1.png" alt="rtmp-c1-s1"></p>
+<ul>
+<li>时间戳（4字节）：该字段承载一个时间戳，该时间戳应该作为发送端点所有后续块的时间戳起始时间。可以是0，也可以是其他的任意值。为了同步多个块流，端点可能会发送其他块流的当前时间戳。</li>
+<li>零值（4字节）：该字段所有值都必须为0。</li>
+<li>随机数据（1528字节）：该字段可以是任意值。通过这个字段来区分自己和连接的另一方，所以此数据应该有充分的随机性，但是没必要使用加密安全的随机值或动态值。</li>
+</ul>
+<h4 id="C2和S2格式"><a href="#C2和S2格式" class="headerlink" title="C2和S2格式"></a>C2和S2格式</h4><p>C2和S2包的长度也为1536字节，基本上是S1和C1的回传，包含以下字段：<br><img src="/images/loading-cat.gif" data-original="https://bbm-hexo.oss-accelerate.aliyuncs.com/images/rtmp/rtmp-c2-s2.png" alt="rtmp-c2-s2"></p>
+<ul>
+<li>时间戳（4字节）：该字段必须包含对端发来的时间戳（对C2来说是S1， 对S2来说是C1）。</li>
+<li>时间2（4字节）：该字段必须包含先前发送的并被对端读取的包的时间戳。（对C2来说是C1，对S2来说是S1）。</li>
+<li>随机数据回显（1528字节）：该字段必须包含对端发送过来的随机数据字段值（对C2来说是S1， 对S2来说是C1）。任何一端都可以用时间戳和时间戳2两个字段值和当前时间戳来快速的估算带宽和延迟，但这样可能并不实用。</li>
+</ul>
+<h4 id="握手流程示意图"><a href="#握手流程示意图" class="headerlink" title="握手流程示意图"></a>握手流程示意图</h4><p><img src="/images/loading-cat.gif" data-original="https://bbm-hexo.oss-accelerate.aliyuncs.com/images/rtmp/rtmp-handshake.png" alt="rtmp-handshake"><br>上图提到的状态的解释如下：</p>
+<ul>
+<li>Uninitialized：未初始化状态。在该阶段发送协议版本。客户端在C0包中发送RTMP协议版本，如果服务器支持此版本，服务器将在响应中发送S0和S1。如果不支持，服务器采用适当的行为作为响应，在RTMP规范中是终止连接。</li>
+<li>Version Send：版本已发送状态。在未初始化状态之后客户端和服务端都进入版本已发送状态。客户端等待接收S1包，服务端等待接收C1包。收到所等待的包后，客户端发送C2包，服务端发送S2包。之后状态进入发送确认状态。</li>
+<li>Ack Send：客户端和服务端等待接收S2和C2包，收到后进入握手完成状态。</li>
+<li>Handshake Done：握手完成， 客户端和服务端开始交换消息。</li>
+</ul>
+<h3 id="分块"><a href="#分块" class="headerlink" title="分块"></a>分块</h3><p>握手完成后，一个或多个块流可能会复用同一个连接，每个块流承载来自同一个消息流的同一类消息。每个块都有一个唯一的块流ID，这些块通过网络进行传输。在传输过程中，必须一个块发送完毕之后再发送下一个块。在接收端，将所有块根据块中的块流ID组装成消息。<br>分块将上层协议的大消息分割成小的消息，保证大的低优先级消息（比如视频）不阻塞小的高优先级消息（比如音频或控制消息）。<br>分块还能降低消息发送的开销，它在块头中包含了压缩的原本需要在消息中所包含的信息。<br>块大小是可配置的，这个可以通过一个设置块大小控制消息进行设定修改。越大的块CPU使用率越低，但是在低带宽的情况下，大的写入会阻塞其他内容的写入。而小一些的块不适合高比特率的流。</p>
+<h4 id="块格式"><a href="#块格式" class="headerlink" title="块格式"></a>块格式</h4><p>每个块由块头和数据组成，块头包含3部分：基本头、消息头和扩展时间戳。<br><img src="/images/loading-cat.gif" data-original="https://bbm-hexo.oss-accelerate.aliyuncs.com/images/rtmp/rtmp-chunk-structure.png" alt="rtmp-chunk-structure"></p>
+<ul>
+<li>基本头(1-3字节)：块流ID和块类型，块类型决定了之后消息头的编码格式。基本头的长度取决于块流ID，当块流ID越大时所需要的字节数越多。</li>
+<li>消息头(0,3,7或11字节)：所发送消息的描述信息。该部分的长度取决于基本头中指定的块类型。</li>
+<li>扩展时间戳(0或4字节)：该部分只有在某些特殊情况下才会使用，是否使用取决于时间戳或时间戳增量是否超出了块消息头中相应字段的描述范围。</li>
+<li>块数据(变长)：块承载的有效数据，最大长度为配置的块大小。</li>
+</ul>
+<h5 id="基本头"><a href="#基本头" class="headerlink" title="基本头"></a>基本头</h5><p>基本头包含块流ID和块类型（在下图中用fmt字段表示），块类型决定了消息头的编码格式，基本头长度可能是1，2或3字节，这取决于块流ID的长度。<br>协议实现方应该用能够用最短表示法来表示块流ID。<br>RTMP最多支持65597个流，ID在3-65599范围内，0，1，2为保留值。如果2<del>7位代表的值为0表示块基本头占2个字节，并且块流ID范围在64-319之间（第二个字节+64），如果2</del>7位代表的值为1表示块基本头占3个字节，并且ID范围在64-65599之间（第三个字节*256 + 第二个字节 + 64），当ID在3-63之间时直接使用2~7位的值来表示流ID。<br>2-63范围内的块流ID用1个字节来编码：<br><img src="/images/loading-cat.gif" data-original="https://bbm-hexo.oss-accelerate.aliyuncs.com/images/rtmp/rtmp-basic-header-1.png" alt="rtmp-basic-header-1"><br>64-319范围内的块流ID用2个字节来编码，块流ID为计算所得，公式为：第二个字节值 + 64：<br><img src="/images/loading-cat.gif" data-original="https://bbm-hexo.oss-accelerate.aliyuncs.com/images/rtmp/rtmp-basic-header-2.png" alt="rtmp-basic-header-2"><br>64-65599范围内的块流ID用3个字节来编码，块流ID为计算所得，公式为：第三个字节值*255 + 第二个字节值 + 64<br><img src="/images/loading-cat.gif" data-original="https://bbm-hexo.oss-accelerate.aliyuncs.com/images/rtmp/rtmp-basic-header-3.png" alt="rtmp-basic-header-3"><br>上述图中各个部分的含义如下：</p>
+<ul>
+<li>cs id(6位)：该字段表示完整的块流ID，取值在2-63之间。0，1两个值是保留值，用来表示基本头是2字节还是3字节长度。</li>
+<li>fmt：该字段表明了消息头使用的格式。</li>
+<li>cs id - 64(8位或16位)：该字段表示块流ID，取值在64-63399之间。</li>
+</ul>
+<p>64-319范围内的块流ID可以用2字节来表示，也可以用3字节表示。</p>
+<h5 id="消息头"><a href="#消息头" class="headerlink" title="消息头"></a>消息头</h5><p>消息头共有4种不同的格式，根据基本头中的”fmt”字段值来确定。协议实现方应该用最紧凑的格式来表示块消息头。</p>
+<h6 id="类型0"><a href="#类型0" class="headerlink" title="类型0"></a>类型0</h6><p>0类型的块消息头占11个字节长度，该类型必须用在一个块流的开头，和每当块流时间戳回退的时候（例如视频回退的操作）。<br><img src="/images/loading-cat.gif" data-original="https://bbm-hexo.oss-accelerate.aliyuncs.com/images/rtmp/rtmp-message-header-0.png" alt="rtmp-message-header-0"></p>
+<ul>
+<li>timestamp(3字节)：对于0类型的消息块，消息的绝对时间戳在这里发送。 如果时间戳大于或等于16777215(0xFFFFFF)，改字段值必须为16777215，并且必须设置扩展时间戳来共同编码32位的时间戳。否则该字段就是完整的时间戳。</li>
+<li>message length(3字节): 消息长度，类型0和类型1的块包含此字段，表示消息的长度。要注意的是，通常消息长度与块长度并不相同。块长度除了最后一个块之外，都与块最大长度相同。</li>
+<li>message type id(3字节): 消息类型id，类型0和类型1的块包含此字段，表示消息的类型。</li>
+<li>message stream id(4字节): 消息流ID，类型0的块包含此字段，表示消息流ID。消息流ID以小字节序存储。通常，相同块流中的消息属于用一个消息流。虽然，不同的消息流复用相同的块流会导致消息头无法有效压缩，但是当一个消息流已关闭，准备打开另外一个消息流时，就可以通过发送一个新的0类型块来实现复用。</li>
+</ul>
+<h6 id="类型1"><a href="#类型1" class="headerlink" title="类型1"></a>类型1</h6><p>1类型的块消息头占用7个字节长度，不包含消息流ID，该块沿用上一个消息的消息流ID。对于传输大小可变消息的流（如多数视频格式），在发送第一个消息之后的每个消息都应该使用该类型格式。<br><img src="/images/loading-cat.gif" data-original="https://bbm-hexo.oss-accelerate.aliyuncs.com/images/rtmp/rtmp-message-header-1.png" alt="rtmp-message-header-1"></p>
+<ul>
+<li>timestamp delta(3字节): 时间戳增量。类型1和类型2的块包含此字段，表示前一个块的timestamp字段和当前块timestamp间的差值。 如果时间戳增量大于或等于16777215(0xFFFFFF)，该字段必须为16777215，并且必须设置扩展时间戳，来共同表示32位的时间戳增量，否则该字段值就是实际的时间戳增量。</li>
+</ul>
+<h6 id="类型2"><a href="#类型2" class="headerlink" title="类型2"></a>类型2</h6><p>2类型的块消息头占用3个字节长度，不包含消息流ID和消息长度，沿用上一个块的消息流ID和消息长度。对于传输固定大小消息的流（如音频和数据格式），在发送第一个消息之后的每一个消息都应该使用该类型格式。<br><img src="/images/loading-cat.gif" data-original="https://bbm-hexo.oss-accelerate.aliyuncs.com/images/rtmp/rtmp-message-header-2.png" alt="rtmp-message-header-2"></p>
+<h6 id="类型3"><a href="#类型3" class="headerlink" title="类型3"></a>类型3</h6><p>3类型的块没有消息头，消息流ID、消息长度和时间戳增量，该类型的块使用和上一个块相同的头数据。当一个消息被分割成块时，除了第一个块，其他块都应该使用该类型。由相同大小、消息流ID和时间间隔的消息组成的流，在类型2的块之后所有块都应该使用该类型格式。如果第一个消息和第二消息之间的时间增量与第一个消息的时间戳相同，则0类型的块之后可以马上发送3类型的块，而不必使用2类型的块来注册时间增量。如果类型3的块跟在类型0的块后面，那么3类型块的时间戳增量与0类型块的时间戳相同。</p>
+<h5 id="扩展时间戳"><a href="#扩展时间戳" class="headerlink" title="扩展时间戳"></a>扩展时间戳</h5><p>扩展时间戳用来辅助编码超过16777215(0xFFFFFF)的时间戳或时间戳增量，也就说消息头无法用24位数字来表示时间戳或时间戳增量时，既0类型块的时间戳字段或1，2类型的时间戳增量字段值为16777215(0xFFFFFF)。当最近的属于相同块流ID的0类型块、1类型块或2类型块有此字段时有此字段时，3类型块也应该有此字段。</p>
+<h4 id="示例"><a href="#示例" class="headerlink" title="示例"></a>示例</h4><h5 id="示例1"><a href="#示例1" class="headerlink" title="示例1"></a>示例1</h5><p>这是一个简单的音频流消息，这是示例示范了信息冗余。<br><img src="/images/loading-cat.gif" data-original="https://bbm-hexo.oss-accelerate.aliyuncs.com/images/rtmp/rtmp-header-example-1.png" alt="rtmp-header-example-1"><br>下图展示该消息流以块流形式发送。从3类型块开始了数据传输优化，之后的块只附加了一个字节。<br><img src="/images/loading-cat.gif" data-original="https://bbm-hexo.oss-accelerate.aliyuncs.com/images/rtmp/rtmp-header-example-2.png" alt="rtmp-header-example-2"></p>
+<h5 id="示例2"><a href="#示例2" class="headerlink" title="示例2"></a>示例2</h5><p>该示例展示了一个超过128字节长度的消息，消息被分割成了数个块。<br><img src="/images/loading-cat.gif" data-original="https://bbm-hexo.oss-accelerate.aliyuncs.com/images/rtmp/rtmp-header-example-3.png" alt="rtmp-header-example-3"><br>下图是被分割成的块：<br><img src="/images/loading-cat.gif" data-original="https://bbm-hexo.oss-accelerate.aliyuncs.com/images/rtmp/rtmp-header-example-4.png" alt="rtmp-header-example-4"><br>第一个块的头信息指明了消息总大小为307字节。<br>注意这两个示例，3类型块可以在两种情况下使用。第一种情况是消息拆分成多个块，另一种情况是新消息复用上一个消息的所有头部内容。</p>
+<h3 id="协议控制消息"><a href="#协议控制消息" class="headerlink" title="协议控制消息"></a>协议控制消息</h3><p>RTMP块流用消息类型1，2，3，5和6来作为协议控制消息，这些消息包含RTMP块流协议所需要的信息。<br>这些协议控制消息必须用0作为消息流ID(控制流ID)，并在ID为2的块流中发送。协议控制消息收到后立即生效，它们的时间戳信息是被忽略的。</p>
+<h4 id="设置块大小"><a href="#设置块大小" class="headerlink" title="设置块大小"></a>设置块大小</h4><p>协议控制消息类型1：设置块大小，用于通知另一端新的最大块大小。<br>最大块大小默认为128字节，客户端或服务端可以修改此值，并用该消息通知另一端。例如，假设一个客户端想要发送131字节的音频数据，而最大块大小为128。在这种情况下，客户端可以向服务端发送该消息，通知它最大块大小被设置为了131字节。这样客户端只用一个块就可以发送这些音频数据。<br>最大块大小不能小于1字节，通常应该不低于128字节。每个方向上的最大块大小是独立的。<br><img src="/images/loading-cat.gif" data-original="https://bbm-hexo.oss-accelerate.aliyuncs.com/images/rtmp/rtmp-protocol-control-1.png" alt="rtmp-protocol-control-1"></p>
+<ul>
+<li>0(1位): 该位必须为0.</li>
+<li>chunk size(31位): 该字段以字节形式保存新的最大块大小，该值将用于后续的所有块的发送，直到收到新的通知。该值可取值范围为1-2147483647(0x7FFFFFFF)，但是所有大于1677215(0xFFFFFF)的值都是视作是16777215，因为任何块不可能比消息大，而消息长度不能大于16777215字节。</li>
+</ul>
+<h4 id="终止消息"><a href="#终止消息" class="headerlink" title="终止消息"></a>终止消息</h4><p>协议控制消息类型2：终止消息，通知正在等待消息后续块的另一端，可以丢弃指定块流接收到的数据，块流ID为该消息的载荷。应用可能在关闭的时候发送该消息，用来表明后面的消息没有必要继续处理了。<br><img src="/images/loading-cat.gif" data-original="https://bbm-hexo.oss-accelerate.aliyuncs.com/images/rtmp/rtmp-protocol-control-2.png" alt="rtmp-protocol-control-2"></p>
+<ul>
+<li>chunk stream id(32字节): 指定消息的块流ID。</li>
+</ul>
+<h4 id="确认消息"><a href="#确认消息" class="headerlink" title="确认消息"></a>确认消息</h4><p>客户端或服务器在收到数据总长和窗口大小相等时，通过它回复确认消息。在连接建立完成后，消息的发送方会通知接收方一个窗口的大小（指定一个长度），如果接收方收到指定长度的数据后没有发送回复消息，发送方就不会再发送任何内容了。<br><img src="/images/loading-cat.gif" data-original="https://bbm-hexo.oss-accelerate.aliyuncs.com/images/rtmp/rtmp-protocol-control-3.png" alt="rtmp-protocol-control-3"></p>
+<ul>
+<li>sequence number(32字节): 到当前时刻为止接收到的字节总数。</li>
+</ul>
+<h4 id="确认窗口大小"><a href="#确认窗口大小" class="headerlink" title="确认窗口大小"></a>确认窗口大小</h4><p>客户端或服务端发送该消息来通知对端发送确认消息所使用的视窗大小，并等待接收端发送确认消息。接收端在接收到视窗大小后必须发送确认消息。<br><img src="/images/loading-cat.gif" data-original="https://bbm-hexo.oss-accelerate.aliyuncs.com/images/rtmp/rtmp-protocol-control-4.png" alt="rtmp-protocol-control-4"></p>
+<h4 id="设置对方传输带宽"><a href="#设置对方传输带宽" class="headerlink" title="设置对方传输带宽"></a>设置对方传输带宽</h4><p>客户端或服务端发送该消息来限制对端的输出带宽。接收端收到消息后，可以直接使用消息中指定的窗口大小，而不需要等待收到确认消息之后。如果视窗大小与上一个视窗大小不同，则该消息的接收端应该向该消息的发送端发送新的窗口大小消息。这个消息和上一个消息都是调整窗口大小的，不同的地方是，这个消息是接受者请求发送者，让它调整窗口大小，而上一个消息是发送者主动设置了窗口大小，通知数据接受者。<br><img src="/images/loading-cat.gif" data-original="https://bbm-hexo.oss-accelerate.aliyuncs.com/images/rtmp/rtmp-protocol-control-5.png" alt="rtmp-protocol-control-5"><br>Limit Type（限制类型）有以下值：</p>
+<ul>
+<li>0 - Hard: 应该将输出带宽限制为指定视窗大小。</li>
+<li>1 - Soft: 应该将输出带宽限制为指定视窗大小和当前视窗大小中较小的值。</li>
+<li>2 - Dynamic: 如果上一个消息的限制类型为Hard，则该消息同样为Hard，否则抛弃该消息。</li>
+</ul>
+<h2 id="RTMP消息格式"><a href="#RTMP消息格式" class="headerlink" title="RTMP消息格式"></a>RTMP消息格式</h2><p>虽然RTMP被设计成使用RTMP块流传输，但是它也可以使用其他传输协议来发送消息，在这种情况下RTMP消息的格式如下所示。值得一提的是，RTMP块流协议和RTMP协议配合时，非常适合音视频应用，包括单播、一对多实时直播、视频点播和视频会议等。</p>
+<h3 id="格式"><a href="#格式" class="headerlink" title="格式"></a>格式</h3><p>服务端和客户端通过在网络上发送RTMP消息实现之间的交互，消息包括音频、视频、数据等。<br>RTMP消息包含两部分，消息头和有效负载。</p>
+<h4 id="RTMP消息头"><a href="#RTMP消息头" class="headerlink" title="RTMP消息头"></a>RTMP消息头</h4><p>消息头包含以下信息：</p>
+<ul>
+<li>Message Type: 消息类型，占用1个字节。1-6的消息类型ID是为协议控制消息保留的。</li>
+<li>Length: 有效负载的字节数，占用3个字节。该字段是用大端序表示的。</li>
+<li>Timestamp: 时间戳，占用4个字节，用大端序表示。</li>
+<li>Message Stream Id: 消息流ID，标识消息所使用的流，用大端序表示。</li>
+</ul>
+<p><img src="/images/loading-cat.gif" data-original="https://bbm-hexo.oss-accelerate.aliyuncs.com/images/rtmp/rtmp-message-header.png" alt="rtmp-message-header"></p>
+<h4 id="消息有效负载"><a href="#消息有效负载" class="headerlink" title="消息有效负载"></a>消息有效负载</h4><p>消息的另一部分就是有效负载，也是消息包含的实际数据，可以是音频样本或者压缩的视频数据。</p>
+<h3 id="用户控制消息"><a href="#用户控制消息" class="headerlink" title="用户控制消息"></a>用户控制消息</h3><p>RTMP协议将消息类型4作为用户控制消息ID，这些消息包含RTMP流所需的必要信息。消息类型1，2，3，5和6由RTMP块流协议使用。<br>用户控制消息应该使用ID为0的消息流（控制流），并且通过RTMP块流传输时使用ID为2的块流。用户控制消息收到后立即生效，它们的时间戳信息会被忽略。<br>客户端或服务端通过发送该消息告知对方用户控制事件。该消息携带事件类型和事件数据两部分。<br><img src="/images/loading-cat.gif" data-original="https://bbm-hexo.oss-accelerate.aliyuncs.com/images/rtmp/rtmp-user-control-message.png" alt="rtmp-user-control-message"><br>开头的2个字节用于指定事件类型，紧跟着是事件数据。事件数据字段长度可变，但是如果用RTMP块流传输，则消息总长度不能超过最大块大小，以使消息可以使用一个单独的块进行传输。</p>
+<h2 id="RTMP指令消息"><a href="#RTMP指令消息" class="headerlink" title="RTMP指令消息"></a>RTMP指令消息</h2><p>各种类型的消息在客户端和服务端之间进行交换，包括用于发送音频数据的音频消息，用于发送视频数据的视频消息，用于发送任意用户数据的数据消息，共享对象消息和指令消息等。共享对象消息的主要用途是管理客户端和相同服务器的共享数据。指令消息发送的是客户端与服务端之间的AMF编码指令，客户端或服务端也可以通过指令消息来实现远程过程调用（RPC)。</p>
+<h3 id="消息类型"><a href="#消息类型" class="headerlink" title="消息类型"></a>消息类型</h3><p>客户端和服务端通过在网络上发送消息来实现交互，消息可以是任意类型，包括音频消息、视频消息、指令消息、共享对象消息、数据消息和用户控制消息等。</p>
+<h4 id="指令消息"><a href="#指令消息" class="headerlink" title="指令消息"></a>指令消息</h4><p>指令消息在客户端和服务端之间传递AMF编码的指令，消息类型20代表AMF0编码，消息类型17代表AMF3编码。发送这些消息来完成连接、创建流、发布、播放、暂停等操作。像状态、结果这样的指令消息，用于通知发送方请求的指令状态。一条指令消息由指令名、事务ID和包含相关参数的指令对象组成。客户端或服务端还可以通过指令消息来实现远程过程调用(RPC)。</p>
+<h4 id="数据消息"><a href="#数据消息" class="headerlink" title="数据消息"></a>数据消息</h4><p>客户端或服务端通过该消息来发送元数据或其他用户数据。元数据包括数据(音频、视频)的创建时间、时长、主题等详细信息。消息类型18代表AMF0编码，消息类型15代表AMF3编码。</p>
+<h4 id="共享对象消息"><a href="#共享对象消息" class="headerlink" title="共享对象消息"></a>共享对象消息</h4><p>共享对象是在多个客户端之间同步的Flash对象(键值对集合)。消息类型19代表AMF0编码，消息类型16代表AMF3编码。每个消息都可以包含多个事件。<br><img src="/images/loading-cat.gif" data-original="https://bbm-hexo.oss-accelerate.aliyuncs.com/images/rtmp/rtmp-shared-object-message.png" alt="rtmp-shared-object-message"><br>支持以下事件类型：</p>
+<ul>
+<li>创建（1）：客户端向服务端发送，请求创建指定名称的共享对象。</li>
+<li>释放（2）：客户端通知服务端，共享对象已在本地删除。</li>
+<li>请求更新（3）：客户端请求修改共享对象的属性值。</li>
+<li>更新（4）：通知服务端向除自己外的其他客户端发送共享数据消息，通知它们有属性的值发生了变化。</li>
+<li>成功（5）：“请求更新”事件被接受后，服务端向发送请求的客户端回复此事件。</li>
+<li>发送消息（6）：客户端向服务端发送此事件，来广播一个消息。服务端收到此事件后向所有客户端广播一条消息，包括请求方客户端。</li>
+<li>状态（7）：服务端发送此事件来通知客户端错误信息。</li>
+<li>清除（8）：服务端向客户端发送此事件，通知客户端清除一个共享对象。服务端在回复客户端的“创建”事件时也会发送此事件。</li>
+<li>移除（9）：服务端发送此事件，使客户端删除一个插槽。</li>
+<li>请求移除（10）：客户端删除一个插槽时发送此事件。</li>
+<li>创建成功（11）：当连接成功时服务端向客户端发送此事件。</li>
+</ul>
+<h4 id="音频消息"><a href="#音频消息" class="headerlink" title="音频消息"></a>音频消息</h4><p>客户端或服务端通过发送此消息来发送音频数据给对方，消息类型8是为音频消息预留的。</p>
+<h4 id="视频消息"><a href="#视频消息" class="headerlink" title="视频消息"></a>视频消息</h4><p>客户端或服务端通过发送此消息来发送视频数据给对方，消息类型9是为视频消息预留的。</p>
+<h4 id="组合消息"><a href="#组合消息" class="headerlink" title="组合消息"></a>组合消息</h4><p>组合消息，是一个消息包含多个子RTMP消息，子消息符合RTMP消息格式。消息类型22用于组合消息。<br><img src="/images/loading-cat.gif" data-original="https://bbm-hexo.oss-accelerate.aliyuncs.com/images/rtmp/rtmp-aggregate-message.png" alt="rtmp-aggregate-message"><br>组合消息的消息流ID会覆盖其中子消息的消息流ID。<br>组合消息的时间戳和其中第一个子消息的时间戳的差值，是用来将所有子消息的时间戳重整为流时间的位移量。位移量会加到每一个子消息的时间戳上来换算出正常的流时间。第一个子消息的时间戳应该与组合消息的时间戳相同，所以位移量应该为0。<br>Back Pointer(反向指针)包含前一个消息的长度（包括消息头），这样符合flv文件格式，可用于进行后退操作。<br>使用组合消息有以下好处：</p>
+<ul>
+<li>块流协议中，一个块最多只能发送一个消息，这样就使用组合消息，加大块大小，从而降低发送的块数量。</li>
+<li>子消息在内存中连续存放，这样系统调用网络发送数据的性能更高。</li>
+</ul>
+<h4 id="用户控制消息事件"><a href="#用户控制消息事件" class="headerlink" title="用户控制消息事件"></a>用户控制消息事件</h4><p>客户端或服务器通过该消息发送用户控制事件。<br><img src="/images/loading-cat.gif" data-original="https://bbm-hexo.oss-accelerate.aliyuncs.com/images/rtmp/rtmp-user-control-message.png" alt="rtmp-user-control-message"><br>用户控制消息支持以下事件：</p>
+<ul>
+<li>流开始（0）：服务端发送该事件，用来通知客户端一个流已经可以用来通讯了。默认情况下，该事件是在收到客户端连接指令并成功处理后发送的第一个事件。事件的数据使用4个字节来表示可用的流的ID。</li>
+<li>流结束（1）：服务端发送该事件，用来通知客户端其在流中请求的数据已经结束了。如果没有额外的指令，将不会再发送任何数据，而客户端会丢弃之后从该流接收到的消息。事件数据使用4个字节来表示回放完成的流的ID。</li>
+<li>流枯竭（2）：服务端发送该事件，用来通知客户端流中已经没有更多的数据了。如果服务端在一定时间后没有探测到更多数据，它就可以通知所有订阅该流的客户端，流已经枯竭。事件数据用4个字节来表示枯竭的流的ID。</li>
+<li>设置缓冲区大小（3）：客户端发送该事件，用来告知服务端用来缓存流中数据的缓冲区大小(单位毫秒)。该事件在服务端开始处理流数据之前发送。事件数据中，前4个字节用来表示流ID，之后的4个字节用来表示缓冲区大小（单位毫秒）。</li>
+<li>流已录制（4）：服务端发送该事件，用来通知客户端指定流是一个录制流。事件数据用4个字节表示录制流的ID。</li>
+<li>ping请求（5）：服务端发送该事件，用来探测客户端是否处于可达状态。事件数据是一个4字节的时间戳，表示服务端分发该事件时的服务器本地时间。客户端收到后用ping响应回复服务端。</li>
+<li>ping响应（6）：客户端用该事件回复服务端的ping请求，事件数据为收到的ping请求中携带的4字节的时间戳。</li>
+</ul>
+<h3 id="指令类型"><a href="#指令类型" class="headerlink" title="指令类型"></a>指令类型</h3><p>客户端和服务器交换AMF编码的指令。发送端发送一条指令消息，其中包含了指令名称、处理ID、以及含有相关参数的指令对象。例如，连接指令消息包含了’app’参数，以告知服务器客户端希望连接的目标程序。接收端处理这条指令并回复含有同样处理ID的响应。回复的字符串可能为_result、_error或方法名。如verifyClient或contactExternalServer.<br>_result或_error的指令字符代表一条响应，处理ID则表明回复是针对哪条指令的，这在IMAP或其他协议中是完全相同的。指令字符串中的方法名表明发送端希望运行接收端上的一个方法。<br>指令消息可分为如下两类：</p>
+<ul>
+<li>NetConnection：一个服务器和客户端之间连接的高层表现对象。</li>
+<li>NetStream：一个音频流、视频流及其他相关数据传输流，我们会发送如播放、暂停等指令来控制数据流动。</li>
+</ul>
+<h4 id="NetConnection指令"><a href="#NetConnection指令" class="headerlink" title="NetConnection指令"></a>NetConnection指令</h4><p>NetConnection管理着一个客户端程序和服务器之间的双向连接，除此之外，它还提供了对异步远程方法调用的支持。<br>下列指令可通过NetConnection进行发送：</p>
+<ul>
+<li>Connect</li>
+<li>Call</li>
+<li>Close</li>
+<li>CreateStream</li>
+</ul>
+<h5 id="Connect"><a href="#Connect" class="headerlink" title="Connect"></a>Connect</h5><p>客户端发送connect指令至服务器端以请求连接至某一服务器程序实例。<br>指令结构如下：<br><img src="/images/loading-cat.gif" data-original="https://bbm-hexo.oss-accelerate.aliyuncs.com/images/rtmp/rtmp-connect.png" alt="rtmp-connect"><br>Connect指令中会用到的键值对：<br><img src="/images/loading-cat.gif" data-original="https://bbm-hexo.oss-accelerate.aliyuncs.com/images/rtmp/rtmp-connect-key-value.png" alt="rtmp-connect-key-value"><br>音频编码：<br><img src="/images/loading-cat.gif" data-original="https://bbm-hexo.oss-accelerate.aliyuncs.com/images/rtmp/rtmp-connect-audio.png" alt="rtmp-connect-audio"><br>视频编码：<br><img src="/images/loading-cat.gif" data-original="https://bbm-hexo.oss-accelerate.aliyuncs.com/images/rtmp/rtmp-connect-video.png" alt="rtmp-connect-video"><br>视频功能：<br><img src="/images/loading-cat.gif" data-original="https://bbm-hexo.oss-accelerate.aliyuncs.com/images/rtmp/rtmp-connect-video-function.png" alt="rtmp-connect-video-function"><br>对象编码：<br><img src="/images/loading-cat.gif" data-original="https://bbm-hexo.oss-accelerate.aliyuncs.com/images/rtmp/rtmp-connect-object-encode.png" alt="rtmp-connect-object-encode"><br>由服务器发送至客户端的指令结构如下：<br><img src="/images/loading-cat.gif" data-original="https://bbm-hexo.oss-accelerate.aliyuncs.com/images/rtmp/rtmp-connect-command-server-to-client.png" alt="rtmp-connect-command-server-to-client"><br>指令执行流程：<br><img src="/images/loading-cat.gif" data-original="https://bbm-hexo.oss-accelerate.aliyuncs.com/images/rtmp/rtmp-connect-flow.png" alt="rtmp-connect-flow"><br>指令执行的消息流如下：</p>
+<ul>
+<li>客户端发送connect指令至服务器以请求连接至服务器端程序实例。</li>
+<li>在收到连接指令后，服务器端发送协议消息’Window Acknowledgement Size’给客户端。同时，服务器端还会连接connect指令中提到的应用。</li>
+<li>服务器端发送协议消息‘Set Peer Bandwidth’至客户端。</li>
+<li>客户端成功处理‘Set Peer Bandwidth’后发送协议消息‘Window Acknowledgement Size’给服务器端。</li>
+<li>服务器端发送用户控制消息（StreamBegin）协议消息给客户端。</li>
+<li>服务器端发送指令消息以通知客户端连接状态（success/fail）。该指令中含有处理ID(与1中收到相同)，该消息同时还制定了部分属性，如Flash Media Server版本（string）。除此之外，它还指定了连接响应相关的信息如level(string)，code(string)，description(string)，object-encoding(number)等。</li>
+</ul>
+<h5 id="Call"><a href="#Call" class="headerlink" title="Call"></a>Call</h5><p>NetConnection对象的call方法用于远程调用接收端上的程序。需要远程调用的程序名称通过一个参数传递给call指令。<br>发送指令结构如下：<br><img src="/images/loading-cat.gif" data-original="https://bbm-hexo.oss-accelerate.aliyuncs.com/images/rtmp/rtmp-call-send.png" alt="rtmp-call-send"><br>响应指令结构如下：<br><img src="/images/loading-cat.gif" data-original="https://bbm-hexo.oss-accelerate.aliyuncs.com/images/rtmp/rtmp-call-response.png" alt="rtmp-call-response"></p>
+<h5 id="CreateStream"><a href="#CreateStream" class="headerlink" title="CreateStream"></a>CreateStream</h5><p>客户端发送该指令至服务器端以创建一条用于传递消息的逻辑通道，从而可以利用已创建的流通道发布音频、视频和元数据。<br>NetConnection是默认的通讯通道，流ID为0。协议和一些指令消息，包括createStream，使用默认通讯通道。<br>客户端发出的指令结构如下：<br><img src="/images/loading-cat.gif" data-original="https://bbm-hexo.oss-accelerate.aliyuncs.com/images/rtmp/rtmp-create-stream-send.png" alt="rtmp-create-stream-send"><br>服务器发出的指令结构如下：<br><img src="/images/loading-cat.gif" data-original="https://bbm-hexo.oss-accelerate.aliyuncs.com/images/rtmp/rtmp-create-stream-response.png" alt="rtmp-create-stream-response"></p>
+<h4 id="NetStream指令"><a href="#NetStream指令" class="headerlink" title="NetStream指令"></a>NetStream指令</h4><p>基于NetConnection的客户端至服务器间连接，NetStream定义了一条可以传递音频流、视频流以及消息流的通道。NetConnection对象支持多个NetStreams以传输多个数据流。<br>客户端可在NetStream中发送下列指令至服务器：</p>
+<ul>
+<li>Play</li>
+<li>Play2</li>
+<li>DeleteStream</li>
+<li>CloseStream</li>
+<li>ReceiveAudio</li>
+<li>ReceiveVideo</li>
+<li>Publish</li>
+<li>Seek</li>
+<li>Pause</li>
+</ul>
+<p>服务器端通过“onStatus”将NetStream的状态更新至客户端：<br><img src="/images/loading-cat.gif" data-original="https://bbm-hexo.oss-accelerate.aliyuncs.com/images/rtmp/rtmp-on-status.png" alt="rtmp-on-status"></p>
+<h5 id="Play"><a href="#Play" class="headerlink" title="Play"></a>Play</h5><p>客户端发送该指令值以播放一个流。多次调用该指令也可创建一个播放清单。<br>如果你希望创建一个在不同live或recorded流间切换的动态播放清单，需要多次调用play并传递false以避免每次reset。相反地，如果你希望立即播放某一指定流，传递true以清除等待播放队列中的所有其他流。<br>客户端发送的指令结构如下：<br><img src="/images/loading-cat.gif" data-original="https://bbm-hexo.oss-accelerate.aliyuncs.com/images/rtmp/rtmp-play-send.png" alt="rtmp-play-send"><br>流程图如下：<br><img src="/images/loading-cat.gif" data-original="https://bbm-hexo.oss-accelerate.aliyuncs.com/images/rtmp/rtmp-play-flow.png" alt="rtmp-play-flow"><br>指令执行期间的消息流如下:</p>
+<ul>
+<li>客户端在接收到来自服务器的createStream指令的成功结果后发送play指令。</li>
+<li>在接收到play指令后，服务器发送协议数据来设置块大小。</li>
+<li>服务器发送一些另外一个协议数据(用户控制)，在这个消息里包含事件“StreamIsRecord”和流ID。这个消息的前2个字节是事件类型随后的4字节是流ID。</li>
+<li>服务器向客户端发送另外一个协议消息(用户控制)，这个消息指示了“StreamBegin” 事件，表示流开始了。</li>
+<li>如果客户端向服务器发送的play指令成功执行了，服务器会发送 onStatus 指令消息包含NetStream.Play.Start或NetStream.Play.Reset。仅当客户端发送的play指令中的设置了reset标志NetStream.Play.Reset才会被发送。如果播放的流不存在，服务器会在发送onStatus消息中包含NetStream.Play.StreamNotFound。随后，服务器就发送客户端播放的音频和视频数据。</li>
+</ul>
+<h5 id="Play2"><a href="#Play2" class="headerlink" title="Play2"></a>Play2</h5><p>不同于play指令，play2可以切换码率而不改变播放内容的时间轴。服务器为客户端可以在play2中请求的所有支持的码率维护多个字段。<br>客户端发送的指令结构如下：<br><img src="/images/loading-cat.gif" data-original="https://bbm-hexo.oss-accelerate.aliyuncs.com/images/rtmp/rtmp-play2-send.png" alt="rtmp-play2-send"><br>该指令的消息流程如下图：<br><img src="/images/loading-cat.gif" data-original="https://bbm-hexo.oss-accelerate.aliyuncs.com/images/rtmp/rtmp-play2-flow.png" alt="rtmp-play2-flow"></p>
+<h5 id="DeleteStream"><a href="#DeleteStream" class="headerlink" title="DeleteStream"></a>DeleteStream</h5><p>当NetStream对象将要被销毁时，它发送该deleteStream指令。<br>客户端发送的指令结构如下：<br><img src="/images/loading-cat.gif" data-original="https://bbm-hexo.oss-accelerate.aliyuncs.com/images/rtmp/rtmp-delete-stream-send.png" alt="rtmp-delete-stream-send"><br>服务器不需要发送任何应答。</p>
+<h5 id="ReceiveAudio"><a href="#ReceiveAudio" class="headerlink" title="ReceiveAudio"></a>ReceiveAudio</h5><p>NetStream发送ReceiveAudio消息通知服务器是否发送或不发送音频到客户端。<br>客户端发送的指令结构如下：<br><img src="/images/loading-cat.gif" data-original="https://bbm-hexo.oss-accelerate.aliyuncs.com/images/rtmp/rtmp-receive-audio-send.png" alt="rtmp-receive-audio-send"><br>如果receiveAudio指令发送带有flase的bool flag，服务器不发送任何响应。如果这个标志被设置为true，服务器应答NetStream.Seek.Notify和NetStream.Play.Start的状态消息。</p>
+<h5 id="ReceiveVideo"><a href="#ReceiveVideo" class="headerlink" title="ReceiveVideo"></a>ReceiveVideo</h5><p>NetStream发送ReceiveVideo消息通知服务器是否发送或不发送视频到客户端。<br>客户端发送的指令结构如下：<br><img src="/images/loading-cat.gif" data-original="https://bbm-hexo.oss-accelerate.aliyuncs.com/images/rtmp/rtmp-receive-video-send.png" alt="rtmp-receive-video-send"><br>如果receiveVideo指令发送带有flase的bool flag，服务器不发送任何响应。如果这个标志被设置为true，服务器应答NetStream.Seek.Notify和NetStream.Play.Start的状态消息。</p>
+<h5 id="Publish"><a href="#Publish" class="headerlink" title="Publish"></a>Publish</h5><p>客户端发送publish指令将已命名的流发布到服务器上。使用这个名称，任何客户端都可以播放此流，并接收已发布的音频、视频和数据消息。<br>客户端发送的指令结构如下：<br><img src="/images/loading-cat.gif" data-original="https://bbm-hexo.oss-accelerate.aliyuncs.com/images/rtmp/rtmp-publish-send.png" alt="rtmp-publish-send"><br>服务器应答onStatus指令，以标记发布的开始。</p>
+<h5 id="Seek"><a href="#Seek" class="headerlink" title="Seek"></a>Seek</h5><p>客户端发送seek指令以定位媒体文件内或者播放列表的某个位置（以毫秒为单位）。<br>客户端发送的指令结构如下：<br><img src="/images/loading-cat.gif" data-original="https://bbm-hexo.oss-accelerate.aliyuncs.com/images/rtmp/rtmp-seek-send.png" alt="rtmp-seek-send"><br>当定位成功，服务器发送NetStream.Seek.Notify的状态消息。失败的时候，它返回一个_error的消息。</p>
+<h5 id="Pause"><a href="#Pause" class="headerlink" title="Pause"></a>Pause</h5><p>客户端发送pause指令以告诉服务器暂停或者开始播放。<br>客户端发送的指令结构如下：<br><img src="/images/loading-cat.gif" data-original="https://bbm-hexo.oss-accelerate.aliyuncs.com/images/rtmp/rtmp-pause-send.png" alt="rtmp-pause-send"><br>当流被暂停，服务器发送一个NetStream.Pause.Notify的状态消息。当一个流变成未暂停状态，NetStream.Unpause.Notify被发送。失败的时候，它返回一个_error的消息。</p>
+<h3 id="消息交换例子"><a href="#消息交换例子" class="headerlink" title="消息交换例子"></a>消息交换例子</h3><p>这里是一些样例，以解释使用RTMP的消息交换。</p>
+<h4 id="发布视频"><a href="#发布视频" class="headerlink" title="发布视频"></a>发布视频</h4><p>这个例子说明了一个发布者如何可以发布一个流，然后将视频推流到服务器上。其他客户端可以订阅这个已发布的流，并播放视频。<br><img src="/images/loading-cat.gif" data-original="https://bbm-hexo.oss-accelerate.aliyuncs.com/images/rtmp/rtmp-publish-video-example.png" alt="rtmp-publish-video-example"></p>
+<h4 id="广播一个共享对象消息"><a href="#广播一个共享对象消息" class="headerlink" title="广播一个共享对象消息"></a>广播一个共享对象消息</h4><p>这个例子说明了在创建和更改共享对象时所交换的消息。它也说明了共享对象消息广播的过程。<br><img src="/images/loading-cat.gif" data-original="https://bbm-hexo.oss-accelerate.aliyuncs.com/images/rtmp/rtmp-shared-object-example.png" alt="rtmp-shared-object-example"></p>
+<h4 id="发布媒体流元数据"><a href="#发布媒体流元数据" class="headerlink" title="发布媒体流元数据"></a>发布媒体流元数据</h4><p>这个例子描述了发布元数据的消息交换。<br><img src="/images/loading-cat.gif" data-original="https://bbm-hexo.oss-accelerate.aliyuncs.com/images/rtmp/rtmp-publish-metadata-example.png" alt="rtmp-publish-metadata-example"></p>
+<h2 id="参考内容"><a href="#参考内容" class="headerlink" title="参考内容"></a>参考内容</h2><p>[1] <span class="exturl" data-url="aHR0cDovL3d3d2ltYWdlcy5hZG9iZS5jb20vd3d3LmFkb2JlLmNvbS9jb250ZW50L2RhbS9hY29tL2VuL2Rldm5ldC9ydG1wL3BkZi9ydG1wX3NwZWNpZmljYXRpb25fMS4wLnBkZg==" title="http://wwwimages.adobe.com/www.adobe.com/content/dam/acom/en/devnet/rtmp/pdf/rtmp_specification_1.0.pdf">RTMP 规范<i class="fa fa-external-link"></i></span><br>[2] <span class="exturl" data-url="aHR0cHM6Ly9jaGVubGljaGFvLmdpdGJvb2tzLmlvL3J0bXAtemhfY24vY29udGVudA==" title="https://chenlichao.gitbooks.io/rtmp-zh_cn/content">RTMP协议规范翻译工作<i class="fa fa-external-link"></i></span><br>[3] <span class="exturl" data-url="aHR0cHM6Ly9ibG9nLmNzZG4ubmV0L25vYWhzdW4xMDI0L2FydGljbGUvZGV0YWlscy81MjE3NzAwNw==" title="https://blog.csdn.net/noahsun1024/article/details/52177007">RTMP协议规范1.0中文版<i class="fa fa-external-link"></i></span></p>
+
+    </div>
+
+    
+    
+    
+
+      
+        <div id="wechat_subscriber" style="display: block; padding: 10px 0; margin: 20px auto; width: 100%; text-align: center">
+  <img id="wechat_subscriber_qcode" src="/images/qrcode_for_wechat.jpg" alt="贝克街的流浪猫 wechat" style="width: 400px; max-width: 100%;">
+  <div></div>
+</div>
+
+      
+        <div class="reward-container">
+  <div>您的打赏将鼓励我继续分享!</div>
+  <button disable="enable" onclick="var qr = document.getElementById(&quot;qr&quot;); qr.style.display = (qr.style.display === 'none') ? 'block' : 'none';">
+    打赏
+  </button>
+  <div id="qr" style="display: none;">
+      
+      <div style="display: inline-block;">
+        <img src="/images/wechat.jpg" alt="贝克街的流浪猫 微信支付">
+        <p>微信支付</p>
+      </div>
+      
+      <div style="display: inline-block;">
+        <img src="/images/alipay.jpg" alt="贝克街的流浪猫 支付宝">
+        <p>支付宝</p>
+      </div>
+
+  </div>
+</div>
+
+        
+
+<div>
+<ul class="post-copyright">
+  <li class="post-copyright-author">
+    <strong>本文作者： </strong>贝克街的流浪猫
+  </li>
+  <li class="post-copyright-link">
+    <strong>本文链接：</strong>
+    <a href="https://www.beikejiedeliulangmao.top/protocol/rtmp/" title="流媒体传输协议之 RTMP">https://www.beikejiedeliulangmao.top/protocol/rtmp/</a>
+  </li>
+  <li class="post-copyright-license">
+    <strong>版权声明： </strong>本博客所有文章除特别声明外，均采用 <span class="exturl" data-url="aHR0cHM6Ly9jcmVhdGl2ZWNvbW1vbnMub3JnL2xpY2Vuc2VzL2J5LW5jLXNhLzQuMC9udWxs"><i class="fa fa-fw fa-creative-commons"></i>BY-NC-SA</span> 许可协议，转载请注明出处！
+  </li>
+  <li class="post-copyright-license">
+    <strong>创作声明： </strong>本文基于上述所有参考内容进行创作，其中可能涉及复制、修改或者转换，图片均来自网络，如有侵权请联系我，我会第一时间进行删除。
+  </li>
+</ul>
+</div>
+
+
+      <footer class="post-footer">
+          <div class="post-tags">
+              <a href="/tags/Stream-Media/" rel="tag"># Stream Media</a>
+              <a href="/tags/RTSP/" rel="tag"># RTSP</a>
+          </div>
+
+        
+
+          <div class="post-nav">
+            <div class="post-nav-next post-nav-item">
+                <a href="/protocol/rtp/" rel="next" title="流媒体传输协议之 RTP">
+                  <i class="fa fa-chevron-left"></i> 流媒体传输协议之 RTP
+                </a>
+            </div>
+
+            <span class="post-nav-divider"></span>
+
+            <div class="post-nav-prev post-nav-item">
+                <a href="/android/adb-lib-ddmlib/" rel="prev" title="ADB 工具包 ddmlib 的剖析与修改">
+                  ADB 工具包 ddmlib 的剖析与修改 <i class="fa fa-chevron-right"></i>
+                </a>
+            </div>
+          </div>
+      </footer>
+    
+  </article>
+  
+  
+  
+
+  </div>
+
+
+          </div>
+          
+    <div class="comments" id="gitalk-container"></div>
+
+        </div>
+          
+  
+  <div class="toggle sidebar-toggle">
+    <span class="toggle-line toggle-line-first"></span>
+    <span class="toggle-line toggle-line-middle"></span>
+    <span class="toggle-line toggle-line-last"></span>
+  </div>
+
+  <aside class="sidebar">
+    <div class="sidebar-inner">
+
+      <ul class="sidebar-nav motion-element">
+        <li class="sidebar-nav-toc">
+          文章目录
+        </li>
+        <li class="sidebar-nav-overview">
+          站点概览
+        </li>
+      </ul>
+
+      <!--noindex-->
+      <div class="post-toc-wrap sidebar-panel">
+          <div class="post-toc motion-element"><ol class="nav"><li class="nav-item nav-level-2"><a class="nav-link" href="#%E5%BC%95%E8%A8%80"><span class="nav-number">1.</span> <span class="nav-text">引言</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E7%AE%80%E4%BB%8B"><span class="nav-number">2.</span> <span class="nav-text">简介</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E5%AE%9A%E4%B9%89"><span class="nav-number">3.</span> <span class="nav-text">定义</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E5%AD%97%E8%8A%82%E5%BA%8F%EF%BC%8C%E6%A0%A1%E5%87%86%EF%BC%8C%E6%97%B6%E9%97%B4%E6%A0%BC%E5%BC%8F"><span class="nav-number">4.</span> <span class="nav-text">字节序，校准，时间格式</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#RTMP%E5%9D%97%E6%B5%81"><span class="nav-number">5.</span> <span class="nav-text">RTMP块流</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#%E6%B6%88%E6%81%AF%E6%A0%BC%E5%BC%8F"><span class="nav-number">5.1.</span> <span class="nav-text">消息格式</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E6%8F%A1%E6%89%8B"><span class="nav-number">5.2.</span> <span class="nav-text">握手</span></a><ol class="nav-child"><li class="nav-item nav-level-4"><a class="nav-link" href="#%E6%8F%A1%E6%89%8B%E6%B5%81%E7%A8%8B"><span class="nav-number">5.2.1.</span> <span class="nav-text">握手流程</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#C0%E5%92%8CS0%E6%A0%BC%E5%BC%8F"><span class="nav-number">5.2.2.</span> <span class="nav-text">C0和S0格式</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#C1%E5%92%8CS1%E6%A0%BC%E5%BC%8F"><span class="nav-number">5.2.3.</span> <span class="nav-text">C1和S1格式</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#C2%E5%92%8CS2%E6%A0%BC%E5%BC%8F"><span class="nav-number">5.2.4.</span> <span class="nav-text">C2和S2格式</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#%E6%8F%A1%E6%89%8B%E6%B5%81%E7%A8%8B%E7%A4%BA%E6%84%8F%E5%9B%BE"><span class="nav-number">5.2.5.</span> <span class="nav-text">握手流程示意图</span></a></li></ol></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E5%88%86%E5%9D%97"><span class="nav-number">5.3.</span> <span class="nav-text">分块</span></a><ol class="nav-child"><li class="nav-item nav-level-4"><a class="nav-link" href="#%E5%9D%97%E6%A0%BC%E5%BC%8F"><span class="nav-number">5.3.1.</span> <span class="nav-text">块格式</span></a><ol class="nav-child"><li class="nav-item nav-level-5"><a class="nav-link" href="#%E5%9F%BA%E6%9C%AC%E5%A4%B4"><span class="nav-number">5.3.1.1.</span> <span class="nav-text">基本头</span></a></li><li class="nav-item nav-level-5"><a class="nav-link" href="#%E6%B6%88%E6%81%AF%E5%A4%B4"><span class="nav-number">5.3.1.2.</span> <span class="nav-text">消息头</span></a><ol class="nav-child"><li class="nav-item nav-level-6"><a class="nav-link" href="#%E7%B1%BB%E5%9E%8B0"><span class="nav-number">5.3.1.2.1.</span> <span class="nav-text">类型0</span></a></li><li class="nav-item nav-level-6"><a class="nav-link" href="#%E7%B1%BB%E5%9E%8B1"><span class="nav-number">5.3.1.2.2.</span> <span class="nav-text">类型1</span></a></li><li class="nav-item nav-level-6"><a class="nav-link" href="#%E7%B1%BB%E5%9E%8B2"><span class="nav-number">5.3.1.2.3.</span> <span class="nav-text">类型2</span></a></li><li class="nav-item nav-level-6"><a class="nav-link" href="#%E7%B1%BB%E5%9E%8B3"><span class="nav-number">5.3.1.2.4.</span> <span class="nav-text">类型3</span></a></li></ol></li><li class="nav-item nav-level-5"><a class="nav-link" href="#%E6%89%A9%E5%B1%95%E6%97%B6%E9%97%B4%E6%88%B3"><span class="nav-number">5.3.1.3.</span> <span class="nav-text">扩展时间戳</span></a></li></ol></li><li class="nav-item nav-level-4"><a class="nav-link" href="#%E7%A4%BA%E4%BE%8B"><span class="nav-number">5.3.2.</span> <span class="nav-text">示例</span></a><ol class="nav-child"><li class="nav-item nav-level-5"><a class="nav-link" href="#%E7%A4%BA%E4%BE%8B1"><span class="nav-number">5.3.2.1.</span> <span class="nav-text">示例1</span></a></li><li class="nav-item nav-level-5"><a class="nav-link" href="#%E7%A4%BA%E4%BE%8B2"><span class="nav-number">5.3.2.2.</span> <span class="nav-text">示例2</span></a></li></ol></li></ol></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E5%8D%8F%E8%AE%AE%E6%8E%A7%E5%88%B6%E6%B6%88%E6%81%AF"><span class="nav-number">5.4.</span> <span class="nav-text">协议控制消息</span></a><ol class="nav-child"><li class="nav-item nav-level-4"><a class="nav-link" href="#%E8%AE%BE%E7%BD%AE%E5%9D%97%E5%A4%A7%E5%B0%8F"><span class="nav-number">5.4.1.</span> <span class="nav-text">设置块大小</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#%E7%BB%88%E6%AD%A2%E6%B6%88%E6%81%AF"><span class="nav-number">5.4.2.</span> <span class="nav-text">终止消息</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#%E7%A1%AE%E8%AE%A4%E6%B6%88%E6%81%AF"><span class="nav-number">5.4.3.</span> <span class="nav-text">确认消息</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#%E7%A1%AE%E8%AE%A4%E7%AA%97%E5%8F%A3%E5%A4%A7%E5%B0%8F"><span class="nav-number">5.4.4.</span> <span class="nav-text">确认窗口大小</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#%E8%AE%BE%E7%BD%AE%E5%AF%B9%E6%96%B9%E4%BC%A0%E8%BE%93%E5%B8%A6%E5%AE%BD"><span class="nav-number">5.4.5.</span> <span class="nav-text">设置对方传输带宽</span></a></li></ol></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#RTMP%E6%B6%88%E6%81%AF%E6%A0%BC%E5%BC%8F"><span class="nav-number">6.</span> <span class="nav-text">RTMP消息格式</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#%E6%A0%BC%E5%BC%8F"><span class="nav-number">6.1.</span> <span class="nav-text">格式</span></a><ol class="nav-child"><li class="nav-item nav-level-4"><a class="nav-link" href="#RTMP%E6%B6%88%E6%81%AF%E5%A4%B4"><span class="nav-number">6.1.1.</span> <span class="nav-text">RTMP消息头</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#%E6%B6%88%E6%81%AF%E6%9C%89%E6%95%88%E8%B4%9F%E8%BD%BD"><span class="nav-number">6.1.2.</span> <span class="nav-text">消息有效负载</span></a></li></ol></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E7%94%A8%E6%88%B7%E6%8E%A7%E5%88%B6%E6%B6%88%E6%81%AF"><span class="nav-number">6.2.</span> <span class="nav-text">用户控制消息</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#RTMP%E6%8C%87%E4%BB%A4%E6%B6%88%E6%81%AF"><span class="nav-number">7.</span> <span class="nav-text">RTMP指令消息</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#%E6%B6%88%E6%81%AF%E7%B1%BB%E5%9E%8B"><span class="nav-number">7.1.</span> <span class="nav-text">消息类型</span></a><ol class="nav-child"><li class="nav-item nav-level-4"><a class="nav-link" href="#%E6%8C%87%E4%BB%A4%E6%B6%88%E6%81%AF"><span class="nav-number">7.1.1.</span> <span class="nav-text">指令消息</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#%E6%95%B0%E6%8D%AE%E6%B6%88%E6%81%AF"><span class="nav-number">7.1.2.</span> <span class="nav-text">数据消息</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#%E5%85%B1%E4%BA%AB%E5%AF%B9%E8%B1%A1%E6%B6%88%E6%81%AF"><span class="nav-number">7.1.3.</span> <span class="nav-text">共享对象消息</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#%E9%9F%B3%E9%A2%91%E6%B6%88%E6%81%AF"><span class="nav-number">7.1.4.</span> <span class="nav-text">音频消息</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#%E8%A7%86%E9%A2%91%E6%B6%88%E6%81%AF"><span class="nav-number">7.1.5.</span> <span class="nav-text">视频消息</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#%E7%BB%84%E5%90%88%E6%B6%88%E6%81%AF"><span class="nav-number">7.1.6.</span> <span class="nav-text">组合消息</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#%E7%94%A8%E6%88%B7%E6%8E%A7%E5%88%B6%E6%B6%88%E6%81%AF%E4%BA%8B%E4%BB%B6"><span class="nav-number">7.1.7.</span> <span class="nav-text">用户控制消息事件</span></a></li></ol></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E6%8C%87%E4%BB%A4%E7%B1%BB%E5%9E%8B"><span class="nav-number">7.2.</span> <span class="nav-text">指令类型</span></a><ol class="nav-child"><li class="nav-item nav-level-4"><a class="nav-link" href="#NetConnection%E6%8C%87%E4%BB%A4"><span class="nav-number">7.2.1.</span> <span class="nav-text">NetConnection指令</span></a><ol class="nav-child"><li class="nav-item nav-level-5"><a class="nav-link" href="#Connect"><span class="nav-number">7.2.1.1.</span> <span class="nav-text">Connect</span></a></li><li class="nav-item nav-level-5"><a class="nav-link" href="#Call"><span class="nav-number">7.2.1.2.</span> <span class="nav-text">Call</span></a></li><li class="nav-item nav-level-5"><a class="nav-link" href="#CreateStream"><span class="nav-number">7.2.1.3.</span> <span class="nav-text">CreateStream</span></a></li></ol></li><li class="nav-item nav-level-4"><a class="nav-link" href="#NetStream%E6%8C%87%E4%BB%A4"><span class="nav-number">7.2.2.</span> <span class="nav-text">NetStream指令</span></a><ol class="nav-child"><li class="nav-item nav-level-5"><a class="nav-link" href="#Play"><span class="nav-number">7.2.2.1.</span> <span class="nav-text">Play</span></a></li><li class="nav-item nav-level-5"><a class="nav-link" href="#Play2"><span class="nav-number">7.2.2.2.</span> <span class="nav-text">Play2</span></a></li><li class="nav-item nav-level-5"><a class="nav-link" href="#DeleteStream"><span class="nav-number">7.2.2.3.</span> <span class="nav-text">DeleteStream</span></a></li><li class="nav-item nav-level-5"><a class="nav-link" href="#ReceiveAudio"><span class="nav-number">7.2.2.4.</span> <span class="nav-text">ReceiveAudio</span></a></li><li class="nav-item nav-level-5"><a class="nav-link" href="#ReceiveVideo"><span class="nav-number">7.2.2.5.</span> <span class="nav-text">ReceiveVideo</span></a></li><li class="nav-item nav-level-5"><a class="nav-link" href="#Publish"><span class="nav-number">7.2.2.6.</span> <span class="nav-text">Publish</span></a></li><li class="nav-item nav-level-5"><a class="nav-link" href="#Seek"><span class="nav-number">7.2.2.7.</span> <span class="nav-text">Seek</span></a></li><li class="nav-item nav-level-5"><a class="nav-link" href="#Pause"><span class="nav-number">7.2.2.8.</span> <span class="nav-text">Pause</span></a></li></ol></li></ol></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E6%B6%88%E6%81%AF%E4%BA%A4%E6%8D%A2%E4%BE%8B%E5%AD%90"><span class="nav-number">7.3.</span> <span class="nav-text">消息交换例子</span></a><ol class="nav-child"><li class="nav-item nav-level-4"><a class="nav-link" href="#%E5%8F%91%E5%B8%83%E8%A7%86%E9%A2%91"><span class="nav-number">7.3.1.</span> <span class="nav-text">发布视频</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#%E5%B9%BF%E6%92%AD%E4%B8%80%E4%B8%AA%E5%85%B1%E4%BA%AB%E5%AF%B9%E8%B1%A1%E6%B6%88%E6%81%AF"><span class="nav-number">7.3.2.</span> <span class="nav-text">广播一个共享对象消息</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#%E5%8F%91%E5%B8%83%E5%AA%92%E4%BD%93%E6%B5%81%E5%85%83%E6%95%B0%E6%8D%AE"><span class="nav-number">7.3.3.</span> <span class="nav-text">发布媒体流元数据</span></a></li></ol></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E5%8F%82%E8%80%83%E5%86%85%E5%AE%B9"><span class="nav-number">8.</span> <span class="nav-text">参考内容</span></a></li></ol></div>
+      </div>
+      <!--/noindex-->
+
+      <div class="site-overview-wrap sidebar-panel">
+        <div class="site-author motion-element" itemprop="author" itemscope="" itemtype="http://schema.org/Person">
+    <img class="site-author-image" itemprop="image" alt="贝克街的流浪猫" src="/images/avatar.jpg">
+  <p class="site-author-name" itemprop="name">贝克街的流浪猫</p>
+  <div class="site-description" itemprop="description">贝贝猫</div>
+</div>
+<div class="site-state-wrap motion-element">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+          <a href="/archives/">
+        
+          <span class="site-state-item-count">120</span>
+          <span class="site-state-item-name">日志</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-categories">
+            <a href="/categories/">
+          
+        <span class="site-state-item-count">24</span>
+        <span class="site-state-item-name">分类</span></a>
+      </div>
+      <div class="site-state-item site-state-tags">
+            <a href="/tags/">
+          
+        <span class="site-state-item-count">158</span>
+        <span class="site-state-item-name">标签</span></a>
+      </div>
+  </nav>
+</div>
+  <div class="feed-link motion-element">
+    <a href="/atom.xml" rel="alternate">
+      <i class="fa fa-rss"></i>RSS
+    </a>
+  </div>
+  <div class="links-of-author motion-element">
+      <span class="links-of-author-item">
+        <span class="exturl" data-url="aHR0cHM6Ly9naXRodWIuY29tL0JlaUtlSmllRGVMaXVMYW5nTWFv" title="GitHub → https://github.com/BeiKeJieDeLiuLangMao"><i class="fa fa-fw fa-github"></i></span>
+      </span>
+      <span class="links-of-author-item">
+        <span class="exturl" data-url="aHR0cHM6Ly96aHVhbmxhbi56aGlodS5jb20vY18xMTY3NDI5NTg4NzExMzM3OTg1" title="知乎 → https://zhuanlan.zhihu.com/c_1167429588711337985"><i class="fa fa-fw fa-book"></i></span>
+      </span>
+      <span class="links-of-author-item">
+        <span class="exturl" data-url="bWFpbHRvOjUxNzM3NTY4NUBxcS5jb20=" title="E-Mail → mailto:517375685@qq.com"><i class="fa fa-fw fa-envelope"></i></span>
+      </span>
+      <span class="links-of-author-item">
+        <span class="exturl" data-url="aHR0cHM6Ly9zdGFja292ZXJmbG93LmNvbS91c2Vycy84NzgyOTY0L3lhbmctY2hlbj90YWI9cHJvZmlsZQ==" title="StackOverflow → https://stackoverflow.com/users/8782964/yang-chen?tab=profile"><i class="fa fa-fw fa-stack-overflow"></i></span>
+      </span>
+  </div>
+
+
+
+      </div>
+        <div class="back-to-top motion-element">
+          <i class="fa fa-arrow-up"></i>
+          <span>0%</span>
+        </div>
+
+    </div>
+  </aside>
+  <div id="sidebar-dimmer"></div>
+
+
+      </div>
+    </main>
+
+    <footer class="footer">
+      <div class="footer-inner">
+        
+  <div class="beian"><span class="exturl" data-url="aHR0cDovL3d3dy5iZWlhbi5taWl0Lmdvdi5jbg==">辽ICP备19017854号 </span>
+  </div>
+
+<div class="copyright">
+  
+  © 2019 – 
+  <span itemprop="copyrightYear">2021</span>
+  <span class="with-love">
+    <i class="fa fa-heart"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">贝克街的流浪猫</span>
+    <span class="post-meta-divider">|</span>
+    <span class="post-meta-item-icon">
+      <i class="fa fa-area-chart"></i>
+    </span>
+      <span class="post-meta-item-text">站点总字数：</span>
+    <span title="站点总字数">1.5m</span>
+    <span class="post-meta-divider">|</span>
+    <span class="post-meta-item-icon">
+      <i class="fa fa-coffee"></i>
+    </span>
+      <span class="post-meta-item-text">站点阅读时长 ≈</span>
+    <span title="站点阅读时长">22:36</span>
+</div>
+
+        
+<div class="busuanzi-count">
+  <script async="" src="https://busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js"></script>
+    <span class="post-meta-item" id="busuanzi_container_site_uv" style="display: none;">
+      <span class="post-meta-item-icon">
+        <i class="fa fa-user"></i>
+      </span>
+      <span class="site-uv" title="总访客量">
+        贝贝猫有
+        <span id="busuanzi_value_site_uv"></span>
+        位同学
+      </span>
+    </span>
+    <span class="post-meta-divider">|</span>
+    <span class="post-meta-item" id="busuanzi_container_site_pv" style="display: none;">
+      <span class="post-meta-item-icon">
+        <i class="fa fa-eye"></i>
+      </span>
+      <span class="site-pv" title="总访问量">
+        笔记被翻阅
+        <span id="busuanzi_value_site_pv"></span>
+        次
+      </span>
+    </span>
+</div>
+
+
+
+
+
+
+  
+
+
+
+
+
+
+        
+      </div>
+    </footer>
+  </div>
+
+  
+  
+  <script src="//cdn.jsdelivr.net/npm/medium-zoom@1/dist/medium-zoom.min.js"></script>
+  <script src="//cdn.jsdelivr.net/npm/pangu@4/dist/browser/pangu.min.js"></script>
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+
+
+
+
+  
+
+<script src="//cdn.jsdelivr.net/npm/instantsearch.js@2/dist/instantsearch.min.js"></script>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+  
+  <script src="//cdn.jsdelivr.net/npm/quicklink@1/dist/quicklink.umd.js"></script>
+  
+
+
+
+
+
+
+
+<script type="text/javascript" src="/bundle.js"></script><script type="text/javascript">function leancloudSelector(url) {
+    return document.getElementById(url).querySelector('.leancloud-visitors-count');
+  }
+  if (CONFIG.page.isPost) {
+    function addCount(Counter) {
+      var visitors = document.querySelector('.leancloud_visitors');
+      var url = visitors.getAttribute('id').trim();
+      var title = visitors.getAttribute('data-flag-title').trim();
+
+      Counter('get', `/classes/Counter?where=${JSON.stringify({ url })}`)
+        .then(response => response.json())
+        .then(({ results }) => {
+          if (results.length > 0) {
+            var counter = results[0];
+              leancloudSelector(url).innerText = counter.time + 1;
+            Counter('put', '/classes/Counter/' + counter.objectId, { time: { '__op': 'Increment', 'amount': 1 } })
+              .then(response => response.json())
+              .catch(error => {
+                console.log('Failed to save visitor count', error);
+              })
+          } else {
+              leancloudSelector(url).innerText = 'Counter not initialized! More info at console err msg.';
+              console.error('ATTENTION! LeanCloud counter has security bug, see how to solve it here: https://github.com/theme-next/hexo-leancloud-counter-security. \n However, you can still use LeanCloud without security, by setting `security` option to `false`.');
+            
+          }
+        })
+        .catch(error => {
+          console.log('LeanCloud Counter Error', error);
+        });
+    }
+  } else {
+    function showTime(Counter) {
+      var visitors = document.querySelectorAll('.leancloud_visitors');
+      var entries = [...visitors].map(element => {
+        return element.getAttribute('id').trim();
+      });
+
+      Counter('get', `/classes/Counter?where=${JSON.stringify({ url: { '$in': entries } })}`)
+        .then(response => response.json())
+        .then(({ results }) => {
+          if (results.length === 0) {
+            document.querySelectorAll('.leancloud_visitors .leancloud-visitors-count').forEach(element => {
+              element.innerText = 0;
+            });
+            return;
+          }
+          for (var i = 0; i < results.length; i++) {
+            var item = results[i];
+            var url = item.url;
+            var time = item.time;
+            leancloudSelector(url).innerText = time;
+          }
+          for (var i = 0; i < entries.length; i++) {
+            var url = entries[i];
+            var element = leancloudSelector(url);
+            if (element.innerText == '') {
+              element.innerText = 0;
+            }
+          }
+        })
+        .catch(error => {
+          console.log('LeanCloud Counter Error', error);
+        });
+    }
+  }
+
+  fetch('https://app-router.leancloud.cn/2/route?appId=gmT3IkYtHVMymcwAjbwHhtiv-gzGzoHsz')
+    .then(response => response.json())
+    .then(({ api_server }) => {
+      var Counter = (method, url, data) => {
+        return fetch(`https://${api_server}/1.1${url}`, {
+          method: method,
+          headers: {
+            'X-LC-Id': 'gmT3IkYtHVMymcwAjbwHhtiv-gzGzoHsz',
+            'X-LC-Key': 'co6tpmcyS9za2D1uqQyMFtnN',
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(data)
+        });
+      };
+      if (CONFIG.page.isPost) {
+        const localhost = /http:\/\/(localhost|127.0.0.1|0.0.0.0)/;
+        if (localhost.test(document.URL)) return;
+        addCount(Counter);
+      } else if (document.querySelectorAll('.post-title-link').length >= 1) {
+        showTime(Counter);
+      }
+    });;(function(){
+      var bp = document.createElement('script');
+      var curProtocol = window.location.protocol.split(':')[0];
+      bp.src = (curProtocol === 'https') ? 'https://zz.bdstatic.com/linksubmit/push.js' : 'http://push.zhanzhang.baidu.com/push.js';
+      var s = document.getElementsByTagName("script")[0];
+      s.parentNode.insertBefore(bp, s);
+    })();;if (document.querySelectorAll('pre.mermaid').length) {
+  NexT.utils.getScript('//cdn.jsdelivr.net/npm/mermaid@8/dist/mermaid.min.js', () => {
+    mermaid.initialize({
+      theme: 'forest',
+      logLevel: 3,
+      flowchart: { curve: 'linear' },
+      gantt: { axisFormat: '%m/%d/%Y' },
+      sequence: { actorMargin: 50 }
+    });
+  }, window.mermaid);
+};window.addEventListener('load', () => {
+      quicklink({
+        timeout: 3000,
+        priority: true,
+        ignores: [uri => uri.includes('#'),uri => uri == 'https://www.beikejiedeliulangmao.top/protocol/rtmp/',]
+      });
+      });;NexT.utils.getScript('//cdn.jsdelivr.net/npm/gitalk@1/dist/gitalk.min.js', () => {
+    var gitalk = new Gitalk({
+      clientID: '6201d1cc2825a93aa161',
+      clientSecret: '71c60f650595a3eedba64b844f811b90acac3798',
+      repo: 'HexoBlogComment',
+      owner: 'BeiKeJieDeLiuLangMao',
+      admin: ['BeiKeJieDeLiuLangMao'],
+      id: 'eb00df25ef14001ad34e111411ee94cd',
+        language: 'zh-CN',
+      distractionFreeMode: 'true'
+    });
+    gitalk.render('gitalk-container');
+  }, window.Gitalk);;window.imageLazyLoadSetting = {
+                isSPA: false,
+                processImages: null,
+            };;window.addEventListener("load",function(){var t=/\.(gif|jpg|jpeg|tiff|png)$/i,r=/^data:image\/[a-z]+;base64,/;Array.prototype.slice.call(document.querySelectorAll("img[data-original]")).forEach(function(a){var e=a.parentNode;"A"===e.tagName&&(e.href.match(t)||e.href.match(r))&&(e.href=a.dataset.original)})});;!function(n){n.imageLazyLoadSetting.processImages=o;var i=n.imageLazyLoadSetting.isSPA,l=Array.prototype.slice.call(document.querySelectorAll("img[data-original]"));function o(){i&&(l=Array.prototype.slice.call(document.querySelectorAll("img[data-original]")));for(var r=0;r<l.length;r++)t=l[r],void 0,0<=(e=t.getBoundingClientRect()).bottom&&0<=e.left&&e.top<=(n.innerHeight||document.documentElement.clientHeight)&&function(t){var e,n,i,o,a=l[r];e=a,n=function(){l=l.filter(function(t){return a!==t})},i=new Image,o=e.getAttribute("data-original"),i.onload=function(){e.src=o,n&&n()},i.src=o}();var t,e}o(),n.addEventListener("scroll",function(){var t,e;t=o,e=n,clearTimeout(t.tId),t.tId=setTimeout(function(){t.call(e)},500)})}(this);</script></body></html>

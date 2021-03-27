@@ -1,0 +1,3799 @@
+<!DOCTYPE html><html lang="zh-CN"><head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 5.1.1">
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/avatar.jpg">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/avatar.jpg">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/avatar.jpg">
+  <link rel="mask-icon" href="/images/avatar.jpg" color="#222">
+  <link rel="alternate" href="/atom.xml" title="贝克街的流浪猫" type="application/atom+xml">
+  <meta http-equiv="Cache-Control" content="no-transform">
+  <meta http-equiv="Cache-Control" content="no-siteapp">
+  <meta name="google-site-verification" content="PB8pKbwvyCztAdFAxM1AdLMfqXY7wDk6xWZIy3BYn0M">
+  <meta name="baidu-site-verification" content="lHxDkbImj8">
+
+
+
+
+
+  
+  
+
+
+<script id="hexo-configurations">
+  var NexT = window.NexT || {};
+  var CONFIG = {
+    root: '/',
+    scheme: 'Gemini',
+    version: '7.5.0',
+    exturl: true,
+    sidebar: {"position":"left","display":"post","offset":12,"onmobile":false},
+    copycode: {"enable":true,"show_result":true,"style":null},
+    back2top: {"enable":true,"sidebar":true,"scrollpercent":true},
+    bookmark: {"enable":false,"color":"#222","save":"auto"},
+    fancybox: false,
+    mediumzoom: true,
+    lazyload: false,
+    pangu: true,
+    algolia: {
+      appID: 'XKULKGLQCN',
+      apiKey: '59d463bff59108a7719f93aa31f249f3',
+      indexName: 'Hexo Blog',
+      hits: {"per_page":10},
+      labels: {"input_placeholder":"文章查询","hits_empty":"很抱歉，贝贝猫没有发表关于 \"${query}\" 的文章","hits_stats":"找到了 ${hits} 篇文章，耗时 ${time} 毫秒"}
+    },
+    localsearch: {"enable":false,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false},
+    path: '',
+    motion: {"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},
+    sidebarPadding: 40
+  };
+</script>
+
+  <meta name="description" content="引言从本篇文章开始，就要介绍 Sentinel 限流降级功能的核心了，前面也说过 Sentinel 使用了一套类似于责任链的模式来实现这个部分，这里我们展开一下，将责任链中的各个部分分别详细的介绍一下，和 Sentinel 相关的所有文章均会收录于<Sentinel系列文章>中，感兴趣的同学可以看一下。">
+<meta property="og:type" content="article">
+<meta property="og:title" content="Sentinel 实现原理——处理链">
+<meta property="og:url" content="https://www.beikejiedeliulangmao.top/middleware/sentinel/impl-chain/index.html">
+<meta property="og:site_name" content="贝克街的流浪猫">
+<meta property="og:description" content="引言从本篇文章开始，就要介绍 Sentinel 限流降级功能的核心了，前面也说过 Sentinel 使用了一套类似于责任链的模式来实现这个部分，这里我们展开一下，将责任链中的各个部分分别详细的介绍一下，和 Sentinel 相关的所有文章均会收录于<Sentinel系列文章>中，感兴趣的同学可以看一下。">
+<meta property="og:locale" content="zh_CN">
+<meta property="og:image" content="https://www.beikejiedeliulangmao.top/images/loading-cat.gif">
+<meta property="og:image" content="https://www.beikejiedeliulangmao.top/images/loading-cat.gif">
+<meta property="og:image" content="https://www.beikejiedeliulangmao.top/images/loading-cat.gif">
+<meta property="og:image" content="https://www.beikejiedeliulangmao.top/images/loading-cat.gif">
+<meta property="og:image" content="https://www.beikejiedeliulangmao.top/images/loading-cat.gif">
+<meta property="article:published_time" content="2020-08-10T01:12:30.000Z">
+<meta property="article:modified_time" content="2021-01-17T04:25:41.842Z">
+<meta property="article:author" content="贝克街的流浪猫">
+<meta property="article:tag" content="Java">
+<meta property="article:tag" content="Distributed">
+<meta property="article:tag" content="MicroService">
+<meta property="article:tag" content="FlowControl">
+<meta property="article:tag" content="TrafficShaping">
+<meta property="article:tag" content="CircuitBreaking">
+<meta property="article:tag" content="Degrade">
+<meta property="article:tag" content="SystemProtection">
+<meta property="article:tag" content="TokenBucket">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="https://www.beikejiedeliulangmao.top/images/loading-cat.gif">
+
+<link rel="canonical" href="https://www.beikejiedeliulangmao.top/middleware/sentinel/impl-chain/">
+
+
+<script id="page-configurations">
+  // https://hexo.io/docs/variables.html
+  CONFIG.page = {
+    sidebar: "",
+    isHome: false,
+    isPost: true,
+    isPage: false,
+    isArchive: false
+  };
+</script>
+
+  <title>Sentinel 实现原理——处理链 | 贝克街的流浪猫</title>
+  
+    <script>
+      function sendPageView() {
+        var host = window.location.hostname;
+        if (host == "localhost" && true) return;
+        var uid = localStorage.getItem('uid') || (Math.random() + '.' + Math.random());
+        localStorage.setItem('uid', uid);
+        navigator.sendBeacon('https://www.google-analytics.com/collect', new URLSearchParams({
+          v  : 1,
+          tid: 'UA-146830566-1',
+          cid: uid,
+          t  : 'pageview',
+          dp : encodeURIComponent(location.pathname)
+        }));
+      }
+      document.addEventListener('pjax:complete', sendPageView);
+      sendPageView();
+    </script>
+
+
+  <script>
+    var _hmt = _hmt || [];
+    (function() {
+      var hm = document.createElement("script");
+      hm.src = "https://hm.baidu.com/hm.js?818a8e6061ff2bd0b5531a739f216601";
+      var s = document.getElementsByTagName("script")[0];
+      s.parentNode.insertBefore(hm, s);
+    })();
+  </script>
+
+
+
+
+  <style>body {
+  background-image: url("https://www.beikejiedeliulangmao.top/images/background.jpeg") !important;
+  background-attachment: fixed !important;
+  background-repeat: no-repeat !important;
+  background-size: 100% 100% !important;
+}
+.bg_content {
+  position: fixed;
+  top: 0;
+  z-index: -1;
+  width: 100%;
+  height: 100%;
+}
+.copyright {
+  color: #000;
+}
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+  background-color: #fff;
+}
+::-webkit-scrollbar-button {
+  width: 0;
+  height: 0;
+}
+::-webkit-scrollbar-button:start:increment,
+::-webkit-scrollbar-button:end:decrement {
+  display: none;
+}
+::-webkit-scrollbar-corner {
+  display: block;
+}
+::-webkit-scrollbar-thumb {
+  border-radius: 6px;
+  background-color: rgba(0,0,0,0.4);
+}
+::-webkit-scrollbar-thumb:hover {
+  border-radius: 6px;
+  background-color: rgba(0,0,0,0.6);
+}
+::-webkit-scrollbar-track,
+::-webkit-scrollbar-thumb {
+  border-right: 1px solid transparent;
+  border-left: 1px solid transparent;
+}
+::-webkit-scrollbar-button:start {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-button:end {
+  width: 6px;
+  height: 6px;
+}
+html {
+  line-height: 1.15; 
+  -webkit-text-size-adjust: 100%; 
+}
+body {
+  margin: 0;
+}
+main {
+  display: block;
+}
+h1 {
+  font-size: 2em;
+  margin: 0.67em 0;
+}
+hr {
+  box-sizing: content-box; 
+  height: 0; 
+  overflow: visible; 
+}
+pre {
+  font-family: monospace, monospace; 
+  font-size: 1em; 
+}
+a {
+  background: transparent;
+}
+abbr[title] {
+  border-bottom: none; 
+  text-decoration: underline; 
+  text-decoration: underline dotted; 
+}
+b,
+strong {
+  font-weight: bolder;
+}
+code,
+kbd,
+samp {
+  font-family: monospace, monospace; 
+  font-size: 1em; 
+}
+small {
+  font-size: 80%;
+}
+sub,
+sup {
+  font-size: 75%;
+  line-height: 0;
+  position: relative;
+  vertical-align: baseline;
+}
+sub {
+  bottom: -0.25em;
+}
+sup {
+  top: -0.5em;
+}
+img {
+  border-style: none;
+}
+button,
+input,
+optgroup,
+select,
+textarea {
+  font-family: inherit; 
+  font-size: 100%; 
+  line-height: 1.15; 
+  margin: 0; 
+}
+button,
+input {
+
+  overflow: visible;
+}
+button,
+select {
+
+  text-transform: none;
+}
+button,
+[type='button'],
+[type='reset'],
+[type='submit'] {
+  -webkit-appearance: button;
+}
+button::-moz-focus-inner,
+[type='button']::-moz-focus-inner,
+[type='reset']::-moz-focus-inner,
+[type='submit']::-moz-focus-inner {
+  border-style: none;
+  padding: 0;
+}
+button:-moz-focusring,
+[type='button']:-moz-focusring,
+[type='reset']:-moz-focusring,
+[type='submit']:-moz-focusring {
+  outline: 1px dotted ButtonText;
+}
+fieldset {
+  padding: 0.35em 0.75em 0.625em;
+}
+legend {
+  box-sizing: border-box; 
+  color: inherit; 
+  display: table; 
+  max-width: 100%; 
+  padding: 0; 
+  white-space: normal; 
+}
+progress {
+  vertical-align: baseline;
+}
+textarea {
+  overflow: auto;
+}
+[type='checkbox'],
+[type='radio'] {
+  box-sizing: border-box; 
+  padding: 0; 
+}
+[type='number']::-webkit-inner-spin-button,
+[type='number']::-webkit-outer-spin-button {
+  height: auto;
+}
+[type='search'] {
+  outline-offset: -2px; 
+  -webkit-appearance: textfield; 
+}
+[type='search']::-webkit-search-decoration {
+  -webkit-appearance: none;
+}
+::-webkit-file-upload-button {
+  font: inherit; 
+  -webkit-appearance: button; 
+}
+details {
+  display: block;
+}
+summary {
+  display: list-item;
+}
+template {
+  display: none;
+}
+[hidden] {
+  display: none;
+}
+::selection {
+  background: #262a30;
+  color: #fff;
+}
+html,
+body {
+  height: 100%;
+}
+body {
+  background: #eee;
+  color: #555;
+  font-family: 'Monda', "PingFang SC", "Microsoft YaHei", sans-serif;
+  font-size: 1em;
+  line-height: 2;
+}
+@media (max-width: 991px) {
+  body {
+    padding-left: 0 !important;
+    padding-right: 0 !important;
+  }
+}
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+  font-family: 'Roboto Slab', 'Monda', "PingFang SC", "Microsoft YaHei", sans-serif;
+  font-weight: bold;
+  line-height: 1.5;
+  margin: 20px 0 15px;
+  padding: 0;
+}
+h1 {
+  font-size: 1.5em;
+}
+h2 {
+  font-size: 1.375em;
+}
+h3 {
+  font-size: 1.25em;
+}
+h4 {
+  font-size: 1.125em;
+}
+h5 {
+  font-size: 1em;
+}
+h6 {
+  font-size: 0.875em;
+}
+p {
+  margin: 0 0 20px 0;
+}
+a,
+span.exturl {
+  border-bottom: 1px solid #999;
+  color: #555;
+  outline: 0;
+  text-decoration: none;
+  overflow-wrap: break-word;
+  word-wrap: break-word;
+  cursor: pointer;
+}
+a:hover,
+span.exturl:hover {
+  border-bottom-color: #222;
+  color: #222;
+}
+iframe,
+img,
+video {
+  display: block;
+  margin-left: auto;
+  margin-right: auto;
+  max-width: 100%;
+}
+hr {
+  background-color: #ddd;
+  background-image: repeating-linear-gradient(-45deg, #fff, #fff 4px, transparent 4px, transparent 8px);
+  border: 0;
+  height: 3px;
+  margin: 40px 0;
+}
+blockquote {
+  border-left: 4px solid #ddd;
+  color: #666;
+  margin: 0;
+  padding: 0 15px;
+}
+blockquote cite::before {
+  content: '-';
+  padding: 0 5px;
+}
+dt {
+  font-weight: 700;
+}
+dd {
+  margin: 0;
+  padding: 0;
+}
+kbd {
+  background-color: #f5f5f5;
+  background-image: linear-gradient(#eee, #fff, #eee);
+  border: 1px solid #ccc;
+  border-radius: 0.2em;
+  box-shadow: 0.1em 0.1em 0.2em rgba(0,0,0,0.1);
+  font-family: inherit;
+  padding: 0.1em 0.3em;
+  white-space: nowrap;
+}
+.table-container {
+  -webkit-overflow-scrolling: touch;
+  overflow: auto;
+}
+table {
+  border-collapse: collapse;
+  border-spacing: 0;
+  font-size: 0.875em;
+  margin: 0 0 20px 0;
+  width: 100%;
+}
+tbody tr:nth-of-type(odd) {
+  background: #f9f9f9;
+}
+tbody tr:hover {
+  background: #f5f5f5;
+}
+caption,
+th,
+td {
+  font-weight: normal;
+  padding: 8px;
+  text-align: left;
+  vertical-align: middle;
+}
+th,
+td {
+  border: 1px solid #ddd;
+  border-bottom: 3px solid #ddd;
+}
+th {
+  font-weight: 700;
+  padding-bottom: 10px;
+}
+td {
+  border-bottom-width: 1px;
+}
+.btn {
+  background: #fff;
+  border: 2px solid #555;
+  border-radius: 2px;
+  color: #555;
+  display: inline-block;
+  font-size: 0.875em;
+  line-height: 2;
+  padding: 0 20px;
+  text-decoration: none;
+  transition-property: background-color;
+  transition-delay: 0s;
+  transition-duration: 0.2s;
+  transition-timing-function: ease-in-out;
+}
+.btn:hover {
+  background: #222;
+  border-color: #222;
+  color: #fff;
+}
+.btn + .btn {
+  margin: 0 0 8px 8px;
+}
+.btn .fa-fw {
+  text-align: left;
+  width: 1.285714285714286em;
+}
+.toggle {
+  line-height: 0;
+}
+.toggle .toggle-line {
+  background: #fff;
+  display: inline-block;
+  height: 2px;
+  left: 0;
+  position: relative;
+  top: 0;
+  transition: all 0.4s;
+  vertical-align: top;
+  width: 100%;
+}
+.toggle .toggle-line:not(:first-child) {
+  margin-top: 3px;
+}
+.toggle.toggle-arrow .toggle-line-first {
+  left: 50%;
+  top: 2px;
+  transform: rotate(45deg);
+  width: 50%;
+}
+.toggle.toggle-arrow .toggle-line-middle {
+  left: 2px;
+  width: 90%;
+}
+.toggle.toggle-arrow .toggle-line-last {
+  left: 50%;
+  top: -2px;
+  transform: rotate(-45deg);
+  width: 50%;
+}
+.toggle.toggle-close .toggle-line-first {
+  transform: rotate(-45deg);
+  top: 5px;
+}
+.toggle.toggle-close .toggle-line-middle {
+  opacity: 0;
+}
+.toggle.toggle-close .toggle-line-last {
+  transform: rotate(45deg);
+  top: -5px;
+}
+.highlight-container {
+  position: relative;
+}
+.highlight-container:hover .copy-btn,
+.highlight-container .copy-btn:focus {
+  opacity: 1;
+}
+.copy-btn {
+  color: #333;
+  cursor: pointer;
+  display: inline-block;
+  font-weight: 700;
+  line-height: 1.6;
+  opacity: 0;
+  outline: 0;
+  padding: 2px 6px;
+  position: absolute;
+  transition: opacity 0.3s ease-in-out;
+  vertical-align: middle;
+  white-space: nowrap;
+  -moz-user-select: none;
+  -ms-user-select: none;
+  -webkit-user-select: none;
+  user-select: none;
+  background-color: #eee;
+  background-image: linear-gradient(#fcfcfc, #eee);
+  border: 1px solid #d5d5d5;
+  border-radius: 3px;
+  font-size: 0.8125em;
+  right: 4px;
+  top: 8px;
+}
+.highlight,
+pre {
+  background: #f7f7f7;
+  color: #4d4d4c;
+  line-height: 1.6;
+  margin: 0 auto 20px;
+}
+pre,
+code {
+  font-family: 'PT Mono', consolas, Menlo, monospace, "PingFang SC", "Microsoft YaHei";
+}
+code {
+  background: #eee;
+  border-radius: 3px;
+  color: #555;
+  padding: 2px 4px;
+  overflow-wrap: break-word;
+  word-wrap: break-word;
+}
+.highlight *::selection {
+  background: #d6d6d6;
+}
+.highlight pre {
+  border: 0;
+  margin: 0;
+  padding: 0;
+}
+.highlight table {
+  border: 0;
+  margin: 0;
+  width: auto;
+}
+.highlight tr:first-child pre {
+  padding-top: 10px;
+}
+.highlight tr:last-child pre {
+  padding-bottom: 10px;
+}
+.highlight td {
+  border: 0;
+  padding: 0;
+}
+.highlight figcaption {
+  background: #eee;
+  color: #4d4d4c;
+  font-size: 0.875em;
+  line-height: 1.2;
+  padding: 0.5em;
+}
+.highlight figcaption::before,
+.highlight figcaption::after {
+  content: ' ';
+  display: table;
+}
+.highlight figcaption::after {
+  clear: both;
+}
+.highlight figcaption a {
+  color: #4d4d4c;
+  float: right;
+}
+.highlight figcaption a:hover {
+  border-bottom-color: #4d4d4c;
+}
+.highlight .gutter pre {
+  background: #eff2f3;
+  color: #869194;
+  padding-left: 10px;
+  padding-right: 10px;
+  text-align: right;
+  -moz-user-select: none;
+  -ms-user-select: none;
+  -webkit-user-select: none;
+  user-select: none;
+}
+.highlight .code pre {
+  background: #f7f7f7;
+  padding-left: 10px;
+  width: 100%;
+}
+.gist table {
+  width: auto;
+}
+.gist table td {
+  border: 0;
+}
+pre {
+  overflow: auto;
+  padding: 10px;
+}
+pre code {
+  background: none;
+  color: #4d4d4c;
+  font-size: 0.875em;
+  padding: 0;
+  text-shadow: none;
+}
+pre .deletion {
+  background: #fdd;
+}
+pre .addition {
+  background: #dfd;
+}
+pre .meta {
+  color: #eab700;
+  -moz-user-select: none;
+  -ms-user-select: none;
+  -webkit-user-select: none;
+  user-select: none;
+}
+pre .comment {
+  color: #8e908c;
+}
+pre .variable,
+pre .attribute,
+pre .tag,
+pre .name,
+pre .regexp,
+pre .ruby .constant,
+pre .xml .tag .title,
+pre .xml .pi,
+pre .xml .doctype,
+pre .html .doctype,
+pre .css .id,
+pre .css .class,
+pre .css .pseudo {
+  color: #c82829;
+}
+pre .number,
+pre .preprocessor,
+pre .built_in,
+pre .builtin-name,
+pre .literal,
+pre .params,
+pre .constant,
+pre .command {
+  color: #f5871f;
+}
+pre .ruby .class .title,
+pre .css .rules .attribute,
+pre .string,
+pre .symbol,
+pre .value,
+pre .inheritance,
+pre .header,
+pre .ruby .symbol,
+pre .xml .cdata,
+pre .special,
+pre .formula {
+  color: #718c00;
+}
+pre .title,
+pre .css .hexcolor {
+  color: #3e999f;
+}
+pre .function,
+pre .python .decorator,
+pre .python .title,
+pre .ruby .function .title,
+pre .ruby .title .keyword,
+pre .perl .sub,
+pre .javascript .title,
+pre .coffeescript .title {
+  color: #4271ae;
+}
+pre .keyword,
+pre .javascript .function {
+  color: #8959a8;
+}
+.blockquote-center {
+  border-left: none;
+  margin: 40px 0;
+  padding: 0;
+  position: relative;
+  text-align: center;
+}
+.blockquote-center::before,
+.blockquote-center::after {
+  background-repeat: no-repeat;
+  background-size: 22px 22px;
+  content: ' ';
+  display: block;
+  height: 24px;
+  opacity: 0.2;
+  position: absolute;
+  width: 100%;
+}
+.blockquote-center::before {
+  background-image: url("../images/quote-l.svg");
+  background-position: 0 -6px;
+  border-top: 1px solid #ccc;
+  top: -20px;
+}
+.blockquote-center::after {
+  background-image: url("../images/quote-r.svg");
+  background-position: 100% 8px;
+  border-bottom: 1px solid #ccc;
+  bottom: -20px;
+}
+.blockquote-center p,
+.blockquote-center div {
+  text-align: center;
+}
+.post-body .group-picture img {
+  border: 0;
+  margin: 0 auto;
+  padding: 0 3px;
+}
+.group-picture-row {
+  margin-bottom: 6px;
+  overflow: hidden;
+}
+.group-picture-column {
+  float: left;
+  margin-bottom: 10px;
+}
+.post-body .label {
+  display: inline;
+  padding: 0 2px;
+}
+.post-body .label.default {
+  background: #f0f0f0;
+}
+.post-body .label.primary {
+  background: #efe6f7;
+}
+.post-body .label.info {
+  background: #e5f2f8;
+}
+.post-body .label.success {
+  background: #e7f4e9;
+}
+.post-body .label.warning {
+  background: #fcf6e1;
+}
+.post-body .label.danger {
+  background: #fae8eb;
+}
+.post-body .tabs {
+  margin-bottom: 20px;
+}
+.post-body .tabs,
+.tabs-comment {
+  display: block;
+  padding-top: 10px;
+  position: relative;
+}
+.post-body .tabs ul.nav-tabs,
+.tabs-comment ul.nav-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  margin: 0;
+  margin-bottom: -1px;
+  padding: 0;
+}
+@media (max-width: 413px) {
+  .post-body .tabs ul.nav-tabs,
+  .tabs-comment ul.nav-tabs {
+    display: block;
+    margin-bottom: 5px;
+  }
+}
+.post-body .tabs ul.nav-tabs li.tab,
+.tabs-comment ul.nav-tabs li.tab {
+  background: #fff;
+  border-bottom: 1px solid #ddd;
+  border-left: 1px solid transparent;
+  border-right: 1px solid transparent;
+  border-top: 3px solid transparent;
+  flex-grow: 1;
+  list-style-type: none;
+}
+@media (max-width: 413px) {
+  .post-body .tabs ul.nav-tabs li.tab,
+  .tabs-comment ul.nav-tabs li.tab {
+    border-bottom: 1px solid transparent;
+    border-left: 3px solid transparent;
+    border-right: 1px solid transparent;
+    border-top: 1px solid transparent;
+  }
+}
+.post-body .tabs ul.nav-tabs li.tab a,
+.tabs-comment ul.nav-tabs li.tab a {
+  border-bottom: initial;
+  display: block;
+  line-height: 1.8;
+  outline: 0;
+  padding: 0.25em 0.75em;
+  text-align: center;
+  transition-delay: 0s;
+  transition-duration: 0.2s;
+  transition-timing-function: ease-out;
+}
+.post-body .tabs ul.nav-tabs li.tab a i,
+.tabs-comment ul.nav-tabs li.tab a i {
+  width: 1.285714285714286em;
+}
+.post-body .tabs ul.nav-tabs li.tab.active,
+.tabs-comment ul.nav-tabs li.tab.active {
+  border-bottom: 1px solid transparent;
+  border-left: 1px solid #ddd;
+  border-right: 1px solid #ddd;
+  border-top: 3px solid #fc6423;
+}
+@media (max-width: 413px) {
+  .post-body .tabs ul.nav-tabs li.tab.active,
+  .tabs-comment ul.nav-tabs li.tab.active {
+    border-bottom: 1px solid #ddd;
+    border-left: 3px solid #fc6423;
+    border-right: 1px solid #ddd;
+    border-top: 1px solid #ddd;
+  }
+}
+.post-body .tabs ul.nav-tabs li.tab.active a,
+.tabs-comment ul.nav-tabs li.tab.active a {
+  color: #555;
+  cursor: default;
+}
+.post-body .tabs .tab-content .tab-pane,
+.tabs-comment .tab-content .tab-pane {
+  border: 1px solid #ddd;
+  padding: 20px 20px 0 20px;
+}
+.post-body .tabs .tab-content .tab-pane:not(.active),
+.tabs-comment .tab-content .tab-pane:not(.active) {
+  display: none;
+}
+.post-body .tabs .tab-content .tab-pane.active,
+.tabs-comment .tab-content .tab-pane.active {
+  display: block;
+}
+.post-body .note {
+  margin-bottom: 20px;
+  padding: 15px;
+  position: relative;
+  border: 1px solid #eee;
+  border-left-width: 5px;
+  border-radius: 3px;
+}
+.post-body .note h2,
+.post-body .note h3,
+.post-body .note h4,
+.post-body .note h5,
+.post-body .note h6 {
+  margin-top: 0;
+  border-bottom: initial;
+  margin-bottom: 0;
+  padding-top: 0;
+}
+.post-body .note p:first-child,
+.post-body .note ul:first-child,
+.post-body .note ol:first-child,
+.post-body .note table:first-child,
+.post-body .note pre:first-child,
+.post-body .note blockquote:first-child,
+.post-body .note img:first-child {
+  margin-top: 0;
+}
+.post-body .note p:last-child,
+.post-body .note ul:last-child,
+.post-body .note ol:last-child,
+.post-body .note table:last-child,
+.post-body .note pre:last-child,
+.post-body .note blockquote:last-child,
+.post-body .note img:last-child {
+  margin-bottom: 0;
+}
+.post-body .note.default {
+  border-left-color: #777;
+}
+.post-body .note.default h2,
+.post-body .note.default h3,
+.post-body .note.default h4,
+.post-body .note.default h5,
+.post-body .note.default h6 {
+  color: #777;
+}
+.post-body .note.primary {
+  border-left-color: #6f42c1;
+}
+.post-body .note.primary h2,
+.post-body .note.primary h3,
+.post-body .note.primary h4,
+.post-body .note.primary h5,
+.post-body .note.primary h6 {
+  color: #6f42c1;
+}
+.post-body .note.info {
+  border-left-color: #428bca;
+}
+.post-body .note.info h2,
+.post-body .note.info h3,
+.post-body .note.info h4,
+.post-body .note.info h5,
+.post-body .note.info h6 {
+  color: #428bca;
+}
+.post-body .note.success {
+  border-left-color: #5cb85c;
+}
+.post-body .note.success h2,
+.post-body .note.success h3,
+.post-body .note.success h4,
+.post-body .note.success h5,
+.post-body .note.success h6 {
+  color: #5cb85c;
+}
+.post-body .note.warning {
+  border-left-color: #f0ad4e;
+}
+.post-body .note.warning h2,
+.post-body .note.warning h3,
+.post-body .note.warning h4,
+.post-body .note.warning h5,
+.post-body .note.warning h6 {
+  color: #f0ad4e;
+}
+.post-body .note.danger {
+  border-left-color: #d9534f;
+}
+.post-body .note.danger h2,
+.post-body .note.danger h3,
+.post-body .note.danger h4,
+.post-body .note.danger h5,
+.post-body .note.danger h6 {
+  color: #d9534f;
+}
+.pagination .prev,
+.pagination .next,
+.pagination .page-number,
+.pagination .space {
+  display: inline-block;
+  margin: 0 10px;
+  padding: 0 11px;
+  position: relative;
+  top: -1px;
+}
+@media (max-width: 767px) {
+  .pagination .prev,
+  .pagination .next,
+  .pagination .page-number,
+  .pagination .space {
+    margin: 0 5px;
+  }
+}
+.pagination {
+  border-top: 1px solid #eee;
+  margin: 120px 0 0;
+  text-align: center;
+}
+.pagination .prev,
+.pagination .next,
+.pagination .page-number {
+  border-bottom: 0;
+  border-top: 1px solid #eee;
+  transition-property: border-color;
+  transition-delay: 0s;
+  transition-duration: 0.2s;
+  transition-timing-function: ease-in-out;
+}
+.pagination .prev:hover,
+.pagination .next:hover,
+.pagination .page-number:hover {
+  border-top-color: #222;
+}
+.pagination .space {
+  margin: 0;
+  padding: 0;
+}
+.pagination .prev {
+  margin-left: 0;
+}
+.pagination .next {
+  margin-right: 0;
+}
+.pagination .page-number.current,
+.algolia-pagination .current .page-number {
+  background: #ccc;
+  border-top-color: #ccc;
+  color: #fff;
+}
+@media (max-width: 767px) {
+  .pagination {
+    border-top: none;
+  }
+  .pagination .prev,
+  .pagination .next,
+  .pagination .page-number {
+    border-bottom: 1px solid #eee;
+    border-top: 0;
+    margin-bottom: 10px;
+    padding: 0 10px;
+  }
+  .pagination .prev:hover,
+  .pagination .next:hover,
+  .pagination .page-number:hover {
+    border-bottom-color: #222;
+  }
+}
+.comments {
+  margin: 60px 20px 0;
+  overflow: hidden;
+}
+.comment-button-group {
+  display: flex;
+  flex-wrap: wrap-reverse;
+  justify-content: center;
+  margin: 1em 0;
+}
+.comment-button-group .comment-button {
+  margin: 0.1em 0.2em;
+}
+.comment-button-group .comment-button.active {
+  background: #222;
+  border-color: #222;
+  color: #fff;
+}
+.comment-position {
+  display: none;
+}
+.comment-position.active {
+  display: block;
+}
+.tabs-comment {
+  background: #fff;
+  margin-top: 4em;
+  padding-top: 0;
+}
+.tabs-comment .comments {
+  border: 0;
+  box-shadow: none;
+  margin-top: 0;
+  padding-top: 0;
+}
+.container {
+  min-height: 100%;
+  position: relative;
+}
+.main-inner {
+  margin: 0 auto;
+  width: calc(100% - 20px);
+}
+@media (min-width: 1200px) {
+  .main-inner {
+    width: 1160px;
+  }
+}
+@media (min-width: 1600px) {
+  .main-inner {
+    width: 73%;
+  }
+}
+.header {
+  background: transparent;
+}
+.header-inner {
+  margin: 0 auto;
+  position: relative;
+  width: calc(100% - 20px);
+}
+@media (min-width: 1200px) {
+  .header-inner {
+    width: 1160px;
+  }
+}
+@media (min-width: 1600px) {
+  .header-inner {
+    width: 73%;
+  }
+}
+.headband {
+  background: #222;
+  height: 3px;
+}
+.site-meta {
+  margin: 0;
+  text-align: center;
+}
+@media (max-width: 767px) {
+  .site-meta {
+    text-align: center;
+  }
+}
+.brand {
+  background: #222;
+  border-bottom: none;
+  color: #fff;
+  display: inline-block;
+  line-height: 1.375em;
+  padding: 0 40px;
+  position: relative;
+}
+.brand:hover {
+  color: #fff;
+}
+.site-title {
+  display: inline-block;
+  font-family: 'Monda', "PingFang SC", "Microsoft YaHei", sans-serif;
+  font-size: 1.375em;
+  font-weight: normal;
+  line-height: 1.5;
+  vertical-align: top;
+}
+.site-subtitle {
+  color: #ddd;
+  font-size: 0.8125em;
+  margin-top: 10px;
+}
+.use-motion .brand {
+  opacity: 0;
+}
+.use-motion .site-title,
+.use-motion .site-subtitle,
+.use-motion .custom-logo-image {
+  opacity: 0;
+  position: relative;
+  top: -10px;
+}
+.site-nav-toggle {
+  display: none;
+  left: 10px;
+  position: absolute;
+}
+@media (max-width: 767px) {
+  .site-nav-toggle {
+    display: block;
+  }
+}
+.site-nav-toggle .toggle {
+  background: transparent;
+  border: 0;
+  margin-top: 2px;
+  padding: 10px;
+  width: 22px;
+}
+.site-nav-toggle .toggle .toggle-line {
+  background: #555;
+  border-radius: 1px;
+}
+.site-nav {
+  display: block;
+}
+@media (max-width: 767px) {
+  .site-nav {
+    border-top: 1px solid #ddd;
+    clear: both;
+    display: none;
+    margin: 0 -10px;
+    padding: 0 10px;
+  }
+}
+.site-nav.site-nav-on {
+  display: block;
+}
+.menu {
+  margin-top: 20px;
+  padding-left: 0;
+  text-align: center;
+}
+.menu-item {
+  display: inline-block;
+  list-style: none;
+  margin: 0 10px;
+}
+@media (max-width: 767px) {
+  .menu-item {
+    margin-top: 10px;
+  }
+}
+.menu-item a,
+.menu-item span.exturl {
+  border-bottom: 0;
+  display: block;
+  font-size: 0.8125em;
+  transition-property: border-color;
+  transition-delay: 0s;
+  transition-duration: 0.2s;
+  transition-timing-function: ease-in-out;
+}
+@media (hover: none) {
+  .menu-item a:hover,
+  .menu-item span.exturl:hover {
+    border-bottom-color: transparent !important;
+  }
+}
+.menu-item .fa {
+  margin-right: 8px;
+}
+.menu-item .badge {
+  display: inline-block;
+  font-weight: 700;
+  line-height: 1;
+  margin-left: 0.35em;
+  margin-top: 0.35em;
+  text-align: center;
+  white-space: nowrap;
+}
+@media (max-width: 767px) {
+  .menu-item .badge {
+    float: right;
+    margin-left: 0;
+  }
+}
+.use-motion .menu-item {
+  opacity: 0;
+}
+.github-corner :hover .octo-arm {
+  animation: octocat-wave 560ms ease-in-out;
+}
+.github-corner svg {
+  border: 0;
+  color: #fff;
+  fill: #222;
+  position: absolute;
+  right: 0;
+  top: 0;
+  z-index: 1000;
+}
+@media (max-width: 991px) {
+  .github-corner svg {
+    color: #222;
+    fill: #fff;
+  }
+  .github-corner .github-corner:hover .octo-arm {
+    animation: none;
+  }
+  .github-corner .github-corner .octo-arm {
+    animation: octocat-wave 560ms ease-in-out;
+  }
+}
+@-moz-keyframes octocat-wave {
+  0%, 100% {
+    transform: rotate(0);
+  }
+  20%, 60% {
+    transform: rotate(-25deg);
+  }
+  40%, 80% {
+    transform: rotate(10deg);
+  }
+}
+@-webkit-keyframes octocat-wave {
+  0%, 100% {
+    transform: rotate(0);
+  }
+  20%, 60% {
+    transform: rotate(-25deg);
+  }
+  40%, 80% {
+    transform: rotate(10deg);
+  }
+}
+@-o-keyframes octocat-wave {
+  0%, 100% {
+    transform: rotate(0);
+  }
+  20%, 60% {
+    transform: rotate(-25deg);
+  }
+  40%, 80% {
+    transform: rotate(10deg);
+  }
+}
+@keyframes octocat-wave {
+  0%, 100% {
+    transform: rotate(0);
+  }
+  20%, 60% {
+    transform: rotate(-25deg);
+  }
+  40%, 80% {
+    transform: rotate(10deg);
+  }
+}
+.sidebar {
+  background: #222;
+  bottom: 0;
+  box-shadow: inset 0 2px 6px #000;
+  position: fixed;
+  top: 0;
+  z-index: 1200;
+}
+.sidebar a,
+.sidebar span.exturl {
+  border-bottom-color: #555;
+  color: #999;
+}
+.sidebar a:hover,
+.sidebar span.exturl:hover {
+  border-bottom-color: #eee;
+  color: #eee;
+}
+@media (max-width: 991px) {
+  .sidebar {
+    display: none;
+  }
+}
+.sidebar-inner {
+  color: #999;
+  padding: 20px 10px;
+  text-align: center;
+}
+.site-overview-wrap {
+  overflow-x: hidden;
+  overflow-y: auto;
+}
+.cc-license {
+  margin-top: 10px;
+  text-align: center;
+}
+.cc-license .cc-opacity {
+  border-bottom: none;
+  opacity: 0.7;
+}
+.cc-license .cc-opacity:hover {
+  opacity: 0.9;
+}
+.cc-license img {
+  display: inline-block;
+}
+.site-author-image {
+  border: 1px solid #eee;
+  display: block;
+  height: auto;
+  margin: 0 auto;
+  max-width: 120px;
+  padding: 2px;
+  border-radius: 50%;
+}
+.site-author-name {
+  color: #222;
+  font-weight: 600;
+  margin: 0;
+  text-align: center;
+}
+.site-description {
+  color: #999;
+  font-size: 0.8125em;
+  margin-top: 0;
+  text-align: center;
+}
+.links-of-author {
+  margin-top: 15px;
+}
+.links-of-author a,
+.links-of-author span.exturl {
+  border-bottom-color: #555;
+  display: inline-block;
+  font-size: 0.8125em;
+  margin-bottom: 10px;
+  margin-right: 10px;
+  vertical-align: middle;
+  transition-delay: 0s;
+  transition-duration: 0.2s;
+  transition-timing-function: ease-in-out;
+}
+.links-of-author a::before,
+.links-of-author span.exturl::before {
+  background: #0ab5cd;
+  border-radius: 50%;
+  content: ' ';
+  display: inline-block;
+  height: 4px;
+  margin-right: 3px;
+  vertical-align: middle;
+  width: 4px;
+}
+.feed-link,
+.chat {
+  margin-top: 15px;
+}
+.feed-link a,
+.chat a {
+  border: 1px solid #fc6423;
+  border-radius: 4px;
+  color: #fc6423;
+  display: inline-block;
+  padding: 0 15px;
+}
+.feed-link a .fa,
+.chat a .fa {
+  margin-right: 5px;
+}
+.feed-link a:hover,
+.chat a:hover {
+  background: #fc6423;
+  border: 1px solid #fc6423;
+  color: #fff;
+}
+.feed-link a:hover .fa,
+.chat a:hover .fa {
+  color: #fff;
+}
+.links-of-blogroll {
+  font-size: 0.8125em;
+  margin-top: 10px;
+}
+.links-of-blogroll-title {
+  font-size: 0.875em;
+  font-weight: 600;
+  margin-top: 0;
+}
+.links-of-blogroll-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.links-of-blogroll-item {
+  padding: 2px 10px;
+}
+.links-of-blogroll-item a,
+.links-of-blogroll-item span.exturl {
+  box-sizing: border-box;
+  display: inline-block;
+  max-width: 280px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+#sidebar-dimmer {
+  display: none;
+}
+@media (max-width: 767px) {
+  #sidebar-dimmer {
+    background: #000;
+    display: block;
+    height: 100%;
+    left: 100%;
+    opacity: 0;
+    position: fixed;
+    top: 0;
+    width: 100%;
+    z-index: 1100;
+  }
+  .sidebar-active + #sidebar-dimmer {
+    opacity: 0.7;
+    transform: translateX(-100%);
+    transition: opacity 0.5s;
+  }
+}
+.sidebar-nav {
+  margin: 0;
+  padding-bottom: 20px;
+  padding-left: 0;
+}
+.sidebar-nav li {
+  border-bottom: 1px solid transparent;
+  color: #555;
+  cursor: pointer;
+  display: inline-block;
+  font-size: 0.875em;
+}
+.sidebar-nav li.sidebar-nav-overview {
+  margin-left: 10px;
+}
+.sidebar-nav li:hover {
+  color: #fc6423;
+}
+.sidebar-nav .sidebar-nav-active {
+  border-bottom-color: #fc6423;
+  color: #fc6423;
+}
+.sidebar-nav .sidebar-nav-active:hover {
+  color: #fc6423;
+}
+.sidebar-panel {
+  display: none;
+}
+.sidebar-panel-active {
+  display: block;
+}
+.sidebar-toggle {
+  background: #222;
+  bottom: 45px;
+  cursor: pointer;
+  height: 14px;
+  left: 30px;
+  padding: 5px;
+  position: fixed;
+  width: 14px;
+  z-index: 1300;
+}
+@media (max-width: 991px) {
+  .sidebar-toggle {
+    left: 20px;
+    opacity: 0.8;
+    display: none;
+  }
+}
+.sidebar-toggle:hover .toggle-line {
+  background: #fc6423;
+}
+.post-toc-wrap {
+  overflow-x: hidden;
+  overflow-y: auto;
+}
+.post-toc {
+  font-size: 0.875em;
+}
+.post-toc ol {
+  list-style: none;
+  margin: 0;
+  padding: 0 2px 5px 10px;
+  text-align: left;
+}
+.post-toc ol > ol {
+  padding-left: 0;
+}
+.post-toc ol a {
+  border-bottom-color: #ccc;
+  color: #666;
+  transition-property: all;
+  transition-delay: 0s;
+  transition-duration: 0.2s;
+  transition-timing-function: ease-in-out;
+}
+.post-toc ol a:hover {
+  border-bottom-color: #000;
+  color: #000;
+}
+.post-toc .nav-item {
+  line-height: 1.8;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.post-toc .nav .nav-child {
+  display: none;
+}
+.post-toc .nav .active > .nav-child {
+  display: block;
+}
+.post-toc .nav .active-current > .nav-child {
+  display: block;
+}
+.post-toc .nav .active-current > .nav-child > .nav-item {
+  display: block;
+}
+.post-toc .nav .active > a {
+  border-bottom-color: #fc6423;
+  color: #fc6423;
+}
+.post-toc .nav .active-current > a {
+  color: #fc6423;
+}
+.post-toc .nav .active-current > a:hover {
+  color: #fc6423;
+}
+.site-state {
+  display: flex;
+  justify-content: center;
+  line-height: 1.4;
+  margin-top: 10px;
+  overflow: hidden;
+  text-align: center;
+  white-space: nowrap;
+}
+.site-state-item {
+  padding: 0 15px;
+}
+.site-state-item:not(:first-child) {
+  border-left: 1px solid #eee;
+}
+.site-state-item a {
+  border-bottom: none;
+}
+.site-state-item-count {
+  color: inherit;
+  display: block;
+  font-size: 1em;
+  font-weight: 600;
+  text-align: center;
+}
+.site-state-item-name {
+  color: #999;
+  font-size: 0.8125em;
+}
+.footer {
+  color: #999;
+  font-size: 0.875em;
+  padding: 20px 0;
+}
+.footer.footer-fixed {
+  bottom: 0;
+  left: 0;
+  position: absolute;
+  right: 0;
+}
+.footer img {
+  border: 0;
+}
+.footer-inner {
+  box-sizing: border-box;
+  margin: 0 auto;
+  text-align: center;
+  width: calc(100% - 20px);
+}
+@media (min-width: 1200px) {
+  .footer-inner {
+    width: 1160px;
+  }
+}
+@media (min-width: 1600px) {
+  .footer-inner {
+    width: 73%;
+  }
+}
+.with-love {
+  color: red;
+  display: inline-block;
+  margin: 0 5px;
+  animation: iconAnimate 1.33s ease-in-out infinite;
+}
+.powered-by,
+.theme-info {
+  display: inline-block;
+}
+@-moz-keyframes iconAnimate {
+  0%, 100% {
+    transform: scale(1);
+  }
+  10%, 30% {
+    transform: scale(0.9);
+  }
+  20%, 40%, 60%, 80% {
+    transform: scale(1.1);
+  }
+  50%, 70% {
+    transform: scale(1.1);
+  }
+}
+@-webkit-keyframes iconAnimate {
+  0%, 100% {
+    transform: scale(1);
+  }
+  10%, 30% {
+    transform: scale(0.9);
+  }
+  20%, 40%, 60%, 80% {
+    transform: scale(1.1);
+  }
+  50%, 70% {
+    transform: scale(1.1);
+  }
+}
+@-o-keyframes iconAnimate {
+  0%, 100% {
+    transform: scale(1);
+  }
+  10%, 30% {
+    transform: scale(0.9);
+  }
+  20%, 40%, 60%, 80% {
+    transform: scale(1.1);
+  }
+  50%, 70% {
+    transform: scale(1.1);
+  }
+}
+@keyframes iconAnimate {
+  0%, 100% {
+    transform: scale(1);
+  }
+  10%, 30% {
+    transform: scale(0.9);
+  }
+  20%, 40%, 60%, 80% {
+    transform: scale(1.1);
+  }
+  50%, 70% {
+    transform: scale(1.1);
+  }
+}
+.back-to-top {
+  background: #eee;
+  font-size: 12px;
+  margin: 8px -10px -20px;
+  opacity: 0;
+  text-align: center;
+  transition-delay: 0s;
+  transition-duration: 0.2s;
+  transition-timing-function: ease-in-out;
+}
+.back-to-top.back-to-top-on {
+  cursor: pointer;
+  opacity: 0.6;
+}
+.back-to-top.back-to-top-on:hover {
+  opacity: 0.8;
+}
+.post-body {
+  font-family: 'Monda', "PingFang SC", "Microsoft YaHei", sans-serif;
+  overflow-wrap: break-word;
+  word-wrap: break-word;
+}
+@media (min-width: 1200px) {
+  .post-body {
+    font-size: 1.125em;
+  }
+}
+.post-body span.exturl .fa {
+  font-size: 0.875em;
+  margin-left: 4px;
+}
+.post-body .image-caption,
+.post-body .figure .caption {
+  color: #999;
+  font-size: 0.875em;
+  font-weight: bold;
+  line-height: 1;
+  margin: -20px auto 15px;
+  text-align: center;
+}
+.post-sticky-flag {
+  display: inline-block;
+  transform: rotate(30deg);
+}
+.post-button {
+  margin-top: 40px;
+  text-align: center;
+}
+.use-motion .post-block,
+.use-motion .pagination,
+.use-motion .comments {
+  opacity: 0;
+}
+.use-motion .post-header {
+  opacity: 0;
+}
+.use-motion .post-body {
+  opacity: 0;
+}
+.use-motion .collection-header {
+  opacity: 0;
+}
+.posts-collapse {
+  margin-left: 55px;
+  position: relative;
+}
+@media (max-width: 767px) {
+  .posts-collapse {
+    margin-left: 20px;
+    margin-right: 20px;
+  }
+}
+.posts-collapse .collection-title {
+  font-size: 1.125em;
+  position: relative;
+}
+.posts-collapse .collection-title::before {
+  background: #999;
+  border: 1px solid #fff;
+  border-radius: 50%;
+  content: ' ';
+  height: 10px;
+  left: 0;
+  margin-left: -6px;
+  margin-top: -4px;
+  position: absolute;
+  top: 50%;
+  width: 10px;
+}
+.posts-collapse .collection-year {
+  margin: 60px 0;
+  position: relative;
+}
+.posts-collapse .collection-year::before {
+  background: #bbb;
+  border-radius: 50%;
+  content: ' ';
+  height: 8px;
+  left: 0;
+  margin-left: -4px;
+  margin-top: -4px;
+  position: absolute;
+  top: 50%;
+  width: 8px;
+}
+.posts-collapse .collection-header {
+  display: inline-block;
+  margin: 0 0 0 20px;
+}
+.posts-collapse .collection-header small {
+  color: #bbb;
+  margin-left: 5px;
+}
+.posts-collapse .post-header {
+  border-bottom: 1px dashed #ccc;
+  margin: 30px 0;
+  padding-left: 15px;
+  position: relative;
+  transition-property: border;
+  transition-delay: 0s;
+  transition-duration: 0.2s;
+  transition-timing-function: ease-in-out;
+}
+.posts-collapse .post-header::before {
+  background: #bbb;
+  border: 1px solid #fff;
+  border-radius: 50%;
+  content: ' ';
+  height: 6px;
+  left: 0;
+  margin-left: -4px;
+  position: absolute;
+  top: 0.75em;
+  transition-property: background;
+  width: 6px;
+  transition-delay: 0s;
+  transition-duration: 0.2s;
+  transition-timing-function: ease-in-out;
+}
+.posts-collapse .post-header:hover {
+  border-bottom-color: #666;
+}
+.posts-collapse .post-header:hover::before {
+  background: #222;
+}
+.posts-collapse .post-meta {
+  display: inline;
+  font-size: 0.75em;
+  margin-right: 10px;
+}
+.posts-collapse .post-title {
+  display: inline;
+  font-size: 1em;
+  font-weight: normal;
+  margin-bottom: 0;
+  margin-top: 0;
+}
+.posts-collapse .post-title a,
+.posts-collapse .post-title span.exturl {
+  border-bottom: none;
+  color: #666;
+}
+.posts-collapse::before {
+  background: #f5f5f5;
+  content: ' ';
+  height: 100%;
+  left: 0;
+  margin-left: -2px;
+  position: absolute;
+  top: 1.25em;
+  width: 4px;
+}
+.posts-collapse .fa-external-link {
+  font-size: 0.875em;
+  margin-left: 5px;
+}
+.post-eof {
+  background: #ccc;
+  height: 1px;
+  margin: 80px auto 60px;
+  text-align: center;
+  width: 8%;
+}
+.post-block:last-child .post-eof {
+  display: none;
+}
+.posts-expand {
+  padding-top: 40px;
+}
+@media (max-width: 767px) {
+  .posts-expand {
+    margin: 0 20px;
+  }
+}
+@media (min-width: 992px) {
+  .post-body {
+    text-align: left;
+  }
+}
+@media (max-width: 991px) {
+  .post-body {
+    text-align: left;
+  }
+}
+.post-body h2,
+.post-body h3,
+.post-body h4,
+.post-body h5,
+.post-body h6 {
+  padding-top: 10px;
+}
+.post-body h2 .header-anchor,
+.post-body h3 .header-anchor,
+.post-body h4 .header-anchor,
+.post-body h5 .header-anchor,
+.post-body h6 .header-anchor {
+  border-bottom-style: none;
+  color: #ccc;
+  float: right;
+  margin-left: 10px;
+  visibility: hidden;
+}
+.post-body h2 .header-anchor:hover,
+.post-body h3 .header-anchor:hover,
+.post-body h4 .header-anchor:hover,
+.post-body h5 .header-anchor:hover,
+.post-body h6 .header-anchor:hover {
+  color: inherit;
+}
+.post-body h2:hover .header-anchor,
+.post-body h3:hover .header-anchor,
+.post-body h4:hover .header-anchor,
+.post-body h5:hover .header-anchor,
+.post-body h6:hover .header-anchor {
+  visibility: visible;
+}
+.post-body img {
+  border: 1px solid #ddd;
+  box-sizing: border-box;
+  padding: 3px;
+}
+@media (max-width: 767px) {
+  .post-body img {
+    padding: initial;
+  }
+}
+.post-body iframe,
+.post-body img,
+.post-body video {
+  margin-bottom: 20px;
+}
+.post-body .video-container {
+  height: 0;
+  margin-bottom: 20px;
+  overflow: hidden;
+  padding-top: 75%;
+  position: relative;
+  width: 100%;
+}
+.post-body .video-container iframe,
+.post-body .video-container object,
+.post-body .video-container embed {
+  height: 100%;
+  left: 0;
+  margin: 0;
+  position: absolute;
+  top: 0;
+  width: 100%;
+}
+.post-gallery {
+  border-collapse: separate;
+  display: table;
+  table-layout: fixed;
+  width: 100%;
+}
+.post-gallery .post-gallery-img {
+  border: 0;
+  display: table-cell;
+  text-align: center;
+  vertical-align: middle;
+}
+.post-gallery .post-gallery-img img {
+  border: 0;
+  max-height: 100%;
+  max-width: 100%;
+}
+.post-gallery-row {
+  display: table-row;
+}
+.posts-expand .post-header {
+  font-size: 1.125em;
+}
+.posts-expand .post-title {
+  font-weight: 400;
+  margin: initial;
+  text-align: center;
+  overflow-wrap: break-word;
+  word-wrap: break-word;
+}
+.posts-expand .post-title-link {
+  border-bottom: none;
+  color: #555;
+  display: inline-block;
+  position: relative;
+  vertical-align: top;
+}
+.posts-expand .post-title-link::before {
+  background: #000;
+  bottom: 0;
+  content: '';
+  height: 2px;
+  left: 0;
+  position: absolute;
+  transform: scaleX(0);
+  visibility: hidden;
+  width: 100%;
+  transition-delay: 0s;
+  transition-duration: 0.2s;
+  transition-timing-function: ease-in-out;
+}
+.posts-expand .post-title-link:hover::before {
+  transform: scaleX(1);
+  visibility: visible;
+}
+.posts-expand .post-title-link .fa {
+  font-size: 0.875em;
+  margin-left: 5px;
+}
+.posts-expand .post-meta {
+  color: #999;
+  font-family: 'Monda', "PingFang SC", "Microsoft YaHei", sans-serif;
+  font-size: 0.75em;
+  margin: 3px 0 60px 0;
+  text-align: center;
+}
+.posts-expand .post-meta .post-description {
+  font-size: 0.875em;
+  margin-top: 2px;
+}
+.posts-expand .post-meta time {
+  border-bottom: 1px dashed #999;
+  cursor: pointer;
+}
+.post-meta .post-meta-item + .post-meta-item::before {
+  content: '|';
+  margin: 0 0.5em;
+}
+.post-meta-divider {
+  margin: 0 0.5em;
+}
+.post-meta-item-icon {
+  margin-right: 3px;
+}
+@media (max-width: 991px) {
+  .post-meta-item-icon {
+    display: inline-block;
+  }
+}
+@media (max-width: 991px) {
+  .post-meta-item-text {
+    display: none;
+  }
+}
+.post-nav {
+  border-top: 1px solid #eee;
+  display: table;
+  margin-top: 15px;
+  width: 100%;
+}
+.post-nav-divider {
+  display: table-cell;
+  width: 10%;
+}
+.post-nav-item {
+  display: table-cell;
+  padding: 10px 0 0 0;
+  vertical-align: top;
+  width: 45%;
+}
+.post-nav-item a {
+  border-bottom: none;
+  color: #555;
+  display: block;
+  font-size: 0.875em;
+  line-height: 1.6;
+  position: relative;
+}
+.post-nav-item a:hover {
+  border-bottom: none;
+  color: #222;
+}
+.post-nav-item a:active {
+  top: 2px;
+}
+.post-nav-item .fa {
+  font-size: 0.75em;
+  margin-right: 5px;
+}
+.post-nav-next a {
+  padding-left: 5px;
+}
+.post-nav-prev {
+  text-align: right;
+}
+.post-nav-prev a {
+  padding-right: 5px;
+}
+.post-nav-prev .fa {
+  margin-left: 5px;
+}
+.rtl.post-body p,
+.rtl.post-body a,
+.rtl.post-body h1,
+.rtl.post-body h2,
+.rtl.post-body h3,
+.rtl.post-body h4,
+.rtl.post-body h5,
+.rtl.post-body h6,
+.rtl.post-body li,
+.rtl.post-body ul,
+.rtl.post-body ol {
+  direction: rtl;
+  font-family: UKIJ Ekran;
+}
+.rtl.post-title {
+  font-family: UKIJ Ekran;
+}
+.post-tags {
+  margin-top: 40px;
+  text-align: center;
+}
+.post-tags a {
+  display: inline-block;
+  font-size: 0.8125em;
+}
+.post-tags a:not(:last-child) {
+  margin-right: 10px;
+}
+.post-widgets {
+  border-top: 1px solid #eee;
+  margin-top: 15px;
+  text-align: center;
+}
+.wp_rating {
+  height: 20px;
+  line-height: 20px;
+  margin-top: 10px;
+  padding-top: 6px;
+  text-align: center;
+}
+.social-like {
+  display: flex;
+  font-size: 0.875em;
+  justify-content: center;
+  text-align: center;
+}
+.reward-container {
+  margin: 20px auto;
+  padding: 10px 0;
+  text-align: center;
+  width: 90%;
+}
+.reward-container button {
+  background: #ff2a2a;
+  border: 0;
+  border-radius: 5px;
+  color: #fff;
+  cursor: pointer;
+  line-height: 2;
+  outline: 0;
+  padding: 0 15px;
+  vertical-align: text-top;
+}
+.reward-container button:hover {
+  background: #f55;
+}
+#qr {
+  padding-top: 20px;
+}
+#qr a {
+  border: 0;
+}
+#qr img {
+  display: inline-block;
+  margin: 0.8em 2em 0 2em;
+  max-width: 100%;
+  width: 180px;
+}
+#qr p {
+  text-align: center;
+}
+.post-copyright {
+  background: #f5f5f5;
+  border-left: 3px solid #ff2a2a;
+  list-style: none;
+  margin: 2em 0 0;
+  padding: 0.5em 1em;
+}
+.category-all-page .category-all-title {
+  text-align: center;
+}
+.category-all-page .category-all {
+  margin-top: 20px;
+}
+.category-all-page .category-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.category-all-page .category-list-item {
+  margin: 5px 10px;
+}
+.category-all-page .category-list-count {
+  color: #bbb;
+}
+.category-all-page .category-list-count::before {
+  content: ' (';
+  display: inline;
+}
+.category-all-page .category-list-count::after {
+  content: ') ';
+  display: inline;
+}
+.category-all-page .category-list-child {
+  padding-left: 10px;
+}
+.event-list {
+  padding: 0;
+}
+.event-list hr {
+  background: #222;
+  margin: 20px 0 45px 0;
+}
+.event-list hr::after {
+  background: #222;
+  color: #fff;
+  content: 'NOW';
+  display: inline-block;
+  font-weight: bold;
+  padding: 0 5px;
+  text-align: right;
+}
+.event-list .event {
+  background: #222;
+  margin: 20px 0;
+  min-height: 40px;
+  padding: 15px 0 15px 10px;
+}
+.event-list .event .event-summary {
+  color: #fff;
+  margin: 0;
+  padding-bottom: 3px;
+}
+.event-list .event .event-summary::before {
+  animation: dot-flash 1s alternate infinite ease-in-out;
+  color: #fff;
+  content: '\f111';
+  display: inline-block;
+  font-family: 'FontAwesome';
+  font-size: 10px;
+  margin-right: 25px;
+  vertical-align: middle;
+}
+.event-list .event .event-relative-time {
+  color: #bbb;
+  display: inline-block;
+  font-size: 12px;
+  font-weight: 400;
+  padding-left: 12px;
+}
+.event-list .event .event-details {
+  color: #fff;
+  display: block;
+  line-height: 18px;
+  margin-left: 56px;
+  padding-bottom: 6px;
+  padding-top: 3px;
+  text-indent: -24px;
+}
+.event-list .event .event-details::before {
+  color: #fff;
+  display: inline-block;
+  font-family: 'FontAwesome';
+  margin-right: 9px;
+  text-align: center;
+  text-indent: 0;
+  width: 14px;
+}
+.event-list .event .event-details.event-location::before {
+  content: '\f041';
+}
+.event-list .event .event-details.event-duration::before {
+  content: '\f017';
+}
+.event-list .event-past {
+  background: #f5f5f5;
+}
+.event-list .event-past .event-summary,
+.event-list .event-past .event-details {
+  color: #bbb;
+  opacity: 0.9;
+}
+.event-list .event-past .event-summary::before,
+.event-list .event-past .event-details::before {
+  animation: none;
+  color: #bbb;
+}
+@-moz-keyframes dot-flash {
+  from {
+    opacity: 1;
+    transform: scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: scale(0.8);
+  }
+}
+@-webkit-keyframes dot-flash {
+  from {
+    opacity: 1;
+    transform: scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: scale(0.8);
+  }
+}
+@-o-keyframes dot-flash {
+  from {
+    opacity: 1;
+    transform: scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: scale(0.8);
+  }
+}
+@keyframes dot-flash {
+  from {
+    opacity: 1;
+    transform: scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: scale(0.8);
+  }
+}
+ul.breadcrumb {
+  font-size: 0.75em;
+  list-style: none;
+  margin: 1em 0;
+  padding: 0 2em;
+  text-align: center;
+}
+ul.breadcrumb li {
+  display: inline;
+}
+ul.breadcrumb li + li::before {
+  content: '/\00a0';
+  font-weight: normal;
+  padding: 0.5em;
+}
+ul.breadcrumb li + li:last-child {
+  font-weight: bold;
+}
+.tag-cloud {
+  text-align: center;
+}
+.tag-cloud a {
+  display: inline-block;
+  margin: 10px;
+}
+.tag-cloud a:hover {
+  color: #222 !important;
+}
+.gt-header a,
+.gt-comments a,
+.gt-popup a {
+  border-bottom: none;
+}
+.gt-container .gt-popup .gt-action.is--active::before {
+  top: 0.7em;
+}
+.search-pop-overlay {
+  background: rgba(0,0,0,0.3);
+  display: none;
+  height: 100%;
+  left: 0;
+  overflow: hidden;
+  position: fixed;
+  top: 0;
+  width: 100%;
+  z-index: 1400;
+}
+.search-popup {
+  background: #fff;
+  border-radius: 5px;
+  color: #333;
+  display: none;
+  height: 80%;
+  left: 50%;
+  margin-left: -350px;
+  padding: 0;
+  position: fixed;
+  top: 10%;
+  width: 700px;
+  z-index: 1500;
+}
+@media (max-width: 767px) {
+  .search-popup {
+    border-radius: 0;
+    height: 100%;
+    left: 0;
+    margin: 0;
+    padding: 0;
+    top: 0;
+    width: 100%;
+  }
+}
+.search-popup .search-icon,
+.search-popup .popup-btn-close {
+  color: #999;
+  display: inline-block;
+  font-size: 18px;
+  height: 36px;
+  padding-left: 10px;
+  padding-right: 10px;
+  width: 18px;
+}
+.search-popup .popup-btn-close {
+  border-left: 1px solid #eee;
+  cursor: pointer;
+  float: right;
+}
+.search-popup .popup-btn-close:hover .fa {
+  color: #222;
+}
+.search-popup .search-header {
+  background: #f5f5f5;
+  border-top-left-radius: 5px;
+  border-top-right-radius: 5px;
+  padding: 5px;
+}
+.search-input {
+  display: inline-block;
+  width: calc(90% - 30px);
+}
+.search-input input {
+  background: transparent;
+  border: 0;
+  outline: 0;
+  padding: 5px 0;
+  width: 100%;
+}
+.search-input .ais-search-box--magnifier svg,
+.search-input .ais-search-box--reset svg {
+  display: none;
+}
+.algolia-powered {
+  float: right;
+}
+.algolia-powered img {
+  display: inline-block;
+  height: 18px;
+  vertical-align: middle;
+}
+.algolia-results {
+  height: calc(100% - 55px);
+  overflow: auto;
+  padding: 5px 30px;
+  position: relative;
+}
+.algolia-results hr {
+  margin: 10px 0;
+}
+.algolia-results .highlight {
+  color: #f00;
+  font-size: inherit;
+  font-style: normal;
+  margin: 0;
+  padding: 0 2px;
+}
+.algolia-hits {
+  margin-top: 20px;
+}
+.algolia-hit-item {
+  margin: 15px 0;
+}
+.algolia-hit-item-link {
+  border-bottom: 1px dashed #ccc;
+  display: block;
+  transition-delay: 0s;
+  transition-duration: 0.2s;
+  transition-timing-function: ease-in-out;
+}
+.algolia-pagination .pagination {
+  border-top: none;
+  margin: 40px 0;
+  opacity: 1;
+  padding: 0;
+}
+.algolia-pagination .pagination-item {
+  display: inline-block;
+}
+.algolia-pagination .page-number {
+  border-top: none;
+}
+.algolia-pagination .page-number:hover {
+  border-bottom: 1px solid #222;
+}
+.algolia-pagination .disabled-item {
+  visibility: hidden;
+}
+.header {
+  margin: 0 auto;
+  position: relative;
+  width: calc(100% - 20px);
+}
+@media (min-width: 1200px) {
+  .header {
+    width: 1160px;
+  }
+}
+@media (min-width: 1600px) {
+  .header {
+    width: 73%;
+  }
+}
+@media (max-width: 991px) {
+  .header {
+    width: auto;
+  }
+}
+.header-inner {
+  background: #fff;
+  border-radius: initial;
+  box-shadow: 0 2px 2px 0 rgba(0,0,0,0.12), 0 3px 1px -2px rgba(0,0,0,0.06), 0 1px 5px 0 rgba(0,0,0,0.12);
+  overflow: hidden;
+  padding: 0;
+  position: absolute;
+  top: 0;
+  width: 240px;
+}
+@media (min-width: 1200px) {
+  .header-inner {
+    width: 240px;
+  }
+}
+@media (max-width: 991px) {
+  .header-inner {
+    border-radius: initial;
+    position: relative;
+    width: auto;
+  }
+}
+.main::before,
+.main::after {
+  content: ' ';
+  display: table;
+}
+.main::after {
+  clear: both;
+}
+@media (max-width: 991px) {
+  .main-inner {
+    width: auto;
+  }
+}
+.content-wrap {
+  background: #fff;
+  border-radius: initial;
+  box-shadow: 0 2px 2px 0 rgba(0,0,0,0.12), 0 3px 1px -2px rgba(0,0,0,0.06), 0 1px 5px 0 rgba(0,0,0,0.12);
+  box-sizing: border-box;
+  float: right;
+  padding: 40px;
+  width: calc(100% - 252px);
+}
+@media (max-width: 991px) {
+  .content-wrap {
+    border-radius: initial;
+    padding: 20px;
+    width: 100%;
+  }
+}
+.sidebar {
+  background: #eee;
+  box-shadow: none;
+  float: left;
+  position: static;
+  width: 240px;
+}
+@media (max-width: 991px) {
+  .sidebar {
+    display: none;
+  }
+}
+.sidebar-toggle {
+  display: none;
+}
+.footer-inner {
+  padding-left: 260px;
+}
+.back-to-top {
+  left: auto;
+  right: 30px;
+}
+@media (max-width: 991px) {
+  .back-to-top {
+    right: 20px;
+  }
+}
+@media (max-width: 991px) {
+  .footer-inner {
+    padding-left: 0;
+    padding-right: 0;
+    width: auto;
+  }
+}
+.site-brand-container {
+  position: relative;
+}
+.site-meta {
+  background: #222;
+  color: #fff;
+  padding: 20px 0;
+}
+@media (max-width: 991px) {
+  .site-meta {
+    box-shadow: 0 0 16px rgba(0,0,0,0.5);
+  }
+}
+.brand {
+  background: none;
+  padding: 0;
+}
+.brand:hover {
+  color: #fff;
+}
+.site-subtitle {
+  font-weight: initial;
+  margin: 10px 10px 0;
+}
+.custom-logo-image {
+  margin-top: 20px;
+}
+@media (max-width: 991px) {
+  .custom-logo-image {
+    display: none;
+  }
+}
+.site-nav-toggle {
+  left: 20px;
+  top: 50%;
+  transform: translateY(-50%);
+}
+@media (min-width: 768px) and (max-width: 991px) {
+  .site-nav-toggle {
+    display: block;
+  }
+}
+.site-nav-toggle .toggle .toggle-line {
+  background: #fff;
+}
+.site-nav {
+  border-top: none;
+}
+@media (min-width: 768px) and (max-width: 991px) {
+  .site-nav {
+    display: none;
+  }
+}
+.menu-item-active a,
+.menu .menu-item a:hover,
+.menu .menu-item span.exturl:hover {
+  background: #f5f5f5;
+}
+.menu-item-active a::after,
+.menu .menu-item a:hover::after,
+.menu .menu-item span.exturl:hover::after {
+  background: #bbb;
+  border-radius: 50%;
+  content: ' ';
+  height: 6px;
+  margin-top: -3px;
+  position: absolute;
+  right: 15px;
+  top: 50%;
+  width: 6px;
+}
+.menu .menu-item {
+  display: block;
+  margin: 0;
+}
+.menu .menu-item a,
+.menu .menu-item span.exturl {
+  padding: 5px 20px;
+  position: relative;
+  text-align: left;
+  transition-property: background-color;
+}
+.menu .menu-item .badge {
+  background: #ccc;
+  border-radius: 10px;
+  color: #fff;
+  float: right;
+  padding: 2px 5px;
+  text-shadow: 1px 1px 0 rgba(0,0,0,0.1);
+  vertical-align: middle;
+}
+.sub-menu {
+  background: #fff;
+  border-bottom: 1px solid #ddd;
+  margin: 0;
+  padding: 6px 0;
+}
+.sub-menu .menu-item {
+  display: inline-block;
+}
+.sub-menu .menu-item a,
+.sub-menu .menu-item span.exturl {
+  margin: 5px 10px;
+  padding: initial;
+}
+.sub-menu .menu-item a:hover,
+.sub-menu .menu-item span.exturl:hover {
+  background: initial;
+  color: #fc6423;
+}
+.sub-menu .menu-item a::after,
+.sub-menu .menu-item span.exturl::after {
+  content: initial !important;
+}
+.sub-menu .menu-item-active a {
+  background: #fff;
+  border-bottom-color: #fc6423;
+  color: #fc6423;
+}
+.sub-menu .menu-item-active a:hover {
+  background: #fff;
+  border-bottom-color: #fc6423;
+}
+.sidebar {
+  bottom: auto;
+  right: auto;
+}
+.sidebar a,
+.sidebar span.exturl {
+  color: #555;
+}
+.sidebar a:hover,
+.sidebar span.exturl:hover {
+  border-bottom-color: #222;
+  color: #222;
+}
+.sidebar-inner {
+  background: #fff;
+  border-radius: initial;
+  box-shadow: 0 2px 2px 0 rgba(0,0,0,0.12), 0 3px 1px -2px rgba(0,0,0,0.06), 0 1px 5px 0 rgba(0,0,0,0.12), 0 -1px 0.5px 0 rgba(0,0,0,0.09);
+  box-sizing: border-box;
+  color: #555;
+  width: 240px;
+  opacity: 0;
+}
+.sidebar-inner.affix {
+  position: fixed;
+  top: 12px;
+}
+.sidebar-inner.affix-bottom {
+  position: absolute;
+}
+.site-state-item {
+  padding: 0 10px;
+}
+.feed-link,
+.chat {
+  border-bottom: 1px dotted #ccc;
+  border-top: 1px dotted #ccc;
+  margin-top: 10px;
+  text-align: center;
+}
+.feed-link a,
+.chat a {
+  border: 0;
+  color: #fc6423;
+  display: block;
+}
+.feed-link a:hover,
+.chat a:hover {
+  background: none;
+  border: 0;
+  color: #e34603;
+}
+.feed-link a:hover .fa,
+.chat a:hover .fa {
+  color: #e34603;
+}
+.links-of-author {
+  display: flex;
+  flex-wrap: wrap;
+  margin-top: 10px;
+  justify-content: center;
+}
+.links-of-author-item {
+  margin: 5px 0 0;
+}
+.links-of-author-item a,
+.links-of-author-item span.exturl {
+  box-sizing: border-box;
+  display: inline-block;
+  margin-bottom: 0;
+  margin-right: 0;
+  max-width: 216px;
+  overflow: hidden;
+  padding: 0 5px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.links-of-author-item a,
+.links-of-author-item span.exturl {
+  border-bottom: none;
+  display: block;
+  text-decoration: none;
+}
+.links-of-author-item a::before,
+.links-of-author-item span.exturl::before {
+  display: none;
+}
+.links-of-author-item a:hover,
+.links-of-author-item span.exturl:hover {
+  background: #eee;
+  border-radius: 4px;
+}
+.links-of-author-item .fa {
+  margin-right: 2px;
+}
+.links-of-blogroll-item {
+  padding: 0;
+}
+.content-wrap {
+  background: initial;
+  box-shadow: initial;
+  padding: initial;
+}
+.post-block {
+  background: #fff;
+  border-radius: initial;
+  box-shadow: 0 2px 2px 0 rgba(0,0,0,0.12), 0 3px 1px -2px rgba(0,0,0,0.06), 0 1px 5px 0 rgba(0,0,0,0.12);
+  padding: 40px;
+}
+.post-block + .post-block {
+  border-radius: initial;
+  box-shadow: 0 2px 2px 0 rgba(0,0,0,0.12), 0 3px 1px -2px rgba(0,0,0,0.06), 0 1px 5px 0 rgba(0,0,0,0.12), 0 -1px 0.5px 0 rgba(0,0,0,0.09);
+  margin-top: 12px;
+}
+.comments {
+  background: #fff;
+  border-radius: initial;
+  box-shadow: 0 2px 2px 0 rgba(0,0,0,0.12), 0 3px 1px -2px rgba(0,0,0,0.06), 0 1px 5px 0 rgba(0,0,0,0.12), 0 -1px 0.5px 0 rgba(0,0,0,0.09);
+  margin: auto;
+  margin-top: 12px;
+  padding: 40px;
+}
+.tabs-comment {
+  margin-top: 1em;
+}
+.posts-expand {
+  padding-top: initial;
+}
+.post-nav-divider {
+  width: 4%;
+}
+.post-nav-item {
+  width: 48%;
+}
+.post-eof {
+  display: none;
+}
+.pagination {
+  background: #fff;
+  border-radius: initial;
+  border-top: initial;
+  box-shadow: 0 2px 2px 0 rgba(0,0,0,0.12), 0 3px 1px -2px rgba(0,0,0,0.06), 0 1px 5px 0 rgba(0,0,0,0.12), 0 -1px 0.5px 0 rgba(0,0,0,0.09);
+  margin: 12px 0 0;
+  padding: 10px 0 10px;
+}
+.pagination .prev,
+.pagination .next,
+.pagination .page-number {
+  margin-bottom: initial;
+  top: initial;
+}
+.main {
+  padding-bottom: initial;
+}
+.footer {
+  bottom: auto;
+}
+.sub-menu {
+  border-bottom: initial;
+  box-shadow: 0 2px 2px 0 rgba(0,0,0,0.12), 0 3px 1px -2px rgba(0,0,0,0.06), 0 1px 5px 0 rgba(0,0,0,0.12);
+}
+.sub-menu + .content .post-block {
+  box-shadow: 0 2px 2px 0 rgba(0,0,0,0.12), 0 3px 1px -2px rgba(0,0,0,0.06), 0 1px 5px 0 rgba(0,0,0,0.12), 0 -1px 0.5px 0 rgba(0,0,0,0.09);
+  margin-top: 12px;
+}
+@media (min-width: 768px) and (max-width: 991px) {
+  .sub-menu + .content .post-block {
+    margin-top: 10px;
+  }
+}
+@media (max-width: 767px) {
+  .sub-menu + .content .post-block {
+    margin-top: 8px;
+  }
+}
+.post-body h1,
+.post-body h2 {
+  border-bottom: 1px solid #eee;
+}
+.post-body h3 {
+  border-bottom: 1px solid #eee;
+}
+.post-body h4 {
+  border-bottom: 1px dotted #eee;
+}
+@media (min-width: 768px) and (max-width: 991px) {
+  .content-wrap {
+    padding: 10px;
+  }
+  .posts-expand {
+    margin: initial;
+  }
+  .posts-expand .post-button {
+    margin-top: 20px;
+  }
+  .post-block {
+    border-radius: initial;
+    box-shadow: 0 2px 2px 0 rgba(0,0,0,0.12), 0 3px 1px -2px rgba(0,0,0,0.06), 0 1px 5px 0 rgba(0,0,0,0.12), 0 -1px 0.5px 0 rgba(0,0,0,0.09);
+    padding: 20px;
+  }
+  .post-block + .post-block {
+    margin-top: 10px;
+  }
+  .comments {
+    margin-top: 10px;
+    padding: 10px 20px;
+  }
+  .pagination {
+    margin: 10px 0 0;
+  }
+}
+@media (max-width: 767px) {
+  .content-wrap {
+    padding: 8px;
+  }
+  .posts-expand {
+    margin: initial;
+  }
+  .posts-expand .post-button {
+    margin: 12px 0;
+  }
+  .post-block {
+    border-radius: initial;
+    box-shadow: 0 2px 2px 0 rgba(0,0,0,0.12), 0 3px 1px -2px rgba(0,0,0,0.06), 0 1px 5px 0 rgba(0,0,0,0.12), 0 -1px 0.5px 0 rgba(0,0,0,0.09);
+    min-height: auto;
+    padding: 12px;
+  }
+  .post-block + .post-block {
+    margin-top: 8px;
+  }
+  .comments {
+    margin-top: 8px;
+    padding: 10px 12px;
+  }
+  .pagination {
+    margin: 8px 0 0;
+  }
+}</style><noscript>
+  <style>
+  .use-motion .brand,
+  .use-motion .menu-item,
+  .sidebar-inner,
+  .use-motion .post-block,
+  .use-motion .pagination,
+  .use-motion .comments,
+  .use-motion .post-header,
+  .use-motion .post-body,
+  .use-motion .collection-header { opacity: initial; }
+
+  .use-motion .site-title,
+  .use-motion .site-subtitle {
+    opacity: initial;
+    top: initial;
+  }
+
+  .use-motion .logo-line-before i { left: initial; }
+  .use-motion .logo-line-after i { right: initial; }
+  </style>
+</noscript>
+
+<script>function loadCss(l){var d=document,h=d.head,s=d.createElement('link');s.rel='stylesheet';s.href=l;!function e(f){if (d.body)return f();setTimeout(function(){e(f)})}(function(){h.appendChild(s);});}loadCss('/style.css');loadCss('//fonts.googleapis.com/css?family=Monda:300,300italic,400,400italic,700,700italic|Roboto Slab:300,300italic,400,400italic,700,700italic|PT Mono:300,300italic,400,400italic,700,700italic&display=swap&subset=latin,latin-ext');loadCss('//cdn.jsdelivr.net/npm/instantsearch.js@2/dist/instantsearch.min.css');loadCss('//cdn.jsdelivr.net/npm/gitalk@1/dist/gitalk.min.css');</script><noscript><link rel="stylesheet" href="/style.css"><link rel="stylesheet" href="//fonts.googleapis.com/css?family=Monda:300,300italic,400,400italic,700,700italic|Roboto Slab:300,300italic,400,400italic,700,700italic|PT Mono:300,300italic,400,400italic,700,700italic&amp;display=swap&amp;subset=latin,latin-ext"><link rel="stylesheet" href="//cdn.jsdelivr.net/npm/instantsearch.js@2/dist/instantsearch.min.css"><link rel="stylesheet" href="//cdn.jsdelivr.net/npm/gitalk@1/dist/gitalk.min.css"></noscript></head>
+
+<body itemscope="" itemtype="http://schema.org/WebPage">
+  <div class="container use-motion">
+    <div class="headband"></div>
+
+    <header class="header" itemscope="" itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-container">
+  <div class="site-meta">
+
+    <div>
+      <a href="/" class="brand" rel="start">
+        <span class="logo-line-before"><i></i></span>
+        <span class="site-title">贝克街的流浪猫</span>
+        <span class="logo-line-after"><i></i></span>
+      </a>
+    </div>
+        <h1 class="site-subtitle" itemprop="description">技术博客</h1>
+      
+  </div>
+
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="切换导航栏">
+      <span class="toggle-line toggle-line-first"></span>
+      <span class="toggle-line toggle-line-middle"></span>
+      <span class="toggle-line toggle-line-last"></span>
+    </div>
+  </div>
+</div>
+
+
+<nav class="site-nav">
+  
+  <ul id="menu" class="menu">
+        <li class="menu-item menu-item-home">
+
+    <a href="/" rel="section"><i class="fa fa-fw fa-home"></i>首页</a>
+
+  </li>
+        <li class="menu-item menu-item-tags">
+
+    <a href="/tags/" rel="section"><i class="fa fa-fw fa-tags"></i>标签</a>
+
+  </li>
+        <li class="menu-item menu-item-categories">
+
+    <a href="/categories/" rel="section"><i class="fa fa-fw fa-th"></i>分类</a>
+
+  </li>
+        <li class="menu-item menu-item-archives">
+
+    <a href="/archives/" rel="section"><i class="fa fa-fw fa-archive"></i>归档</a>
+
+  </li>
+        <li class="menu-item menu-item-about">
+
+    <a href="/about/" rel="section"><i class="fa fa-fw fa-user"></i>关于</a>
+
+  </li>
+      <li class="menu-item menu-item-search">
+        <a role="button" class="popup-trigger"><i class="fa fa-search fa-fw"></i>搜索
+        </a>
+      </li>
+  </ul>
+
+</nav>
+  <div class="site-search">
+    <div class="popup search-popup">
+    <div class="search-header">
+  <span class="search-icon">
+    <i class="fa fa-search"></i>
+  </span>
+  <div class="search-input" id="search-input"></div>
+  <span class="popup-btn-close">
+    <i class="fa fa-times-circle"></i>
+  </span>
+</div>
+<div class="algolia-results">
+  <div id="algolia-stats"></div>
+  <div id="algolia-hits"></div>
+  <div id="algolia-pagination" class="algolia-pagination"></div>
+</div>
+
+  
+</div>
+<div class="search-pop-overlay"></div>
+
+  </div>
+</div>
+    </header>
+
+    
+
+  <span class="exturl github-corner" data-url="aHR0cHM6Ly9naXRodWIuY29tL0JlaUtlSmllRGVMaXVMYW5nTWFv" title="欢迎关注我的 GitHub" aria-label="欢迎关注我的 GitHub"><svg width="80" height="80" viewBox="0 0 250 250" aria-hidden="true"><path d="M0,0 L115,115 L130,115 L142,142 L250,250 L250,0 Z"></path><path d="M128.3,109.0 C113.8,99.7 119.0,89.6 119.0,89.6 C122.0,82.7 120.5,78.6 120.5,78.6 C119.2,72.0 123.4,76.3 123.4,76.3 C127.3,80.9 125.5,87.3 125.5,87.3 C122.9,97.6 130.6,101.9 134.4,103.2" fill="currentColor" style="transform-origin: 130px 106px;" class="octo-arm"></path><path d="M115.0,115.0 C114.9,115.1 118.7,116.5 119.8,115.4 L133.7,101.6 C136.9,99.2 139.9,98.4 142.2,98.6 C133.8,88.0 127.5,74.4 143.8,58.0 C148.5,53.4 154.0,51.2 159.7,51.0 C160.3,49.4 163.2,43.6 171.4,40.1 C171.4,40.1 176.1,42.5 178.8,56.2 C183.1,58.6 187.2,61.8 190.9,65.4 C194.5,69.0 197.7,73.2 200.1,77.6 C213.8,80.2 216.3,84.9 216.3,84.9 C212.7,93.1 206.9,96.0 205.4,96.6 C205.1,102.4 203.0,107.8 198.3,112.5 C181.9,128.9 168.3,122.5 157.7,114.1 C157.9,116.9 156.7,120.9 152.7,124.9 L141.0,136.5 C139.8,137.7 141.6,141.9 141.8,141.8 Z" fill="currentColor" class="octo-body"></path></svg></span>
+
+
+    <main class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          
+
+          <div class="content">
+            
+
+  <div class="posts-expand">
+      
+  
+  
+  <article itemscope="" itemtype="http://schema.org/Article" class="post-block " lang="zh-CN">
+    <link itemprop="mainEntityOfPage" href="https://www.beikejiedeliulangmao.top/middleware/sentinel/impl-chain/">
+
+    <span hidden="" itemprop="author" itemscope="" itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.jpg">
+      <meta itemprop="name" content="贝克街的流浪猫">
+      <meta itemprop="description" content="贝贝猫">
+    </span>
+
+    <span hidden="" itemprop="publisher" itemscope="" itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="贝克街的流浪猫">
+    </span>
+      <header class="post-header">
+        <h2 class="post-title" itemprop="name headline">
+          Sentinel 实现原理——处理链
+        </h2>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="fa fa-calendar-o"></i>
+              </span>
+              <span class="post-meta-item-text">发表于</span>
+
+              <time title="创建时间：2020-08-10 09:12:30" itemprop="dateCreated datePublished" datetime="2020-08-10T09:12:30+08:00">2020-08-10</time>
+            </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="fa fa-folder-o"></i>
+              </span>
+              <span class="post-meta-item-text">分类于</span>
+                <span itemprop="about" itemscope="" itemtype="http://schema.org/Thing">
+                  <a href="/categories/Middleware/" itemprop="url" rel="index">
+                    <span itemprop="name">Middleware</span>
+                  </a>
+                </span>
+                  ，
+                <span itemprop="about" itemscope="" itemtype="http://schema.org/Thing">
+                  <a href="/categories/Middleware/Sentinel/" itemprop="url" rel="index">
+                    <span itemprop="name">Sentinel</span>
+                  </a>
+                </span>
+            </span>
+
+          
+            <span id="/middleware/sentinel/impl-chain/" class="post-meta-item leancloud_visitors" data-flag-title="Sentinel 实现原理——处理链" title="阅读次数">
+              <span class="post-meta-item-icon">
+                <i class="fa fa-eye"></i>
+              </span>
+              <span class="post-meta-item-text">阅读次数：</span>
+              <span class="leancloud-visitors-count"></span>
+            </span><br>
+            <span class="post-meta-item" title="本文字数">
+              <span class="post-meta-item-icon">
+                <i class="fa fa-file-word-o"></i>
+              </span>
+                <span class="post-meta-item-text">本文字数：</span>
+              <span>25k</span>
+            </span>
+            <span class="post-meta-item" title="阅读时长">
+              <span class="post-meta-item-icon">
+                <i class="fa fa-clock-o"></i>
+              </span>
+                <span class="post-meta-item-text">阅读时长 ≈</span>
+              <span>23 分钟</span>
+            </span>
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+        <h2 id="引言"><a href="#引言" class="headerlink" title="引言"></a>引言</h2><p>从本篇文章开始，就要介绍 Sentinel 限流降级功能的核心了，前面也说过 Sentinel 使用了一套类似于责任链的模式来实现这个部分，这里我们展开一下，将责任链中的各个部分分别详细的介绍一下，和 Sentinel 相关的所有文章均会收录于<a href="https://www.beikejiedeliulangmao.top/categories/Middleware/Sentinel">&lt;Sentinel系列文章&gt;</a>中，感兴趣的同学可以看一下。</p>
+<a id="more"></a>
+<h2 id="源码解读"><a href="#源码解读" class="headerlink" title="源码解读"></a>源码解读</h2><p><img src="/images/loading-cat.gif" data-original="https://bbm-hexo.oss-accelerate.aliyuncs.com/images/sentinel/structure.png" alt="structure"></p>
+<blockquote>
+<p>上图仅作为设计思想的展示，图中 Slot 的顺序已和最新版 Sentinel Slot Chain 顺序不一致</p>
+</blockquote>
+<p>前面我们已解说了，Sentinel 中最核心的功能都是通过一套处理链（责任链）来实现，处理链中的每一个处理单元被称为一个 Slot。每个 Slot 执行完业务逻辑处理后，都会触发下一个节点的处理方法，如此往复直到最后一个Slot，由此就形成了sentinel的责任链。这里我们先简单地回顾一下各个 Slot 的职责：</p>
+<ul>
+<li>NodeSelectorSlot: 负责维护资源的调用路径，以树状结构存储起来，构建不同资源在不同调用链路下的统计节点，这部分数据会用于根据调用链路来限流降级</li>
+<li>ClusterBuilderSlot: 负责对相同资源的不同链路流量进行耦合，构建各个资源的统计节点，此外还会根据调用源构建相应的统计节点，例如该资源在所有链路下以及资源在某一特定源下的 RT, QPS, thread count 等等，这些信息将用作为多维度限流，降级的依据</li>
+<li>StatistcSlot: 则用于记录，统计不同维度的 runtime 信息</li>
+<li>SystemSlot: 则通过系统的状态，例如 load1 等，来控制总的入口流量</li>
+<li>AuthoritySlot: 则根据黑白名单，来做黑白名单控制</li>
+<li>FlowSlot: 则用于根据预设的限流规则，以及前面 slot 统计的状态，来进行限流</li>
+<li>DegradeSlot: 则通过统计信息，以及预设的规则，来做熔断降级</li>
+</ul>
+<h3 id="起点"><a href="#起点" class="headerlink" title="起点"></a>起点</h3><p>那么整个处理链是从哪开始运作起来的呢？其实 <code>SphU#entry</code> 就是整个处理链的入口。这里我们以最完整的两个 <code>entry</code> 接口为例，介绍 Sentinel 处理链的准备工作。</p>
+<figure class="highlight java"><table><tbody><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// SphU#entry 的下层接口 com.alibaba.csp.sentinel.CtSph#entry</span></span><br><span class="line"><span class="meta">@Override</span></span><br><span class="line"><span class="function"><span class="keyword">public</span> Entry <span class="title">entry</span><span class="params">(Method method, EntryType type, <span class="keyword">int</span> count, Object... args)</span> <span class="keyword">throws</span> BlockException </span>{</span><br><span class="line">    MethodResourceWrapper resource = <span class="keyword">new</span> MethodResourceWrapper(method, type);</span><br><span class="line">    <span class="keyword">return</span> entry(resource, count, args);</span><br><span class="line">}</span><br><span class="line"></span><br><span class="line"><span class="meta">@Override</span></span><br><span class="line"><span class="function"><span class="keyword">public</span> Entry <span class="title">entry</span><span class="params">(String name, EntryType type, <span class="keyword">int</span> count, Object... args)</span> <span class="keyword">throws</span> BlockException </span>{</span><br><span class="line">    StringResourceWrapper resource = <span class="keyword">new</span> StringResourceWrapper(name, type);</span><br><span class="line">    <span class="keyword">return</span> entry(resource, count, args);</span><br><span class="line">}</span><br></pre></td></tr></tbody></table></figure>
+
+<p>在 <code>CtSph#entry</code> 这一层主要是做 Resource 的创建，最基础的就是我们前面所使用的 String 类型标识的 Resource，其中主要保存了 Resource 的 name 和该流量是流入性(EntryType#IN)还是流出行(EntryType#OUT)，后续的限流降级规则中会有根据数据流入类型而做区分处理的情况。</p>
+<figure class="highlight java"><table><tbody><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// StringResourceWrapper 的父类 ResourceWrapper 的核心属性</span></span><br><span class="line"><span class="keyword">protected</span> <span class="keyword">final</span> String name;</span><br><span class="line"></span><br><span class="line"><span class="keyword">protected</span> <span class="keyword">final</span> EntryType entryType;</span><br></pre></td></tr></tbody></table></figure>
+
+<p>而 Method 类型的 Resource，在一些自适应的框架中用到的比较多，比如基于注解标识资源等。MethodResourceWrapper 和 StringResourceWrapper 一样继承自 ResourceWrapper，它会用函数的签名作为资源名。</p>
+<figure class="highlight java"><table><tbody><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// com.alibaba.csp.sentinel.slotchain.MethodResourceWrapper#MethodResourceWrapper</span></span><br><span class="line"><span class="function"><span class="keyword">public</span> <span class="title">MethodResourceWrapper</span><span class="params">(Method method, EntryType e, <span class="keyword">int</span> resType)</span> </span>{</span><br><span class="line">    <span class="keyword">super</span>(MethodUtil.resolveMethodName(method), e, resType);</span><br><span class="line">    <span class="keyword">this</span>.method = method;</span><br><span class="line">}</span><br><span class="line"></span><br><span class="line"><span class="comment">// com.alibaba.csp.sentinel.util.MethodUtil#resolveMethodName</span></span><br><span class="line"><span class="function"><span class="keyword">public</span> <span class="keyword">static</span> String <span class="title">resolveMethodName</span><span class="params">(Method method)</span> </span>{</span><br><span class="line">    <span class="keyword">if</span> (method == <span class="keyword">null</span>) {</span><br><span class="line">        <span class="keyword">throw</span> <span class="keyword">new</span> IllegalArgumentException(<span class="string">"Null method"</span>);</span><br><span class="line">    }</span><br><span class="line">    String methodName = methodNameMap.get(method);</span><br><span class="line">    <span class="keyword">if</span> (methodName == <span class="keyword">null</span>) {</span><br><span class="line">        <span class="keyword">synchronized</span> (LOCK) {</span><br><span class="line">            methodName = methodNameMap.get(method);</span><br><span class="line">            <span class="keyword">if</span> (methodName == <span class="keyword">null</span>) {</span><br><span class="line">                StringBuilder sb = <span class="keyword">new</span> StringBuilder();</span><br><span class="line"></span><br><span class="line">                String className = method.getDeclaringClass().getName();</span><br><span class="line">                String name = method.getName();</span><br><span class="line">                Class&lt;?&gt;[] params = method.getParameterTypes();</span><br><span class="line">                sb.append(className).append(<span class="string">":"</span>).append(name);</span><br><span class="line">                sb.append(<span class="string">"("</span>);</span><br><span class="line"></span><br><span class="line">                <span class="keyword">int</span> paramPos = <span class="number">0</span>;</span><br><span class="line">                <span class="keyword">for</span> (Class&lt;?&gt; clazz : params) {</span><br><span class="line">                    sb.append(clazz.getCanonicalName());</span><br><span class="line">                    <span class="keyword">if</span> (++paramPos &lt; params.length) {</span><br><span class="line">                        sb.append(<span class="string">","</span>);</span><br><span class="line">                    }</span><br><span class="line">                }</span><br><span class="line">                sb.append(<span class="string">")"</span>);</span><br><span class="line">                methodName = sb.toString();</span><br><span class="line"></span><br><span class="line">                methodNameMap.put(method, methodName);</span><br><span class="line">            }</span><br><span class="line">        }</span><br><span class="line">    }</span><br><span class="line">    <span class="keyword">return</span> methodName;</span><br><span class="line">}</span><br></pre></td></tr></tbody></table></figure>
+
+<p>对 Resource 类型进行区分之后，就到了处理链的组织和执行阶段了，这部分代码位于 <code>CtSph#entryWithPriority</code> 中：</p>
+<ul>
+<li>首先，保证执行过程中有 Context 上下文</li>
+<li>如果 Context 过多或者关闭了限流降级功能则不构建处理链</li>
+<li>根据资源的名称查找其对应的处理链，每个资源都有一条专属于自己的处理链实例，我们后续介绍处理链的构建</li>
+<li>有了处理链之后，创建当前资源的调用点 Entry，这里涉及调用链路的维护工作，我们前面已经介绍过了</li>
+<li>最后，调用处理链的 entry 函数，如果抛出 BlockException 异常说明被限流或者降级，则调用 exit 函数退出调用点，退出的相关逻辑我们后续介绍</li>
+</ul>
+<figure class="highlight java"><table><tbody><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">private</span> Entry <span class="title">entryWithPriority</span><span class="params">(ResourceWrapper resourceWrapper, <span class="keyword">int</span> count, <span class="keyword">boolean</span> prioritized, Object... args)</span></span></span><br><span class="line"><span class="function">    <span class="keyword">throws</span> BlockException </span>{</span><br><span class="line">    Context context = ContextUtil.getContext();</span><br><span class="line">    <span class="keyword">if</span> (context <span class="keyword">instanceof</span> NullContext) {</span><br><span class="line">        <span class="comment">// The {@link NullContext} indicates that the amount of context has exceeded the threshold,</span></span><br><span class="line">        <span class="comment">// so here init the entry only. No rule checking will be done.</span></span><br><span class="line">        <span class="keyword">return</span> <span class="keyword">new</span> CtEntry(resourceWrapper, <span class="comment">/*chain*/</span><span class="keyword">null</span>, context);</span><br><span class="line">    }</span><br><span class="line"></span><br><span class="line">    <span class="keyword">if</span> (context == <span class="keyword">null</span>) {</span><br><span class="line">        <span class="comment">// Using default context.</span></span><br><span class="line">        context = InternalContextUtil.internalEnter(Constants.CONTEXT_DEFAULT_NAME);</span><br><span class="line">    }</span><br><span class="line"></span><br><span class="line">    <span class="comment">// Global switch is close, no rule checking will do.</span></span><br><span class="line">    <span class="keyword">if</span> (!Constants.ON) {</span><br><span class="line">        <span class="keyword">return</span> <span class="keyword">new</span> CtEntry(resourceWrapper, <span class="comment">/*chain*/</span><span class="keyword">null</span>, context);</span><br><span class="line">    }</span><br><span class="line"></span><br><span class="line">    ProcessorSlot&lt;Object&gt; chain = lookProcessChain(resourceWrapper);</span><br><span class="line"></span><br><span class="line">    <span class="comment">/*</span></span><br><span class="line"><span class="comment">        * Means amount of resources (slot chain) exceeds {@link Constants.MAX_SLOT_CHAIN_SIZE},</span></span><br><span class="line"><span class="comment">        * so no rule checking will be done.</span></span><br><span class="line"><span class="comment">        */</span></span><br><span class="line">    <span class="keyword">if</span> (chain == <span class="keyword">null</span>) {</span><br><span class="line">        <span class="keyword">return</span> <span class="keyword">new</span> CtEntry(resourceWrapper, <span class="keyword">null</span>, context);</span><br><span class="line">    }</span><br><span class="line"></span><br><span class="line">    Entry e = <span class="keyword">new</span> CtEntry(resourceWrapper, chain, context);</span><br><span class="line">    <span class="keyword">try</span> {</span><br><span class="line">        chain.entry(context, resourceWrapper, <span class="keyword">null</span>, count, prioritized, args);</span><br><span class="line">    } <span class="keyword">catch</span> (BlockException e1) {</span><br><span class="line">        e.exit(count, args);</span><br><span class="line">        <span class="keyword">throw</span> e1;</span><br><span class="line">    } <span class="keyword">catch</span> (Throwable e1) {</span><br><span class="line">        <span class="comment">// This should not happen, unless there are errors existing in Sentinel internal.</span></span><br><span class="line">        RecordLog.info(<span class="string">"Sentinel unexpected exception"</span>, e1);</span><br><span class="line">    }</span><br><span class="line">    <span class="keyword">return</span> e;</span><br><span class="line">}</span><br></pre></td></tr></tbody></table></figure>
+
+<p>处理链的构建同样是以 Double-Check 的方式进行的，Sentinel 中会用 Resource 的 name 作为 key 将已经构建好的处理链保存在 Map 中，方便后续使用。这里，也会限制处理链的最大数量为 6000。</p>
+<figure class="highlight java"><table><tbody><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br></pre></td><td class="code"><pre><span class="line"><span class="function">ProcessorSlot&lt;Object&gt; <span class="title">lookProcessChain</span><span class="params">(ResourceWrapper resourceWrapper)</span> </span>{</span><br><span class="line">    ProcessorSlotChain chain = chainMap.get(resourceWrapper);</span><br><span class="line">    <span class="keyword">if</span> (chain == <span class="keyword">null</span>) {</span><br><span class="line">        <span class="keyword">synchronized</span> (LOCK) {</span><br><span class="line">            chain = chainMap.get(resourceWrapper);</span><br><span class="line">            <span class="keyword">if</span> (chain == <span class="keyword">null</span>) {</span><br><span class="line">                <span class="comment">// Entry size limit. MAX_SLOT_CHAIN_SIZE = 6000</span></span><br><span class="line">                <span class="keyword">if</span> (chainMap.size() &gt;= Constants.MAX_SLOT_CHAIN_SIZE) {</span><br><span class="line">                    <span class="keyword">return</span> <span class="keyword">null</span>;</span><br><span class="line">                }</span><br><span class="line"></span><br><span class="line">                chain = SlotChainProvider.newSlotChain();</span><br><span class="line">                Map&lt;ResourceWrapper, ProcessorSlotChain&gt; newMap = <span class="keyword">new</span> HashMap&lt;ResourceWrapper, ProcessorSlotChain&gt;(</span><br><span class="line">                    chainMap.size() + <span class="number">1</span>);</span><br><span class="line">                newMap.putAll(chainMap);</span><br><span class="line">                newMap.put(resourceWrapper, chain);</span><br><span class="line">                chainMap = newMap;</span><br><span class="line">            }</span><br><span class="line">        }</span><br><span class="line">    }</span><br><span class="line">    <span class="keyword">return</span> chain;</span><br><span class="line">}</span><br><span class="line"></span><br><span class="line"><span class="comment">// Resource 对象的 equals 和 hashcode 函数</span></span><br><span class="line"><span class="meta">@Override</span></span><br><span class="line"><span class="function"><span class="keyword">public</span> <span class="keyword">int</span> <span class="title">hashCode</span><span class="params">()</span> </span>{</span><br><span class="line">    <span class="keyword">return</span> getName().hashCode();</span><br><span class="line">}</span><br><span class="line"></span><br><span class="line"><span class="meta">@Override</span></span><br><span class="line"><span class="function"><span class="keyword">public</span> <span class="keyword">boolean</span> <span class="title">equals</span><span class="params">(Object obj)</span> </span>{</span><br><span class="line">    <span class="keyword">if</span> (obj <span class="keyword">instanceof</span> ResourceWrapper) {</span><br><span class="line">        ResourceWrapper rw = (ResourceWrapper)obj;</span><br><span class="line">        <span class="keyword">return</span> rw.getName().equals(getName());</span><br><span class="line">    }</span><br><span class="line">    <span class="keyword">return</span> <span class="keyword">false</span>;</span><br><span class="line">}</span><br></pre></td></tr></tbody></table></figure>
+
+<p>至于处理链的构建，Sentinel 提供了一个 SlotChainBuilder SPI，用户可以实现自己的 SlotChainBuilder，当然也能使用默认的实现。</p>
+<figure class="highlight java"><table><tbody><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">public</span> <span class="keyword">static</span> ProcessorSlotChain <span class="title">newSlotChain</span><span class="params">()</span> </span>{</span><br><span class="line">    <span class="keyword">if</span> (slotChainBuilder != <span class="keyword">null</span>) {</span><br><span class="line">        <span class="keyword">return</span> slotChainBuilder.build();</span><br><span class="line">    }</span><br><span class="line"></span><br><span class="line">    <span class="comment">// Resolve the slot chain builder SPI.</span></span><br><span class="line">    slotChainBuilder = SpiLoader.loadFirstInstanceOrDefault(SlotChainBuilder.class, DefaultSlotChainBuilder.class);</span><br><span class="line"></span><br><span class="line">    <span class="keyword">if</span> (slotChainBuilder == <span class="keyword">null</span>) {</span><br><span class="line">        <span class="comment">// Should not go through here.</span></span><br><span class="line">        RecordLog.warn(<span class="string">"[SlotChainProvider] Wrong state when resolving slot chain builder, using default"</span>);</span><br><span class="line">        slotChainBuilder = <span class="keyword">new</span> DefaultSlotChainBuilder();</span><br><span class="line">    } <span class="keyword">else</span> {</span><br><span class="line">        RecordLog.info(<span class="string">"[SlotChainProvider] Global slot chain builder resolved: "</span></span><br><span class="line">            + slotChainBuilder.getClass().getCanonicalName());</span><br><span class="line">    }</span><br><span class="line">    <span class="keyword">return</span> slotChainBuilder.build();</span><br><span class="line">}</span><br></pre></td></tr></tbody></table></figure>
+
+<p>在默认的 SlotChainBuilder 实现 DefaultSlotChainBuilder 中会用到 Sentinel 所暴露的另一个 SPI——ProcessorSlot，DefaultSlotChainBuilder 中会将所有继承自 <code>AbstractLinkedProcessorSlot（链式调用过程在这里实现）</code> 的 ProcessorSlot 实现类实例化，并保存在处理链 ProcessorSlotChain 中，之所以每个 Slot 都要实例化一个新的对象是因为很多 Slot 都是有状态的。</p>
+<figure class="highlight java"><table><tbody><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">public</span> <span class="class"><span class="keyword">class</span> <span class="title">DefaultSlotChainBuilder</span> <span class="keyword">implements</span> <span class="title">SlotChainBuilder</span> </span>{</span><br><span class="line"></span><br><span class="line">    <span class="meta">@Override</span></span><br><span class="line">    <span class="function"><span class="keyword">public</span> ProcessorSlotChain <span class="title">build</span><span class="params">()</span> </span>{</span><br><span class="line">        ProcessorSlotChain chain = <span class="keyword">new</span> DefaultProcessorSlotChain();</span><br><span class="line"></span><br><span class="line">        <span class="comment">// Note: the instances of ProcessorSlot should be different, since they are not stateless.</span></span><br><span class="line">        List&lt;ProcessorSlot&gt; sortedSlotList = SpiLoader.loadPrototypeInstanceListSorted(ProcessorSlot.class);</span><br><span class="line">        <span class="keyword">for</span> (ProcessorSlot slot : sortedSlotList) {</span><br><span class="line">            <span class="keyword">if</span> (!(slot <span class="keyword">instanceof</span> AbstractLinkedProcessorSlot)) {</span><br><span class="line">                RecordLog.warn(<span class="string">"The ProcessorSlot("</span> + slot.getClass().getCanonicalName() + <span class="string">") is not an instance of AbstractLinkedProcessorSlot, can't be added into ProcessorSlotChain"</span>);</span><br><span class="line">                <span class="keyword">continue</span>;</span><br><span class="line">            }</span><br><span class="line"></span><br><span class="line">            chain.addLast((AbstractLinkedProcessorSlot&lt;?&gt;) slot);</span><br><span class="line">        }</span><br><span class="line"></span><br><span class="line">        <span class="keyword">return</span> chain;</span><br><span class="line">    }</span><br><span class="line">}</span><br></pre></td></tr></tbody></table></figure>
+
+<p>Sentinel 在加载各个 ProcessorSlot 的过程中还会根据各个 Slot 实现类通过 <code>@SpiOrder</code> 指定的顺序进行排序，前面所说的 ProcessSlotChain 的最终顺序，就是通过这种方式确立的，只不过目前代码中所定义的顺序已经和上图中的顺序有一定的出入，Sentinel 会按照 <code>SpiOrder</code> 升序排列各个 Slot，如下展示的就是现阶段（v1.7.2）各个 Slot 的顺序。</p>
+<ul>
+<li>NodeSelectorSlot: @SpiOrder(-10000)</li>
+<li>ClusterBuilderSlot: @SpiOrder(-9000)</li>
+<li>LogSlot: @SpiOrder(-8000)</li>
+<li>StatisticSlot: @SpiOrder(-7000)</li>
+<li>AuthoritySlot: @SpiOrder(-6000)</li>
+<li>SystemSlot: @SpiOrder(-5000)</li>
+<li>GatewayFlowSlot: @SpiOrder(-4000)</li>
+<li>ParamFlowSlot: @SpiOrder(-3000)</li>
+<li>FlowSlot: @SpiOrder(-2000)</li>
+<li>DegradeSlot: @SpiOrder(-1000)</li>
+</ul>
+<h3 id="处理链"><a href="#处理链" class="headerlink" title="处理链"></a>处理链</h3><p>所谓处理链实际上就是一个 ProcessorSlot 实例的数组，在进入调用点时，执行 ProcessorSlot 的 entry 函数，每个 Slot 的 entry 任务都各不相同，但是每一个 Slot 在处理完自己的活之后都要通过 fireEntry 调用处理链中下一个 Slot 的 entry 函数。同理 exit 是在退出调用点的时候执行。</p>
+<figure class="highlight java"><table><tbody><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">public</span> <span class="class"><span class="keyword">interface</span> <span class="title">ProcessorSlot</span>&lt;<span class="title">T</span>&gt; </span>{</span><br><span class="line"></span><br><span class="line">    <span class="function"><span class="keyword">void</span> <span class="title">entry</span><span class="params">(Context context, ResourceWrapper resourceWrapper, T param, <span class="keyword">int</span> count, <span class="keyword">boolean</span> prioritized,</span></span></span><br><span class="line"><span class="function"><span class="params">               Object... args)</span> <span class="keyword">throws</span> Throwable</span>;</span><br><span class="line"></span><br><span class="line">    <span class="function"><span class="keyword">void</span> <span class="title">fireEntry</span><span class="params">(Context context, ResourceWrapper resourceWrapper, Object obj, <span class="keyword">int</span> count, <span class="keyword">boolean</span> prioritized,</span></span></span><br><span class="line"><span class="function"><span class="params">                   Object... args)</span> <span class="keyword">throws</span> Throwable</span>;</span><br><span class="line"></span><br><span class="line">    <span class="function"><span class="keyword">void</span> <span class="title">exit</span><span class="params">(Context context, ResourceWrapper resourceWrapper, <span class="keyword">int</span> count, Object... args)</span></span>;</span><br><span class="line"></span><br><span class="line">    <span class="function"><span class="keyword">void</span> <span class="title">fireExit</span><span class="params">(Context context, ResourceWrapper resourceWrapper, <span class="keyword">int</span> count, Object... args)</span></span>;</span><br><span class="line">}</span><br></pre></td></tr></tbody></table></figure>
+
+<h4 id="NodeSelectorSlot"><a href="#NodeSelectorSlot" class="headerlink" title="NodeSelectorSlot"></a>NodeSelectorSlot</h4><p>NodeSelectorSlot 是排在最前面的 Slot，其中负责维护当前 Resource 对于不同入口（EntranceNode）的统计节点（DefaultNode）。同时它也负责维护各个节点之间的链路关系。将 DefaultNode 保存到 Context 中之后，就会调用下一 Slot。</p>
+<figure class="highlight java"><table><tbody><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// com.alibaba.csp.sentinel.slots.nodeselector.NodeSelectorSlot#entry</span></span><br><span class="line"><span class="meta">@Override</span></span><br><span class="line"><span class="function"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title">entry</span><span class="params">(Context context, ResourceWrapper resourceWrapper, Object obj, <span class="keyword">int</span> count, <span class="keyword">boolean</span> prioritized, Object... args)</span></span></span><br><span class="line"><span class="function">    <span class="keyword">throws</span> Throwable </span>{</span><br><span class="line">    DefaultNode node = map.get(context.getName());</span><br><span class="line">    <span class="keyword">if</span> (node == <span class="keyword">null</span>) {</span><br><span class="line">        <span class="keyword">synchronized</span> (<span class="keyword">this</span>) {</span><br><span class="line">            node = map.get(context.getName());</span><br><span class="line">            <span class="keyword">if</span> (node == <span class="keyword">null</span>) {</span><br><span class="line">                node = <span class="keyword">new</span> DefaultNode(resourceWrapper, <span class="keyword">null</span>);</span><br><span class="line">                HashMap&lt;String, DefaultNode&gt; cacheMap = <span class="keyword">new</span> HashMap&lt;String, DefaultNode&gt;(map.size());</span><br><span class="line">                cacheMap.putAll(map);</span><br><span class="line">                cacheMap.put(context.getName(), node);</span><br><span class="line">                map = cacheMap;</span><br><span class="line">                <span class="comment">// Build invocation tree</span></span><br><span class="line">                ((DefaultNode) context.getLastNode()).addChild(node);</span><br><span class="line">            }</span><br><span class="line"></span><br><span class="line">        }</span><br><span class="line">    }</span><br><span class="line">    <span class="comment">// 指定当前 Entry 所对应的 DefaultNode</span></span><br><span class="line">    context.setCurNode(node);</span><br><span class="line">    <span class="comment">// 注意这里将 DefaultNode 作为参数传递给了下一 Slot，因为后续限流 Slot 会用这个 DefaultNode 来做链路模式的限流</span></span><br><span class="line">    fireEntry(context, resourceWrapper, node, count, prioritized, args);</span><br><span class="line">}</span><br><span class="line"></span><br><span class="line"><span class="meta">@Override</span></span><br><span class="line"><span class="function"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title">fireEntry</span><span class="params">(Context context, ResourceWrapper resourceWrapper, Object obj, <span class="keyword">int</span> count, <span class="keyword">boolean</span> prioritized, Object... args)</span></span></span><br><span class="line"><span class="function">    <span class="keyword">throws</span> Throwable </span>{</span><br><span class="line">    <span class="keyword">if</span> (next != <span class="keyword">null</span>) {</span><br><span class="line">        <span class="comment">// 调用下一个 Slot</span></span><br><span class="line">        next.transformEntry(context, resourceWrapper, obj, count, prioritized, args);</span><br><span class="line">    }</span><br><span class="line">}</span><br><span class="line"></span><br><span class="line"><span class="meta">@SuppressWarnings("unchecked")</span></span><br><span class="line"><span class="function"><span class="keyword">void</span> <span class="title">transformEntry</span><span class="params">(Context context, ResourceWrapper resourceWrapper, Object o, <span class="keyword">int</span> count, <span class="keyword">boolean</span> prioritized, Object... args)</span></span></span><br><span class="line"><span class="function">    <span class="keyword">throws</span> Throwable </span>{</span><br><span class="line">    T t = (T)o;</span><br><span class="line">    <span class="comment">// 做泛型转换</span></span><br><span class="line">    entry(context, resourceWrapper, t, count, prioritized, args);</span><br><span class="line">}</span><br></pre></td></tr></tbody></table></figure>
+
+<p>执行完 NodeSelectSlot 之后，调用树就会变成如下形态。<br><img src="/images/loading-cat.gif" data-original="https://bbm-hexo.oss-accelerate.aliyuncs.com/images/sentinel/invocation-tree-after-node-select.png" alt="invocation-tree-after-node-select"><br>在 NodeSelectorSlot 中各个资源针对不同 Context 的统计节点会以如下方式保存。<br><img src="/images/loading-cat.gif" data-original="https://bbm-hexo.oss-accelerate.aliyuncs.com/images/sentinel/data-structure-after-node-select.png" alt="data-structure-after-node-select"></p>
+<h4 id="ClusterBuilderSlot"><a href="#ClusterBuilderSlot" class="headerlink" title="ClusterBuilderSlot"></a>ClusterBuilderSlot</h4><p>ClusterBuilderSlot 负责对某一资源在不同类型 Context 中的流量进行聚合，创建各个 Resource 的汇总统计节点(ClusterNode)，同时对于指定了来源（Origin）的流量，会创建当前资源专属于各个 Origin 的流量统计节点。最后将上述两类统计节点保存在 Context 中, 并调用下一个 Slot。</p>
+<figure class="highlight java"><table><tbody><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// com.alibaba.csp.sentinel.slots.clusterbuilder.ClusterBuilderSlot#entry</span></span><br><span class="line"><span class="meta">@Override</span></span><br><span class="line"><span class="function"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title">entry</span><span class="params">(Context context, ResourceWrapper resourceWrapper, DefaultNode node, <span class="keyword">int</span> count,</span></span></span><br><span class="line"><span class="function"><span class="params">                    <span class="keyword">boolean</span> prioritized, Object... args)</span></span></span><br><span class="line"><span class="function">    <span class="keyword">throws</span> Throwable </span>{</span><br><span class="line">    <span class="keyword">if</span> (clusterNode == <span class="keyword">null</span>) {</span><br><span class="line">        <span class="keyword">synchronized</span> (lock) {</span><br><span class="line">            <span class="keyword">if</span> (clusterNode == <span class="keyword">null</span>) {</span><br><span class="line">                <span class="comment">// Create the cluster node.</span></span><br><span class="line">                clusterNode = <span class="keyword">new</span> ClusterNode(resourceWrapper.getName(), resourceWrapper.getResourceType());</span><br><span class="line">                HashMap&lt;ResourceWrapper, ClusterNode&gt; newMap = <span class="keyword">new</span> HashMap&lt;&gt;(Math.max(clusterNodeMap.size(), <span class="number">16</span>));</span><br><span class="line">                newMap.putAll(clusterNodeMap);</span><br><span class="line">                newMap.put(node.getId(), clusterNode);</span><br><span class="line"></span><br><span class="line">                clusterNodeMap = newMap;</span><br><span class="line">            }</span><br><span class="line">        }</span><br><span class="line">    }</span><br><span class="line">    node.setClusterNode(clusterNode);</span><br><span class="line"></span><br><span class="line">    <span class="comment">/*</span></span><br><span class="line"><span class="comment">        * if context origin is set, we should get or create a new {@link Node} of</span></span><br><span class="line"><span class="comment">        * the specific origin.</span></span><br><span class="line"><span class="comment">        */</span></span><br><span class="line">    <span class="keyword">if</span> (!<span class="string">""</span>.equals(context.getOrigin())) {</span><br><span class="line">        Node originNode = node.getClusterNode().getOrCreateOriginNode(context.getOrigin());</span><br><span class="line">        context.getCurEntry().setOriginNode(originNode);</span><br><span class="line">    }</span><br><span class="line"></span><br><span class="line">    fireEntry(context, resourceWrapper, node, count, prioritized, args);</span><br><span class="line">}</span><br><span class="line"></span><br><span class="line"><span class="comment">// com.alibaba.csp.sentinel.node.ClusterNode#getOrCreateOriginNode</span></span><br><span class="line"><span class="function"><span class="keyword">public</span> Node <span class="title">getOrCreateOriginNode</span><span class="params">(String origin)</span> </span>{</span><br><span class="line">    <span class="comment">// originCountMap 是 ClusterNode 实例的成员变量</span></span><br><span class="line">    StatisticNode statisticNode = originCountMap.get(origin);</span><br><span class="line">    <span class="keyword">if</span> (statisticNode == <span class="keyword">null</span>) {</span><br><span class="line">        lock.lock();</span><br><span class="line">        <span class="keyword">try</span> {</span><br><span class="line">            statisticNode = originCountMap.get(origin);</span><br><span class="line">            <span class="keyword">if</span> (statisticNode == <span class="keyword">null</span>) {</span><br><span class="line">                <span class="comment">// The node is absent, create a new node for the origin.</span></span><br><span class="line">                statisticNode = <span class="keyword">new</span> StatisticNode();</span><br><span class="line">                HashMap&lt;String, StatisticNode&gt; newMap = <span class="keyword">new</span> HashMap&lt;&gt;(originCountMap.size() + <span class="number">1</span>);</span><br><span class="line">                newMap.putAll(originCountMap);</span><br><span class="line">                newMap.put(origin, statisticNode);</span><br><span class="line">                originCountMap = newMap;</span><br><span class="line">            }</span><br><span class="line">        } <span class="keyword">finally</span> {</span><br><span class="line">            lock.unlock();</span><br><span class="line">        }</span><br><span class="line">    }</span><br><span class="line">    <span class="keyword">return</span> statisticNode;</span><br><span class="line">}</span><br></pre></td></tr></tbody></table></figure>
+
+<p>执行完 ClusterBuilderSlot 之后，调用树达到了最终形态。<br><img src="/images/loading-cat.gif" data-original="https://bbm-hexo.oss-accelerate.aliyuncs.com/images/sentinel/node-relation.png" alt="node-relation"><br>在 ClusterBuilderSlot 中各个资源以及各个资源来自不同 Origin 的流量统计节点会以如下方式保存。<br><img src="/images/loading-cat.gif" data-original="https://bbm-hexo.oss-accelerate.aliyuncs.com/images/sentinel/data-after-cluster-build.png" alt="data-after-cluster-build"></p>
+<h4 id="LogSlot"><a href="#LogSlot" class="headerlink" title="LogSlot"></a>LogSlot</h4><p>LogSlot 的工作很简单，内部直接调用下一个 Slot 的处理过程，如果发生了限流降级，就通过 EagleEyeLogUtil 进行记录（内部有线程负责周期性地将统计数据写入log），如果期间发生了异常，就记录到 Log 中。</p>
+<figure class="highlight java"><table><tbody><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// com.alibaba.csp.sentinel.slots.logger.LogSlot#entry</span></span><br><span class="line"><span class="meta">@Override</span></span><br><span class="line"><span class="function"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title">entry</span><span class="params">(Context context, ResourceWrapper resourceWrapper, DefaultNode obj, <span class="keyword">int</span> count, <span class="keyword">boolean</span> prioritized, Object... args)</span></span></span><br><span class="line"><span class="function">    <span class="keyword">throws</span> Throwable </span>{</span><br><span class="line">    <span class="keyword">try</span> {</span><br><span class="line">        fireEntry(context, resourceWrapper, obj, count, prioritized, args);</span><br><span class="line">    } <span class="keyword">catch</span> (BlockException e) {</span><br><span class="line">        EagleEyeLogUtil.log(resourceWrapper.getName(), e.getClass().getSimpleName(), e.getRuleLimitApp(),</span><br><span class="line">            context.getOrigin(), count);</span><br><span class="line">        <span class="keyword">throw</span> e;</span><br><span class="line">    } <span class="keyword">catch</span> (Throwable e) {</span><br><span class="line">        RecordLog.warn(<span class="string">"Unexpected entry exception"</span>, e);</span><br><span class="line">    }</span><br><span class="line"></span><br><span class="line">}</span><br></pre></td></tr></tbody></table></figure>
+
+<h4 id="StatisticSlot"><a href="#StatisticSlot" class="headerlink" title="StatisticSlot"></a>StatisticSlot</h4><p>StatisticSlot 是比较复杂的一个 Slot，各个维度的流量统计都是通过这个 Slot 处理的，这里 StatisticSlot 会先调用后续 Slot 的处理过程，然后根据后续 Slot 的处理结果开展不同的统计工作：</p>
+<ul>
+<li>如果后续 Slot 都顺利通过:<ol>
+<li>增加 node 统计节点的线程数和 QPS 数，这里特指当前资源专属于某一 Context 的统计节点（DefaultNode），而且该 DefaultNode 中还保存了该资源的 ClusterNode(见代码下半段)，也会对 ClusterNode 的线程数和 QPS 数进行增加</li>
+<li>如果当前资源指明了流量的 origin(OriginNode) 不为空，则增加该统计节点的线程数和 QPS 数</li>
+<li>如果当前资源是输入类型的流量的话，也会增加系统整体输入流量统计节点的线程数和 QPS 数</li>
+<li>调用其他地方注入的请求通过回调函数，一些统计服务会注册这类回调，比如热点参数的统计过程就是通过这种回调机制实现的</li>
+</ol>
+</li>
+<li>如果捕获到 PriorityWaitException 异常，说明当前的限流规则是排队等待，Sentinel 内部使用虚拟队列（按照约定的 QPS 计算每个线程要 sleep 的时长）实现，所以不会出现 QPS 超标的情况，而抛出 PriorityWaitException 说明已经 sleep 完毕，可以放行流量，所以这一步只统计了线程数，没有统计 QPS 数，统计过程和上述通过的场景基本相同（除了不统计 QPS）</li>
+<li>如果捕获到 BlockException 异常，可能是被限流或者降级，这时候将 BlockException 保存在 Context 中，并增加各个维度统计节点的 blocked QPS 数并抛出异常，统计过程和上述通过的场景类似</li>
+<li>如果捕获到其他异常，说明出现了未知错误，如果 Sentinel 没有 BUG 并且用户引入的 CustomSlot 没有问题的话，是不是抛出这类异常的，当这类异常发生时，会将其保存在 Context 中并抛到外层</li>
+</ul>
+<figure class="highlight java"><table><tbody><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br><span class="line">73</span><br><span class="line">74</span><br><span class="line">75</span><br><span class="line">76</span><br><span class="line">77</span><br><span class="line">78</span><br><span class="line">79</span><br><span class="line">80</span><br><span class="line">81</span><br><span class="line">82</span><br><span class="line">83</span><br><span class="line">84</span><br><span class="line">85</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// com.alibaba.csp.sentinel.slots.statistic.StatisticSlot#entry</span></span><br><span class="line"><span class="meta">@Override</span></span><br><span class="line"><span class="function"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title">entry</span><span class="params">(Context context, ResourceWrapper resourceWrapper, DefaultNode node, <span class="keyword">int</span> count,</span></span></span><br><span class="line"><span class="function"><span class="params">                    <span class="keyword">boolean</span> prioritized, Object... args)</span> <span class="keyword">throws</span> Throwable </span>{</span><br><span class="line">    <span class="keyword">try</span> {</span><br><span class="line">        <span class="comment">// Do some checking.</span></span><br><span class="line">        fireEntry(context, resourceWrapper, node, count, prioritized, args);</span><br><span class="line"></span><br><span class="line">        <span class="comment">// Request passed, add thread count and pass count.</span></span><br><span class="line">        node.increaseThreadNum();</span><br><span class="line">        node.addPassRequest(count);</span><br><span class="line"></span><br><span class="line">        <span class="keyword">if</span> (context.getCurEntry().getOriginNode() != <span class="keyword">null</span>) {</span><br><span class="line">            <span class="comment">// Add count for origin node.</span></span><br><span class="line">            context.getCurEntry().getOriginNode().increaseThreadNum();</span><br><span class="line">            context.getCurEntry().getOriginNode().addPassRequest(count);</span><br><span class="line">        }</span><br><span class="line"></span><br><span class="line">        <span class="keyword">if</span> (resourceWrapper.getEntryType() == EntryType.IN) {</span><br><span class="line">            <span class="comment">// Add count for global inbound entry node for global statistics.</span></span><br><span class="line">            Constants.ENTRY_NODE.increaseThreadNum();</span><br><span class="line">            Constants.ENTRY_NODE.addPassRequest(count);</span><br><span class="line">        }</span><br><span class="line"></span><br><span class="line">        <span class="comment">// Handle pass event with registered entry callback handlers.</span></span><br><span class="line">        <span class="keyword">for</span> (ProcessorSlotEntryCallback&lt;DefaultNode&gt; handler : StatisticSlotCallbackRegistry.getEntryCallbacks()) {</span><br><span class="line">            handler.onPass(context, resourceWrapper, node, count, args);</span><br><span class="line">        }</span><br><span class="line">    } <span class="keyword">catch</span> (PriorityWaitException ex) {</span><br><span class="line">        node.increaseThreadNum();</span><br><span class="line">        <span class="keyword">if</span> (context.getCurEntry().getOriginNode() != <span class="keyword">null</span>) {</span><br><span class="line">            <span class="comment">// Add count for origin node.</span></span><br><span class="line">            context.getCurEntry().getOriginNode().increaseThreadNum();</span><br><span class="line">        }</span><br><span class="line"></span><br><span class="line">        <span class="keyword">if</span> (resourceWrapper.getEntryType() == EntryType.IN) {</span><br><span class="line">            <span class="comment">// Add count for global inbound entry node for global statistics.</span></span><br><span class="line">            Constants.ENTRY_NODE.increaseThreadNum();</span><br><span class="line">        }</span><br><span class="line">        <span class="comment">// Handle pass event with registered entry callback handlers.</span></span><br><span class="line">        <span class="keyword">for</span> (ProcessorSlotEntryCallback&lt;DefaultNode&gt; handler : StatisticSlotCallbackRegistry.getEntryCallbacks()) {</span><br><span class="line">            handler.onPass(context, resourceWrapper, node, count, args);</span><br><span class="line">        }</span><br><span class="line">    } <span class="keyword">catch</span> (BlockException e) {</span><br><span class="line">        <span class="comment">// Blocked, set block exception to current entry.</span></span><br><span class="line">        context.getCurEntry().setBlockError(e);</span><br><span class="line"></span><br><span class="line">        <span class="comment">// Add block count.</span></span><br><span class="line">        node.increaseBlockQps(count);</span><br><span class="line">        <span class="keyword">if</span> (context.getCurEntry().getOriginNode() != <span class="keyword">null</span>) {</span><br><span class="line">            context.getCurEntry().getOriginNode().increaseBlockQps(count);</span><br><span class="line">        }</span><br><span class="line"></span><br><span class="line">        <span class="keyword">if</span> (resourceWrapper.getEntryType() == EntryType.IN) {</span><br><span class="line">            <span class="comment">// Add count for global inbound entry node for global statistics.</span></span><br><span class="line">            Constants.ENTRY_NODE.increaseBlockQps(count);</span><br><span class="line">        }</span><br><span class="line"></span><br><span class="line">        <span class="comment">// Handle block event with registered entry callback handlers.</span></span><br><span class="line">        <span class="keyword">for</span> (ProcessorSlotEntryCallback&lt;DefaultNode&gt; handler : StatisticSlotCallbackRegistry.getEntryCallbacks()) {</span><br><span class="line">            handler.onBlocked(e, context, resourceWrapper, node, count, args);</span><br><span class="line">        }</span><br><span class="line"></span><br><span class="line">        <span class="keyword">throw</span> e;</span><br><span class="line">    } <span class="keyword">catch</span> (Throwable e) {</span><br><span class="line">        <span class="comment">// Unexpected internal error, set error to current entry.</span></span><br><span class="line">        context.getCurEntry().setError(e);</span><br><span class="line"></span><br><span class="line">        <span class="keyword">throw</span> e;</span><br><span class="line">    }</span><br><span class="line">}</span><br><span class="line"></span><br><span class="line"><span class="comment">// com.alibaba.csp.sentinel.node.DefaultNode#increaseThreadNum</span></span><br><span class="line"><span class="meta">@Override</span></span><br><span class="line"><span class="function"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title">increaseThreadNum</span><span class="params">()</span> </span>{</span><br><span class="line">    <span class="keyword">super</span>.increaseThreadNum();</span><br><span class="line">    <span class="keyword">this</span>.clusterNode.increaseThreadNum();</span><br><span class="line">}</span><br><span class="line"></span><br><span class="line"><span class="comment">// com.alibaba.csp.sentinel.node.DefaultNode#addPassRequest</span></span><br><span class="line"><span class="meta">@Override</span></span><br><span class="line"><span class="function"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title">addPassRequest</span><span class="params">(<span class="keyword">int</span> count)</span> </span>{</span><br><span class="line">    <span class="keyword">super</span>.addPassRequest(count);</span><br><span class="line">    <span class="keyword">this</span>.clusterNode.addPassRequest(count);</span><br><span class="line">}</span><br></pre></td></tr></tbody></table></figure>
+
+<p>StatisticSlot 不同于之前的几个 Slot，它的 exit 函数是有实际的任务处理过程，而前面几个 Slot 的 exit 函数只是保证链式调用。</p>
+<h4 id="AuthoritySlot"><a href="#AuthoritySlot" class="headerlink" title="AuthoritySlot"></a>AuthoritySlot</h4><p>从 AuthoritySlot 开始就到了 Sentinel 根据规则进行检查的阶段了，AuthoritySlot 是其中最简单的部分，它只做白名单和黑名单的检查。这里，首先会确认一下当前资源是否定义了授权规则，如果定义了的话，会挨个检查所有授权规则是否通过，如果发现了任意一个未通过的授权规则就抛出 <code>AuthorityException</code>，否则调用下一个 Slot。</p>
+<figure class="highlight java"><table><tbody><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// com.alibaba.csp.sentinel.slots.block.authority.AuthoritySlot#entry</span></span><br><span class="line"><span class="meta">@Override</span></span><br><span class="line"><span class="function"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title">entry</span><span class="params">(Context context, ResourceWrapper resourceWrapper, DefaultNode node, <span class="keyword">int</span> count, <span class="keyword">boolean</span> prioritized, Object... args)</span></span></span><br><span class="line"><span class="function">    <span class="keyword">throws</span> Throwable </span>{</span><br><span class="line">    checkBlackWhiteAuthority(resourceWrapper, context);</span><br><span class="line">    fireEntry(context, resourceWrapper, node, count, prioritized, args);</span><br><span class="line">}</span><br><span class="line"></span><br><span class="line"><span class="comment">// com.alibaba.csp.sentinel.slots.block.authority.AuthoritySlot#checkBlackWhiteAuthority</span></span><br><span class="line"><span class="function"><span class="keyword">void</span> <span class="title">checkBlackWhiteAuthority</span><span class="params">(ResourceWrapper resource, Context context)</span> <span class="keyword">throws</span> AuthorityException </span>{</span><br><span class="line">    Map&lt;String, Set&lt;AuthorityRule&gt;&gt; authorityRules = AuthorityRuleManager.getAuthorityRules();</span><br><span class="line"></span><br><span class="line">    <span class="keyword">if</span> (authorityRules == <span class="keyword">null</span>) {</span><br><span class="line">        <span class="keyword">return</span>;</span><br><span class="line">    }</span><br><span class="line"></span><br><span class="line">    Set&lt;AuthorityRule&gt; rules = authorityRules.get(resource.getName());</span><br><span class="line">    <span class="keyword">if</span> (rules == <span class="keyword">null</span>) {</span><br><span class="line">        <span class="keyword">return</span>;</span><br><span class="line">    }</span><br><span class="line"></span><br><span class="line">    <span class="keyword">for</span> (AuthorityRule rule : rules) {</span><br><span class="line">        <span class="keyword">if</span> (!AuthorityRuleChecker.passCheck(rule, context)) {</span><br><span class="line">            <span class="keyword">throw</span> <span class="keyword">new</span> AuthorityException(context.getOrigin(), rule);</span><br><span class="line">        }</span><br><span class="line">    }</span><br><span class="line">}</span><br></pre></td></tr></tbody></table></figure>
+
+<p>授权规则的检查过程也很简单，就是检查当前流量的 Origin 是否包含在设定的授权规则名单中，如果这个名单是黑名单并且当前流量的 Origin 在这个名单中，则返回不通过。另外，如果这个名单是白名单但是当前流量的 Origin 不在这个名单中，也返回不通过。</p>
+<figure class="highlight java"><table><tbody><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// com.alibaba.csp.sentinel.slots.block.authority.AuthorityRuleChecker#passCheck</span></span><br><span class="line"><span class="function"><span class="keyword">static</span> <span class="keyword">boolean</span> <span class="title">passCheck</span><span class="params">(AuthorityRule rule, Context context)</span> </span>{</span><br><span class="line">    String requester = context.getOrigin();</span><br><span class="line"></span><br><span class="line">    <span class="comment">// Empty origin or empty limitApp will pass.</span></span><br><span class="line">    <span class="keyword">if</span> (StringUtil.isEmpty(requester) || StringUtil.isEmpty(rule.getLimitApp())) {</span><br><span class="line">        <span class="keyword">return</span> <span class="keyword">true</span>;</span><br><span class="line">    }</span><br><span class="line"></span><br><span class="line">    <span class="comment">// Do exact match with origin name.</span></span><br><span class="line">    <span class="keyword">int</span> pos = rule.getLimitApp().indexOf(requester);</span><br><span class="line">    <span class="keyword">boolean</span> contain = pos &gt; -<span class="number">1</span>;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">if</span> (contain) {</span><br><span class="line">        <span class="keyword">boolean</span> exactlyMatch = <span class="keyword">false</span>;</span><br><span class="line">        String[] appArray = rule.getLimitApp().split(<span class="string">","</span>);</span><br><span class="line">        <span class="keyword">for</span> (String app : appArray) {</span><br><span class="line">            <span class="keyword">if</span> (requester.equals(app)) {</span><br><span class="line">                exactlyMatch = <span class="keyword">true</span>;</span><br><span class="line">                <span class="keyword">break</span>;</span><br><span class="line">            }</span><br><span class="line">        }</span><br><span class="line"></span><br><span class="line">        contain = exactlyMatch;</span><br><span class="line">    }</span><br><span class="line"></span><br><span class="line">    <span class="keyword">int</span> strategy = rule.getStrategy();</span><br><span class="line">    <span class="keyword">if</span> (strategy == RuleConstant.AUTHORITY_BLACK &amp;&amp; contain) {</span><br><span class="line">        <span class="keyword">return</span> <span class="keyword">false</span>;</span><br><span class="line">    }</span><br><span class="line"></span><br><span class="line">    <span class="keyword">if</span> (strategy == RuleConstant.AUTHORITY_WHITE &amp;&amp; !contain) {</span><br><span class="line">        <span class="keyword">return</span> <span class="keyword">false</span>;</span><br><span class="line">    }</span><br><span class="line"></span><br><span class="line">    <span class="keyword">return</span> <span class="keyword">true</span>;</span><br><span class="line">}</span><br></pre></td></tr></tbody></table></figure>
+
+<h4 id="SystemSlot"><a href="#SystemSlot" class="headerlink" title="SystemSlot"></a>SystemSlot</h4><p>SystemSlot 是对系统规则的检查，只检查输入性流量，检查项主要包括：</p>
+<ul>
+<li>系统总 QPS: 通过系统统计节点（Constants.ENTRY_NODE）的数据进行检查</li>
+<li>总线程数: 通过系统统计节点（Constants.ENTRY_NODE）的数据进行检查</li>
+<li>平均请求处理时间: 这部分数据的统计方式我们还没有介绍，这里只要知道它主要是在调用 <code>Entry#exit</code> 是进行统计即可，后续我们会详细介绍这部分内容。这里也是通过系统统计节点（Constants.ENTRY_NODE）的数据进行检查</li>
+<li>CPU 使用率: Sentinel 中会有一个统计线程，每秒钟通过 OperatingSystemMXBean 获取一次当前的 CPU 使用率，SystemSlot 会根据这部分数据进行检查</li>
+<li>当系统过去1分钟的负载（load1）大于某一阈值时，还会使用 BBR 算法来限制最大并发请求数，即比较当前并发的<code>线程数</code>和 <code>QPS*RT</code> 的大小，如果 <code>线程数 &gt; QPS*RT</code> 就限流</li>
+</ul>
+<figure class="highlight java"><table><tbody><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// com.alibaba.csp.sentinel.slots.system.SystemSlot#entry</span></span><br><span class="line"><span class="meta">@Override</span></span><br><span class="line"><span class="function"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title">entry</span><span class="params">(Context context, ResourceWrapper resourceWrapper, DefaultNode node, <span class="keyword">int</span> count,</span></span></span><br><span class="line"><span class="function"><span class="params">                    <span class="keyword">boolean</span> prioritized, Object... args)</span> <span class="keyword">throws</span> Throwable </span>{</span><br><span class="line">    SystemRuleManager.checkSystem(resourceWrapper);</span><br><span class="line">    fireEntry(context, resourceWrapper, node, count, prioritized, args);</span><br><span class="line">}</span><br><span class="line"><span class="comment">// com.alibaba.csp.sentinel.slots.system.SystemRuleManager#checkSystem</span></span><br><span class="line"><span class="function"><span class="keyword">public</span> <span class="keyword">static</span> <span class="keyword">void</span> <span class="title">checkSystem</span><span class="params">(ResourceWrapper resourceWrapper)</span> <span class="keyword">throws</span> BlockException </span>{</span><br><span class="line">    <span class="keyword">if</span> (resourceWrapper == <span class="keyword">null</span>) {</span><br><span class="line">        <span class="keyword">return</span>;</span><br><span class="line">    }</span><br><span class="line">    <span class="comment">// Ensure the checking switch is on.</span></span><br><span class="line">    <span class="keyword">if</span> (!checkSystemStatus.get()) {</span><br><span class="line">        <span class="keyword">return</span>;</span><br><span class="line">    }</span><br><span class="line"></span><br><span class="line">    <span class="comment">// for inbound traffic only</span></span><br><span class="line">    <span class="keyword">if</span> (resourceWrapper.getEntryType() != EntryType.IN) {</span><br><span class="line">        <span class="keyword">return</span>;</span><br><span class="line">    }</span><br><span class="line"></span><br><span class="line">    <span class="comment">// total qps</span></span><br><span class="line">    <span class="keyword">double</span> currentQps = Constants.ENTRY_NODE == <span class="keyword">null</span> ? <span class="number">0.0</span> : Constants.ENTRY_NODE.successQps();</span><br><span class="line">    <span class="keyword">if</span> (currentQps &gt; qps) {</span><br><span class="line">        <span class="keyword">throw</span> <span class="keyword">new</span> SystemBlockException(resourceWrapper.getName(), <span class="string">"qps"</span>);</span><br><span class="line">    }</span><br><span class="line"></span><br><span class="line">    <span class="comment">// total thread</span></span><br><span class="line">    <span class="keyword">int</span> currentThread = Constants.ENTRY_NODE == <span class="keyword">null</span> ? <span class="number">0</span> : Constants.ENTRY_NODE.curThreadNum();</span><br><span class="line">    <span class="keyword">if</span> (currentThread &gt; maxThread) {</span><br><span class="line">        <span class="keyword">throw</span> <span class="keyword">new</span> SystemBlockException(resourceWrapper.getName(), <span class="string">"thread"</span>);</span><br><span class="line">    }</span><br><span class="line"></span><br><span class="line">    <span class="keyword">double</span> rt = Constants.ENTRY_NODE == <span class="keyword">null</span> ? <span class="number">0</span> : Constants.ENTRY_NODE.avgRt();</span><br><span class="line">    <span class="keyword">if</span> (rt &gt; maxRt) {</span><br><span class="line">        <span class="keyword">throw</span> <span class="keyword">new</span> SystemBlockException(resourceWrapper.getName(), <span class="string">"rt"</span>);</span><br><span class="line">    }</span><br><span class="line"></span><br><span class="line">    <span class="comment">// load. BBR algorithm.</span></span><br><span class="line">    <span class="keyword">if</span> (highestSystemLoadIsSet &amp;&amp; getCurrentSystemAvgLoad() &gt; highestSystemLoad) {</span><br><span class="line">        <span class="keyword">if</span> (!checkBbr(currentThread)) {</span><br><span class="line">            <span class="keyword">throw</span> <span class="keyword">new</span> SystemBlockException(resourceWrapper.getName(), <span class="string">"load"</span>);</span><br><span class="line">        }</span><br><span class="line">    }</span><br><span class="line"></span><br><span class="line">    <span class="comment">// cpu usage</span></span><br><span class="line">    <span class="keyword">if</span> (highestCpuUsageIsSet &amp;&amp; getCurrentCpuUsage() &gt; highestCpuUsage) {</span><br><span class="line">        <span class="keyword">throw</span> <span class="keyword">new</span> SystemBlockException(resourceWrapper.getName(), <span class="string">"cpu"</span>);</span><br><span class="line">    }</span><br><span class="line">}</span><br><span class="line"><span class="comment">// com.alibaba.csp.sentinel.slots.system.SystemRuleManager#checkBbr</span></span><br><span class="line"><span class="function"><span class="keyword">private</span> <span class="keyword">static</span> <span class="keyword">boolean</span> <span class="title">checkBbr</span><span class="params">(<span class="keyword">int</span> currentThread)</span> </span>{</span><br><span class="line">    <span class="keyword">if</span> (currentThread &gt; <span class="number">1</span> &amp;&amp;</span><br><span class="line">        currentThread &gt; Constants.ENTRY_NODE.maxSuccessQps() * Constants.ENTRY_NODE.minRt() / <span class="number">1000</span>) {</span><br><span class="line">        <span class="keyword">return</span> <span class="keyword">false</span>;</span><br><span class="line">    }</span><br><span class="line">    <span class="keyword">return</span> <span class="keyword">true</span>;</span><br><span class="line">}</span><br></pre></td></tr></tbody></table></figure>
+
+<h4 id="GatewayFlowSlot"><a href="#GatewayFlowSlot" class="headerlink" title="GatewayFlowSlot"></a>GatewayFlowSlot</h4><h4 id="ParamFlowSlot"><a href="#ParamFlowSlot" class="headerlink" title="ParamFlowSlot"></a>ParamFlowSlot</h4><h4 id="FlowSlot"><a href="#FlowSlot" class="headerlink" title="FlowSlot"></a>FlowSlot</h4><h4 id="DegradeSlot"><a href="#DegradeSlot" class="headerlink" title="DegradeSlot"></a>DegradeSlot</h4><h3 id="调用点异常"><a href="#调用点异常" class="headerlink" title="调用点异常"></a>调用点异常</h3><p>当调用点的任务执行过程中出现了异常，我们需要通过 <code>Tracer#trace</code> 记录异常，它本质上就是将异常保存在当前调用点 Entry 中，在保存之前还会对异常的类型进行一些检查（用户可以指定忽略一部分异常），这部分的代码如下。</p>
+<figure class="highlight java"><table><tbody><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// com.alibaba.csp.sentinel.Tracer</span></span><br><span class="line"><span class="function"><span class="keyword">public</span> <span class="keyword">static</span> <span class="keyword">void</span> <span class="title">trace</span><span class="params">(Throwable e)</span> </span>{</span><br><span class="line">    traceContext(e, ContextUtil.getContext());</span><br><span class="line">}</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">public</span> <span class="keyword">static</span> <span class="keyword">void</span> <span class="title">traceContext</span><span class="params">(Throwable e, Context context)</span> </span>{</span><br><span class="line">    <span class="keyword">if</span> (!shouldTrace(e)) {</span><br><span class="line">        <span class="keyword">return</span>;</span><br><span class="line">    }</span><br><span class="line"></span><br><span class="line">    <span class="keyword">if</span> (context == <span class="keyword">null</span> || context <span class="keyword">instanceof</span> NullContext) {</span><br><span class="line">        <span class="keyword">return</span>;</span><br><span class="line">    }</span><br><span class="line">    traceEntryInternal(e, context.getCurEntry());</span><br><span class="line">}</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">protected</span> <span class="keyword">static</span> <span class="keyword">boolean</span> <span class="title">shouldTrace</span><span class="params">(Throwable t)</span> </span>{</span><br><span class="line">    <span class="keyword">if</span> (t == <span class="keyword">null</span> || t <span class="keyword">instanceof</span> BlockException) {</span><br><span class="line">        <span class="keyword">return</span> <span class="keyword">false</span>;</span><br><span class="line">    }</span><br><span class="line">    <span class="comment">// 用户注入的检查器</span></span><br><span class="line">    <span class="keyword">if</span> (exceptionPredicate != <span class="keyword">null</span>) {</span><br><span class="line">        <span class="keyword">return</span> exceptionPredicate.test(t);</span><br><span class="line">    }</span><br><span class="line">    <span class="comment">// 用户添加的黑名单</span></span><br><span class="line">    <span class="keyword">if</span> (ignoreClasses != <span class="keyword">null</span>) {</span><br><span class="line">        <span class="keyword">for</span> (Class&lt;? extends Throwable&gt; clazz : ignoreClasses) {</span><br><span class="line">            <span class="keyword">if</span> (clazz != <span class="keyword">null</span> &amp;&amp; clazz.isAssignableFrom(t.getClass())) {</span><br><span class="line">                <span class="keyword">return</span> <span class="keyword">false</span>;</span><br><span class="line">            }</span><br><span class="line">        }</span><br><span class="line">    }</span><br><span class="line">    <span class="comment">// 用户添加的白名单</span></span><br><span class="line">    <span class="keyword">if</span> (traceClasses != <span class="keyword">null</span>) {</span><br><span class="line">        <span class="keyword">for</span> (Class&lt;? extends Throwable&gt; clazz : traceClasses) {</span><br><span class="line">            <span class="keyword">if</span> (clazz != <span class="keyword">null</span> &amp;&amp; clazz.isAssignableFrom(t.getClass())) {</span><br><span class="line">                <span class="keyword">return</span> <span class="keyword">true</span>;</span><br><span class="line">            }</span><br><span class="line">        }</span><br><span class="line">        <span class="keyword">return</span> <span class="keyword">false</span>;</span><br><span class="line">    }</span><br><span class="line">    <span class="keyword">return</span> <span class="keyword">true</span>;</span><br><span class="line">}</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">private</span> <span class="keyword">static</span> <span class="keyword">void</span> <span class="title">traceEntryInternal</span><span class="params">(<span class="comment">/*@NeedToTrace*/</span> Throwable e, Entry entry)</span> </span>{</span><br><span class="line">    <span class="keyword">if</span> (entry == <span class="keyword">null</span>) {</span><br><span class="line">        <span class="keyword">return</span>;</span><br><span class="line">    }</span><br><span class="line"></span><br><span class="line">    entry.setError(e);</span><br><span class="line">}</span><br></pre></td></tr></tbody></table></figure>
+
+<p>从上面的代码中可以看出 <code>Tracer#trace</code> 先会检查一下是否应该追踪该异常，检查依据是用户添加到 Tracer 中的检查器 <code>exceptionPredicate</code>、黑名单 <code>ignoreClasses</code>、白名单<code>traceClasses</code>，检查通过就将异常保存在当前调用点 Entry 中。而异常的统计工作是在调用 <code>Entry#exit</code> 时才会开始进行，最终在 <code>StatisticSlot</code> 中进行实际的统计工作。</p>
+<h3 id="退出调用点"><a href="#退出调用点" class="headerlink" title="退出调用点"></a>退出调用点</h3><p>退出调用点的处理流程如下：</p>
+<ol>
+<li>检查当前 Context 保存的当前调用点是否和目前正在退出的调用点一致，如果不一致说明退出流程有问题（没有按顺序退出），这里会抛出异常。</li>
+<li>检查通过后，会执行 ProcessorSlotChain 的 exit 函数</li>
+<li>将 Context 中当前调用点变更为正在退出的调用点的父节点，并维护调用点父子关系</li>
+<li>如果已经是最外层的调用点并且 Context 是 default Context 的话，会执行 <code>ContextUtil#exit</code> 函数，将 Context 实例从 ThreadLocal 中清除</li>
+<li>最后将 Context 的引用从已退出的 Entry 实例中清除，防止重复退出</li>
+</ol>
+<figure class="highlight java"><table><tbody><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">@Override</span></span><br><span class="line"><span class="function"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title">exit</span><span class="params">(<span class="keyword">int</span> count, Object... args)</span> <span class="keyword">throws</span> ErrorEntryFreeException </span>{</span><br><span class="line">    trueExit(count, args);</span><br><span class="line">}</span><br><span class="line"></span><br><span class="line"><span class="meta">@Override</span></span><br><span class="line"><span class="function"><span class="keyword">protected</span> Entry <span class="title">trueExit</span><span class="params">(<span class="keyword">int</span> count, Object... args)</span> <span class="keyword">throws</span> ErrorEntryFreeException </span>{</span><br><span class="line">    exitForContext(context, count, args);</span><br><span class="line"></span><br><span class="line">    <span class="keyword">return</span> parent;</span><br><span class="line">}</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">protected</span> <span class="keyword">void</span> <span class="title">exitForContext</span><span class="params">(Context context, <span class="keyword">int</span> count, Object... args)</span> <span class="keyword">throws</span> ErrorEntryFreeException </span>{</span><br><span class="line">    <span class="keyword">if</span> (context != <span class="keyword">null</span>) {</span><br><span class="line">        <span class="comment">// Null context should exit without clean-up.</span></span><br><span class="line">        <span class="keyword">if</span> (context <span class="keyword">instanceof</span> NullContext) {</span><br><span class="line">            <span class="keyword">return</span>;</span><br><span class="line">        }</span><br><span class="line">        <span class="keyword">if</span> (context.getCurEntry() != <span class="keyword">this</span>) {</span><br><span class="line">            String curEntryNameInContext = context.getCurEntry() == <span class="keyword">null</span> ? <span class="keyword">null</span> : context.getCurEntry().getResourceWrapper().getName();</span><br><span class="line">            <span class="comment">// Clean previous call stack.</span></span><br><span class="line">            CtEntry e = (CtEntry)context.getCurEntry();</span><br><span class="line">            <span class="keyword">while</span> (e != <span class="keyword">null</span>) {</span><br><span class="line">                e.exit(count, args);</span><br><span class="line">                e = (CtEntry)e.parent;</span><br><span class="line">            }</span><br><span class="line">            String errorMessage = String.format(<span class="string">"The order of entry exit can't be paired with the order of entry"</span></span><br><span class="line">                + <span class="string">", current entry in context: &lt;%s&gt;, but expected: &lt;%s&gt;"</span>, curEntryNameInContext, resourceWrapper.getName());</span><br><span class="line">            <span class="keyword">throw</span> <span class="keyword">new</span> ErrorEntryFreeException(errorMessage);</span><br><span class="line">        } <span class="keyword">else</span> {</span><br><span class="line">            <span class="keyword">if</span> (chain != <span class="keyword">null</span>) {</span><br><span class="line">                chain.exit(context, resourceWrapper, count, args);</span><br><span class="line">            }</span><br><span class="line">            <span class="comment">// Restore the call stack.</span></span><br><span class="line">            context.setCurEntry(parent);</span><br><span class="line">            <span class="keyword">if</span> (parent != <span class="keyword">null</span>) {</span><br><span class="line">                ((CtEntry)parent).child = <span class="keyword">null</span>;</span><br><span class="line">            }</span><br><span class="line">            <span class="keyword">if</span> (parent == <span class="keyword">null</span>) {</span><br><span class="line">                <span class="comment">// Default context (auto entered) will be exited automatically.</span></span><br><span class="line">                <span class="keyword">if</span> (ContextUtil.isDefaultContext(context)) {</span><br><span class="line">                    ContextUtil.exit();</span><br><span class="line">                }</span><br><span class="line">            }</span><br><span class="line">            <span class="comment">// Clean the reference of context in current entry to avoid duplicate exit.</span></span><br><span class="line">            clearEntryContext();</span><br><span class="line">        }</span><br><span class="line">    }</span><br><span class="line">}</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">protected</span> <span class="keyword">void</span> <span class="title">clearEntryContext</span><span class="params">()</span> </span>{</span><br><span class="line">    <span class="keyword">this</span>.context = <span class="keyword">null</span>;</span><br><span class="line">}</span><br></pre></td></tr></tbody></table></figure>
+
+<h2 id="参考内容"><a href="#参考内容" class="headerlink" title="参考内容"></a>参考内容</h2><p>[1] <span class="exturl" data-url="aHR0cHM6Ly9naXRodWIuY29tL2FsaWJhYmEvU2VudGluZWw=" title="https://github.com/alibaba/Sentinel">Sentinel GitHub 仓库<i class="fa fa-external-link"></i></span><br>[2] <span class="exturl" data-url="aHR0cHM6Ly9naXRodWIuY29tL2FsaWJhYmEvU2VudGluZWwvd2lraQ==" title="https://github.com/alibaba/Sentinel/wiki">Sentinel 官方 Wiki<i class="fa fa-external-link"></i></span><br>[3] <span class="exturl" data-url="aHR0cHM6Ly9naXRodWIuY29tL3NlbnRpbmVsLWdyb3VwL3NlbnRpbmVsLWF3ZXNvbWUvYmxvYi9tYXN0ZXIvc2xpZGVzL1NlbnRpbmVsJTIwMS42LjAlMjAlRTclQkQlOTElRTUlODUlQjMlRTYlQjUlODElRTYlOEUlQTclRTYlOTYlQjAlRTclODklQjklRTYlODAlQTclRTQlQkIlOEIlRTclQkIlOEQtRXJpYyUyMFpoYW8tRFRFRC0yMDE5MDUucGRm" title="https://github.com/sentinel-group/sentinel-awesome/blob/master/slides/Sentinel%201.6.0%20%E7%BD%91%E5%85%B3%E6%B5%81%E6%8E%A7%E6%96%B0%E7%89%B9%E6%80%A7%E4%BB%8B%E7%BB%8D-Eric%20Zhao-DTED-201905.pdf">Sentinel 1.6.0 网关流控新特性介绍<i class="fa fa-external-link"></i></span><br>[4] <span class="exturl" data-url="aHR0cHM6Ly9naXRodWIuY29tL3NlbnRpbmVsLWdyb3VwL3NlbnRpbmVsLWF3ZXNvbWUvYmxvYi9tYXN0ZXIvc2xpZGVzL1NlbnRpbmVsJTIwJUU1JUJFJUFFJUU2JTlDJThEJUU1JThBJUExJUU2JUI1JTgxJUU2JThFJUE3JUU5JTk5JThEJUU3JUJBJUE3JUU1JUFFJTlFJUU4JUI3JUI1LUVyaWMlMjBaaGFvLURURUQtMjAxOTA3LnBkZg==" title="https://github.com/sentinel-group/sentinel-awesome/blob/master/slides/Sentinel%20%E5%BE%AE%E6%9C%8D%E5%8A%A1%E6%B5%81%E6%8E%A7%E9%99%8D%E7%BA%A7%E5%AE%9E%E8%B7%B5-Eric%20Zhao-DTED-201907.pdf">Sentinel 微服务流控降级实践<i class="fa fa-external-link"></i></span><br>[5] <span class="exturl" data-url="aHR0cHM6Ly9naXRodWIuY29tL3NlbnRpbmVsLWdyb3VwL3NlbnRpbmVsLWF3ZXNvbWUvYmxvYi9tYXN0ZXIvc2xpZGVzL1NlbnRpbmVsJTIwMS43LjAlMjAlRTYlOTYlQjAlRTclODklQjklRTYlODAlQTclRTUlQjElOTUlRTYlOUMlOUItRXJpYyUyMFpoYW8tRFRFRC0yMDE5MTAucGRm" title="https://github.com/sentinel-group/sentinel-awesome/blob/master/slides/Sentinel%201.7.0%20%E6%96%B0%E7%89%B9%E6%80%A7%E5%B1%95%E6%9C%9B-Eric%20Zhao-DTED-201910.pdf">Sentinel 1.7.0 新特性展望<i class="fa fa-external-link"></i></span><br>[6] <span class="exturl" data-url="aHR0cDovL2R1YmJvLmFwYWNoZS5vcmcvemgtY24vYmxvZy9zZW50aW5lbC1pbnRyb2R1Y3Rpb24tZm9yLWR1YmJvLmh0bWw=" title="http://dubbo.apache.org/zh-cn/blog/sentinel-introduction-for-dubbo.html">Sentinel 为 Dubbo 服务保驾护航<i class="fa fa-external-link"></i></span><br>[7] <span class="exturl" data-url="aHR0cHM6Ly9naXRodWIuY29tL2FsaWJhYmEvU2VudGluZWwvd2lraS8lRTUlOUMlQTglRTclOTQlOUYlRTQlQkElQTclRTclOEUlQUYlRTUlQTIlODMlRTQlQjglQUQlRTQlQkQlQkYlRTclOTQlQTgtU2VudGluZWw=" title="https://github.com/alibaba/Sentinel/wiki/%E5%9C%A8%E7%94%9F%E4%BA%A7%E7%8E%AF%E5%A2%83%E4%B8%AD%E4%BD%BF%E7%94%A8-Sentinel">在生产环境中使用 Sentinel<i class="fa fa-external-link"></i></span><br>[8] <span class="exturl" data-url="aHR0cHM6Ly9zZW50aW5lbGd1YXJkLmlvL3poLWNuL2Jsb2cvc2VudGluZWwtdnMtaHlzdHJpeC5odG1s" title="https://sentinelguard.io/zh-cn/blog/sentinel-vs-hystrix.html">Sentinel 与 Hystrix 的对比<i class="fa fa-external-link"></i></span><br>[9] <span class="exturl" data-url="aHR0cHM6Ly9tcC53ZWl4aW4ucXEuY29tL3MvZXJncl9zaUkwN1Z3d1NSUEZnc0x2UQ==" title="https://mp.weixin.qq.com/s/ergr_siI07VwwSRPFgsLvQ">大流量下的服务质量治理 Dubbo Sentinel初涉<i class="fa fa-external-link"></i></span><br>[10] <span class="exturl" data-url="aHR0cHM6Ly93d3cuamlhbnNodS5jb20vcC85NmY1OTgwZDk3OTg=" title="https://www.jianshu.com/p/96f5980d9798">Alibaba Sentinel RESTful 接口流控处理优化<i class="fa fa-external-link"></i></span><br>[11] <span class="exturl" data-url="aHR0cHM6Ly93d3cuamF2YWRvb3AuY29tL3Bvc3Qvc2VudGluZWw=" title="https://www.javadoop.com/post/sentinel">阿里 Sentinel 源码解析<i class="fa fa-external-link"></i></span><br>[12] <span class="exturl" data-url="aHR0cHM6Ly9naXRodWIuY29tL2FsbDR5b3Uvc2VudGluZWwtdHV0b3JpYWw=" title="https://github.com/all4you/sentinel-tutorial">Sentinel 教程 by 逅弈<i class="fa fa-external-link"></i></span><br>[13] <span class="exturl" data-url="aHR0cHM6Ly93d3cuamlhbnNodS5jb20vbmIvMzUyMjIzNzg=" title="https://www.jianshu.com/nb/35222378">Sentinel 专题文章 by 一滴水的坚持<i class="fa fa-external-link"></i></span></p>
+
+    </div>
+
+    
+    
+    
+
+      
+        <div id="wechat_subscriber" style="display: block; padding: 10px 0; margin: 20px auto; width: 100%; text-align: center">
+  <img id="wechat_subscriber_qcode" src="/images/qrcode_for_wechat.jpg" alt="贝克街的流浪猫 wechat" style="width: 400px; max-width: 100%;">
+  <div></div>
+</div>
+
+      
+        <div class="reward-container">
+  <div>您的打赏将鼓励我继续分享!</div>
+  <button disable="enable" onclick="var qr = document.getElementById(&quot;qr&quot;); qr.style.display = (qr.style.display === 'none') ? 'block' : 'none';">
+    打赏
+  </button>
+  <div id="qr" style="display: none;">
+      
+      <div style="display: inline-block;">
+        <img src="/images/wechat.jpg" alt="贝克街的流浪猫 微信支付">
+        <p>微信支付</p>
+      </div>
+      
+      <div style="display: inline-block;">
+        <img src="/images/alipay.jpg" alt="贝克街的流浪猫 支付宝">
+        <p>支付宝</p>
+      </div>
+
+  </div>
+</div>
+
+        
+
+<div>
+<ul class="post-copyright">
+  <li class="post-copyright-author">
+    <strong>本文作者： </strong>贝克街的流浪猫
+  </li>
+  <li class="post-copyright-link">
+    <strong>本文链接：</strong>
+    <a href="https://www.beikejiedeliulangmao.top/middleware/sentinel/impl-chain/" title="Sentinel 实现原理——处理链">https://www.beikejiedeliulangmao.top/middleware/sentinel/impl-chain/</a>
+  </li>
+  <li class="post-copyright-license">
+    <strong>版权声明： </strong>本博客所有文章除特别声明外，均采用 <span class="exturl" data-url="aHR0cHM6Ly9jcmVhdGl2ZWNvbW1vbnMub3JnL2xpY2Vuc2VzL2J5LW5jLXNhLzQuMC9udWxs"><i class="fa fa-fw fa-creative-commons"></i>BY-NC-SA</span> 许可协议，转载请注明出处！
+  </li>
+  <li class="post-copyright-license">
+    <strong>创作声明： </strong>本文基于上述所有参考内容进行创作，其中可能涉及复制、修改或者转换，图片均来自网络，如有侵权请联系我，我会第一时间进行删除。
+  </li>
+</ul>
+</div>
+
+
+      <footer class="post-footer">
+          <div class="post-tags">
+              <a href="/tags/Java/" rel="tag"># Java</a>
+              <a href="/tags/Distributed/" rel="tag"># Distributed</a>
+              <a href="/tags/MicroService/" rel="tag"># MicroService</a>
+              <a href="/tags/FlowControl/" rel="tag"># FlowControl</a>
+              <a href="/tags/TrafficShaping/" rel="tag"># TrafficShaping</a>
+              <a href="/tags/CircuitBreaking/" rel="tag"># CircuitBreaking</a>
+              <a href="/tags/Degrade/" rel="tag"># Degrade</a>
+              <a href="/tags/SystemProtection/" rel="tag"># SystemProtection</a>
+              <a href="/tags/TokenBucket/" rel="tag"># TokenBucket</a>
+          </div>
+
+        
+
+          <div class="post-nav">
+            <div class="post-nav-next post-nav-item">
+                <a href="/java/concurrent/juc-introduction/" rel="next" title="Java JUC 简介">
+                  <i class="fa fa-chevron-left"></i> Java JUC 简介
+                </a>
+            </div>
+
+            <span class="post-nav-divider"></span>
+
+            <div class="post-nav-prev post-nav-item">
+                <a href="/middleware/sentinel/impl-context/" rel="prev" title="Sentinel 实现原理——Context">
+                  Sentinel 实现原理——Context <i class="fa fa-chevron-right"></i>
+                </a>
+            </div>
+          </div>
+      </footer>
+    
+  </article>
+  
+  
+  
+
+  </div>
+
+
+          </div>
+          
+    <div class="comments" id="gitalk-container"></div>
+
+        </div>
+          
+  
+  <div class="toggle sidebar-toggle">
+    <span class="toggle-line toggle-line-first"></span>
+    <span class="toggle-line toggle-line-middle"></span>
+    <span class="toggle-line toggle-line-last"></span>
+  </div>
+
+  <aside class="sidebar">
+    <div class="sidebar-inner">
+
+      <ul class="sidebar-nav motion-element">
+        <li class="sidebar-nav-toc">
+          文章目录
+        </li>
+        <li class="sidebar-nav-overview">
+          站点概览
+        </li>
+      </ul>
+
+      <!--noindex-->
+      <div class="post-toc-wrap sidebar-panel">
+          <div class="post-toc motion-element"><ol class="nav"><li class="nav-item nav-level-2"><a class="nav-link" href="#%E5%BC%95%E8%A8%80"><span class="nav-number">1.</span> <span class="nav-text">引言</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E6%BA%90%E7%A0%81%E8%A7%A3%E8%AF%BB"><span class="nav-number">2.</span> <span class="nav-text">源码解读</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#%E8%B5%B7%E7%82%B9"><span class="nav-number">2.1.</span> <span class="nav-text">起点</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E5%A4%84%E7%90%86%E9%93%BE"><span class="nav-number">2.2.</span> <span class="nav-text">处理链</span></a><ol class="nav-child"><li class="nav-item nav-level-4"><a class="nav-link" href="#NodeSelectorSlot"><span class="nav-number">2.2.1.</span> <span class="nav-text">NodeSelectorSlot</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#ClusterBuilderSlot"><span class="nav-number">2.2.2.</span> <span class="nav-text">ClusterBuilderSlot</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#LogSlot"><span class="nav-number">2.2.3.</span> <span class="nav-text">LogSlot</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#StatisticSlot"><span class="nav-number">2.2.4.</span> <span class="nav-text">StatisticSlot</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#AuthoritySlot"><span class="nav-number">2.2.5.</span> <span class="nav-text">AuthoritySlot</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#SystemSlot"><span class="nav-number">2.2.6.</span> <span class="nav-text">SystemSlot</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#GatewayFlowSlot"><span class="nav-number">2.2.7.</span> <span class="nav-text">GatewayFlowSlot</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#ParamFlowSlot"><span class="nav-number">2.2.8.</span> <span class="nav-text">ParamFlowSlot</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#FlowSlot"><span class="nav-number">2.2.9.</span> <span class="nav-text">FlowSlot</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#DegradeSlot"><span class="nav-number">2.2.10.</span> <span class="nav-text">DegradeSlot</span></a></li></ol></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E8%B0%83%E7%94%A8%E7%82%B9%E5%BC%82%E5%B8%B8"><span class="nav-number">2.3.</span> <span class="nav-text">调用点异常</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E9%80%80%E5%87%BA%E8%B0%83%E7%94%A8%E7%82%B9"><span class="nav-number">2.4.</span> <span class="nav-text">退出调用点</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E5%8F%82%E8%80%83%E5%86%85%E5%AE%B9"><span class="nav-number">3.</span> <span class="nav-text">参考内容</span></a></li></ol></div>
+      </div>
+      <!--/noindex-->
+
+      <div class="site-overview-wrap sidebar-panel">
+        <div class="site-author motion-element" itemprop="author" itemscope="" itemtype="http://schema.org/Person">
+    <img class="site-author-image" itemprop="image" alt="贝克街的流浪猫" src="/images/avatar.jpg">
+  <p class="site-author-name" itemprop="name">贝克街的流浪猫</p>
+  <div class="site-description" itemprop="description">贝贝猫</div>
+</div>
+<div class="site-state-wrap motion-element">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+          <a href="/archives/">
+        
+          <span class="site-state-item-count">120</span>
+          <span class="site-state-item-name">日志</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-categories">
+            <a href="/categories/">
+          
+        <span class="site-state-item-count">24</span>
+        <span class="site-state-item-name">分类</span></a>
+      </div>
+      <div class="site-state-item site-state-tags">
+            <a href="/tags/">
+          
+        <span class="site-state-item-count">158</span>
+        <span class="site-state-item-name">标签</span></a>
+      </div>
+  </nav>
+</div>
+  <div class="feed-link motion-element">
+    <a href="/atom.xml" rel="alternate">
+      <i class="fa fa-rss"></i>RSS
+    </a>
+  </div>
+  <div class="links-of-author motion-element">
+      <span class="links-of-author-item">
+        <span class="exturl" data-url="aHR0cHM6Ly9naXRodWIuY29tL0JlaUtlSmllRGVMaXVMYW5nTWFv" title="GitHub → https://github.com/BeiKeJieDeLiuLangMao"><i class="fa fa-fw fa-github"></i></span>
+      </span>
+      <span class="links-of-author-item">
+        <span class="exturl" data-url="aHR0cHM6Ly96aHVhbmxhbi56aGlodS5jb20vY18xMTY3NDI5NTg4NzExMzM3OTg1" title="知乎 → https://zhuanlan.zhihu.com/c_1167429588711337985"><i class="fa fa-fw fa-book"></i></span>
+      </span>
+      <span class="links-of-author-item">
+        <span class="exturl" data-url="bWFpbHRvOjUxNzM3NTY4NUBxcS5jb20=" title="E-Mail → mailto:517375685@qq.com"><i class="fa fa-fw fa-envelope"></i></span>
+      </span>
+      <span class="links-of-author-item">
+        <span class="exturl" data-url="aHR0cHM6Ly9zdGFja292ZXJmbG93LmNvbS91c2Vycy84NzgyOTY0L3lhbmctY2hlbj90YWI9cHJvZmlsZQ==" title="StackOverflow → https://stackoverflow.com/users/8782964/yang-chen?tab=profile"><i class="fa fa-fw fa-stack-overflow"></i></span>
+      </span>
+  </div>
+
+
+
+      </div>
+        <div class="back-to-top motion-element">
+          <i class="fa fa-arrow-up"></i>
+          <span>0%</span>
+        </div>
+
+    </div>
+  </aside>
+  <div id="sidebar-dimmer"></div>
+
+
+      </div>
+    </main>
+
+    <footer class="footer">
+      <div class="footer-inner">
+        
+  <div class="beian"><span class="exturl" data-url="aHR0cDovL3d3dy5iZWlhbi5taWl0Lmdvdi5jbg==">辽ICP备19017854号 </span>
+  </div>
+
+<div class="copyright">
+  
+  © 2019 – 
+  <span itemprop="copyrightYear">2021</span>
+  <span class="with-love">
+    <i class="fa fa-heart"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">贝克街的流浪猫</span>
+    <span class="post-meta-divider">|</span>
+    <span class="post-meta-item-icon">
+      <i class="fa fa-area-chart"></i>
+    </span>
+      <span class="post-meta-item-text">站点总字数：</span>
+    <span title="站点总字数">1.5m</span>
+    <span class="post-meta-divider">|</span>
+    <span class="post-meta-item-icon">
+      <i class="fa fa-coffee"></i>
+    </span>
+      <span class="post-meta-item-text">站点阅读时长 ≈</span>
+    <span title="站点阅读时长">22:36</span>
+</div>
+
+        
+<div class="busuanzi-count">
+  <script async="" src="https://busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js"></script>
+    <span class="post-meta-item" id="busuanzi_container_site_uv" style="display: none;">
+      <span class="post-meta-item-icon">
+        <i class="fa fa-user"></i>
+      </span>
+      <span class="site-uv" title="总访客量">
+        贝贝猫有
+        <span id="busuanzi_value_site_uv"></span>
+        位同学
+      </span>
+    </span>
+    <span class="post-meta-divider">|</span>
+    <span class="post-meta-item" id="busuanzi_container_site_pv" style="display: none;">
+      <span class="post-meta-item-icon">
+        <i class="fa fa-eye"></i>
+      </span>
+      <span class="site-pv" title="总访问量">
+        笔记被翻阅
+        <span id="busuanzi_value_site_pv"></span>
+        次
+      </span>
+    </span>
+</div>
+
+
+
+
+
+
+  
+
+
+
+
+
+
+        
+      </div>
+    </footer>
+  </div>
+
+  
+  
+  <script src="//cdn.jsdelivr.net/npm/medium-zoom@1/dist/medium-zoom.min.js"></script>
+  <script src="//cdn.jsdelivr.net/npm/pangu@4/dist/browser/pangu.min.js"></script>
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+
+
+
+
+  
+
+<script src="//cdn.jsdelivr.net/npm/instantsearch.js@2/dist/instantsearch.min.js"></script>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+  
+  <script src="//cdn.jsdelivr.net/npm/quicklink@1/dist/quicklink.umd.js"></script>
+  
+
+
+
+
+
+
+
+<script type="text/javascript" src="/bundle.js"></script><script type="text/javascript">function leancloudSelector(url) {
+    return document.getElementById(url).querySelector('.leancloud-visitors-count');
+  }
+  if (CONFIG.page.isPost) {
+    function addCount(Counter) {
+      var visitors = document.querySelector('.leancloud_visitors');
+      var url = visitors.getAttribute('id').trim();
+      var title = visitors.getAttribute('data-flag-title').trim();
+
+      Counter('get', `/classes/Counter?where=${JSON.stringify({ url })}`)
+        .then(response => response.json())
+        .then(({ results }) => {
+          if (results.length > 0) {
+            var counter = results[0];
+              leancloudSelector(url).innerText = counter.time + 1;
+            Counter('put', '/classes/Counter/' + counter.objectId, { time: { '__op': 'Increment', 'amount': 1 } })
+              .then(response => response.json())
+              .catch(error => {
+                console.log('Failed to save visitor count', error);
+              })
+          } else {
+              leancloudSelector(url).innerText = 'Counter not initialized! More info at console err msg.';
+              console.error('ATTENTION! LeanCloud counter has security bug, see how to solve it here: https://github.com/theme-next/hexo-leancloud-counter-security. \n However, you can still use LeanCloud without security, by setting `security` option to `false`.');
+            
+          }
+        })
+        .catch(error => {
+          console.log('LeanCloud Counter Error', error);
+        });
+    }
+  } else {
+    function showTime(Counter) {
+      var visitors = document.querySelectorAll('.leancloud_visitors');
+      var entries = [...visitors].map(element => {
+        return element.getAttribute('id').trim();
+      });
+
+      Counter('get', `/classes/Counter?where=${JSON.stringify({ url: { '$in': entries } })}`)
+        .then(response => response.json())
+        .then(({ results }) => {
+          if (results.length === 0) {
+            document.querySelectorAll('.leancloud_visitors .leancloud-visitors-count').forEach(element => {
+              element.innerText = 0;
+            });
+            return;
+          }
+          for (var i = 0; i < results.length; i++) {
+            var item = results[i];
+            var url = item.url;
+            var time = item.time;
+            leancloudSelector(url).innerText = time;
+          }
+          for (var i = 0; i < entries.length; i++) {
+            var url = entries[i];
+            var element = leancloudSelector(url);
+            if (element.innerText == '') {
+              element.innerText = 0;
+            }
+          }
+        })
+        .catch(error => {
+          console.log('LeanCloud Counter Error', error);
+        });
+    }
+  }
+
+  fetch('https://app-router.leancloud.cn/2/route?appId=gmT3IkYtHVMymcwAjbwHhtiv-gzGzoHsz')
+    .then(response => response.json())
+    .then(({ api_server }) => {
+      var Counter = (method, url, data) => {
+        return fetch(`https://${api_server}/1.1${url}`, {
+          method: method,
+          headers: {
+            'X-LC-Id': 'gmT3IkYtHVMymcwAjbwHhtiv-gzGzoHsz',
+            'X-LC-Key': 'co6tpmcyS9za2D1uqQyMFtnN',
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(data)
+        });
+      };
+      if (CONFIG.page.isPost) {
+        const localhost = /http:\/\/(localhost|127.0.0.1|0.0.0.0)/;
+        if (localhost.test(document.URL)) return;
+        addCount(Counter);
+      } else if (document.querySelectorAll('.post-title-link').length >= 1) {
+        showTime(Counter);
+      }
+    });;(function(){
+      var bp = document.createElement('script');
+      var curProtocol = window.location.protocol.split(':')[0];
+      bp.src = (curProtocol === 'https') ? 'https://zz.bdstatic.com/linksubmit/push.js' : 'http://push.zhanzhang.baidu.com/push.js';
+      var s = document.getElementsByTagName("script")[0];
+      s.parentNode.insertBefore(bp, s);
+    })();;if (document.querySelectorAll('pre.mermaid').length) {
+  NexT.utils.getScript('//cdn.jsdelivr.net/npm/mermaid@8/dist/mermaid.min.js', () => {
+    mermaid.initialize({
+      theme: 'forest',
+      logLevel: 3,
+      flowchart: { curve: 'linear' },
+      gantt: { axisFormat: '%m/%d/%Y' },
+      sequence: { actorMargin: 50 }
+    });
+  }, window.mermaid);
+};window.addEventListener('load', () => {
+      quicklink({
+        timeout: 3000,
+        priority: true,
+        ignores: [uri => uri.includes('#'),uri => uri == 'https://www.beikejiedeliulangmao.top/middleware/sentinel/impl-chain/',]
+      });
+      });;NexT.utils.getScript('//cdn.jsdelivr.net/npm/gitalk@1/dist/gitalk.min.js', () => {
+    var gitalk = new Gitalk({
+      clientID: '6201d1cc2825a93aa161',
+      clientSecret: '71c60f650595a3eedba64b844f811b90acac3798',
+      repo: 'HexoBlogComment',
+      owner: 'BeiKeJieDeLiuLangMao',
+      admin: ['BeiKeJieDeLiuLangMao'],
+      id: '141fe06a4e599b54af645b61f690a522',
+        language: 'zh-CN',
+      distractionFreeMode: 'true'
+    });
+    gitalk.render('gitalk-container');
+  }, window.Gitalk);;window.imageLazyLoadSetting = {
+                isSPA: false,
+                processImages: null,
+            };;window.addEventListener("load",function(){var t=/\.(gif|jpg|jpeg|tiff|png)$/i,r=/^data:image\/[a-z]+;base64,/;Array.prototype.slice.call(document.querySelectorAll("img[data-original]")).forEach(function(a){var e=a.parentNode;"A"===e.tagName&&(e.href.match(t)||e.href.match(r))&&(e.href=a.dataset.original)})});;!function(n){n.imageLazyLoadSetting.processImages=o;var i=n.imageLazyLoadSetting.isSPA,l=Array.prototype.slice.call(document.querySelectorAll("img[data-original]"));function o(){i&&(l=Array.prototype.slice.call(document.querySelectorAll("img[data-original]")));for(var r=0;r<l.length;r++)t=l[r],void 0,0<=(e=t.getBoundingClientRect()).bottom&&0<=e.left&&e.top<=(n.innerHeight||document.documentElement.clientHeight)&&function(t){var e,n,i,o,a=l[r];e=a,n=function(){l=l.filter(function(t){return a!==t})},i=new Image,o=e.getAttribute("data-original"),i.onload=function(){e.src=o,n&&n()},i.src=o}();var t,e}o(),n.addEventListener("scroll",function(){var t,e;t=o,e=n,clearTimeout(t.tId),t.tId=setTimeout(function(){t.call(e)},500)})}(this);</script></body></html>

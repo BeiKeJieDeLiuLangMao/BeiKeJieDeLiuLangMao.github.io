@@ -1,0 +1,3803 @@
+<!DOCTYPE html><html lang="zh-CN"><head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 5.1.1">
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/avatar.jpg">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/avatar.jpg">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/avatar.jpg">
+  <link rel="mask-icon" href="/images/avatar.jpg" color="#222">
+  <link rel="alternate" href="/atom.xml" title="贝克街的流浪猫" type="application/atom+xml">
+  <meta http-equiv="Cache-Control" content="no-transform">
+  <meta http-equiv="Cache-Control" content="no-siteapp">
+  <meta name="google-site-verification" content="PB8pKbwvyCztAdFAxM1AdLMfqXY7wDk6xWZIy3BYn0M">
+  <meta name="baidu-site-verification" content="lHxDkbImj8">
+
+
+
+
+
+  
+  
+
+
+<script id="hexo-configurations">
+  var NexT = window.NexT || {};
+  var CONFIG = {
+    root: '/',
+    scheme: 'Gemini',
+    version: '7.5.0',
+    exturl: true,
+    sidebar: {"position":"left","display":"post","offset":12,"onmobile":false},
+    copycode: {"enable":true,"show_result":true,"style":null},
+    back2top: {"enable":true,"sidebar":true,"scrollpercent":true},
+    bookmark: {"enable":false,"color":"#222","save":"auto"},
+    fancybox: false,
+    mediumzoom: true,
+    lazyload: false,
+    pangu: true,
+    algolia: {
+      appID: 'XKULKGLQCN',
+      apiKey: '59d463bff59108a7719f93aa31f249f3',
+      indexName: 'Hexo Blog',
+      hits: {"per_page":10},
+      labels: {"input_placeholder":"文章查询","hits_empty":"很抱歉，贝贝猫没有发表关于 \"${query}\" 的文章","hits_stats":"找到了 ${hits} 篇文章，耗时 ${time} 毫秒"}
+    },
+    localsearch: {"enable":false,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false},
+    path: '',
+    motion: {"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},
+    sidebarPadding: 40
+  };
+</script>
+
+  <meta name="description" content="引言前文中，我们已经介绍 Dubbo SPI 和 Java SPI 的区别以及一些增强，本文我们着重介绍 Dubbo SPI 的实现方式，其他 Dubbo 相关文章均收录于 <Dubbo系列文章>。">
+<meta property="og:type" content="article">
+<meta property="og:title" content="Dubbo SPI 实现">
+<meta property="og:url" content="https://www.beikejiedeliulangmao.top/middleware/dubbo/spi-impl/index.html">
+<meta property="og:site_name" content="贝克街的流浪猫">
+<meta property="og:description" content="引言前文中，我们已经介绍 Dubbo SPI 和 Java SPI 的区别以及一些增强，本文我们着重介绍 Dubbo SPI 的实现方式，其他 Dubbo 相关文章均收录于 <Dubbo系列文章>。">
+<meta property="og:locale" content="zh_CN">
+<meta property="article:published_time" content="2019-08-20T08:26:56.000Z">
+<meta property="article:modified_time" content="2020-09-07T05:58:49.054Z">
+<meta property="article:author" content="贝克街的流浪猫">
+<meta property="article:tag" content="Java">
+<meta property="article:tag" content="MicroService">
+<meta property="article:tag" content="RPC">
+<meta property="article:tag" content="Dubbo">
+<meta property="article:tag" content="SPI">
+<meta name="twitter:card" content="summary">
+
+<link rel="canonical" href="https://www.beikejiedeliulangmao.top/middleware/dubbo/spi-impl/">
+
+
+<script id="page-configurations">
+  // https://hexo.io/docs/variables.html
+  CONFIG.page = {
+    sidebar: "",
+    isHome: false,
+    isPost: true,
+    isPage: false,
+    isArchive: false
+  };
+</script>
+
+  <title>Dubbo SPI 实现 | 贝克街的流浪猫</title>
+  
+    <script>
+      function sendPageView() {
+        var host = window.location.hostname;
+        if (host == "localhost" && true) return;
+        var uid = localStorage.getItem('uid') || (Math.random() + '.' + Math.random());
+        localStorage.setItem('uid', uid);
+        navigator.sendBeacon('https://www.google-analytics.com/collect', new URLSearchParams({
+          v  : 1,
+          tid: 'UA-146830566-1',
+          cid: uid,
+          t  : 'pageview',
+          dp : encodeURIComponent(location.pathname)
+        }));
+      }
+      document.addEventListener('pjax:complete', sendPageView);
+      sendPageView();
+    </script>
+
+
+  <script>
+    var _hmt = _hmt || [];
+    (function() {
+      var hm = document.createElement("script");
+      hm.src = "https://hm.baidu.com/hm.js?818a8e6061ff2bd0b5531a739f216601";
+      var s = document.getElementsByTagName("script")[0];
+      s.parentNode.insertBefore(hm, s);
+    })();
+  </script>
+
+
+
+
+  <style>body {
+  background-image: url("https://www.beikejiedeliulangmao.top/images/background.jpeg") !important;
+  background-attachment: fixed !important;
+  background-repeat: no-repeat !important;
+  background-size: 100% 100% !important;
+}
+.bg_content {
+  position: fixed;
+  top: 0;
+  z-index: -1;
+  width: 100%;
+  height: 100%;
+}
+.copyright {
+  color: #000;
+}
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+  background-color: #fff;
+}
+::-webkit-scrollbar-button {
+  width: 0;
+  height: 0;
+}
+::-webkit-scrollbar-button:start:increment,
+::-webkit-scrollbar-button:end:decrement {
+  display: none;
+}
+::-webkit-scrollbar-corner {
+  display: block;
+}
+::-webkit-scrollbar-thumb {
+  border-radius: 6px;
+  background-color: rgba(0,0,0,0.4);
+}
+::-webkit-scrollbar-thumb:hover {
+  border-radius: 6px;
+  background-color: rgba(0,0,0,0.6);
+}
+::-webkit-scrollbar-track,
+::-webkit-scrollbar-thumb {
+  border-right: 1px solid transparent;
+  border-left: 1px solid transparent;
+}
+::-webkit-scrollbar-button:start {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-button:end {
+  width: 6px;
+  height: 6px;
+}
+html {
+  line-height: 1.15; 
+  -webkit-text-size-adjust: 100%; 
+}
+body {
+  margin: 0;
+}
+main {
+  display: block;
+}
+h1 {
+  font-size: 2em;
+  margin: 0.67em 0;
+}
+hr {
+  box-sizing: content-box; 
+  height: 0; 
+  overflow: visible; 
+}
+pre {
+  font-family: monospace, monospace; 
+  font-size: 1em; 
+}
+a {
+  background: transparent;
+}
+abbr[title] {
+  border-bottom: none; 
+  text-decoration: underline; 
+  text-decoration: underline dotted; 
+}
+b,
+strong {
+  font-weight: bolder;
+}
+code,
+kbd,
+samp {
+  font-family: monospace, monospace; 
+  font-size: 1em; 
+}
+small {
+  font-size: 80%;
+}
+sub,
+sup {
+  font-size: 75%;
+  line-height: 0;
+  position: relative;
+  vertical-align: baseline;
+}
+sub {
+  bottom: -0.25em;
+}
+sup {
+  top: -0.5em;
+}
+img {
+  border-style: none;
+}
+button,
+input,
+optgroup,
+select,
+textarea {
+  font-family: inherit; 
+  font-size: 100%; 
+  line-height: 1.15; 
+  margin: 0; 
+}
+button,
+input {
+
+  overflow: visible;
+}
+button,
+select {
+
+  text-transform: none;
+}
+button,
+[type='button'],
+[type='reset'],
+[type='submit'] {
+  -webkit-appearance: button;
+}
+button::-moz-focus-inner,
+[type='button']::-moz-focus-inner,
+[type='reset']::-moz-focus-inner,
+[type='submit']::-moz-focus-inner {
+  border-style: none;
+  padding: 0;
+}
+button:-moz-focusring,
+[type='button']:-moz-focusring,
+[type='reset']:-moz-focusring,
+[type='submit']:-moz-focusring {
+  outline: 1px dotted ButtonText;
+}
+fieldset {
+  padding: 0.35em 0.75em 0.625em;
+}
+legend {
+  box-sizing: border-box; 
+  color: inherit; 
+  display: table; 
+  max-width: 100%; 
+  padding: 0; 
+  white-space: normal; 
+}
+progress {
+  vertical-align: baseline;
+}
+textarea {
+  overflow: auto;
+}
+[type='checkbox'],
+[type='radio'] {
+  box-sizing: border-box; 
+  padding: 0; 
+}
+[type='number']::-webkit-inner-spin-button,
+[type='number']::-webkit-outer-spin-button {
+  height: auto;
+}
+[type='search'] {
+  outline-offset: -2px; 
+  -webkit-appearance: textfield; 
+}
+[type='search']::-webkit-search-decoration {
+  -webkit-appearance: none;
+}
+::-webkit-file-upload-button {
+  font: inherit; 
+  -webkit-appearance: button; 
+}
+details {
+  display: block;
+}
+summary {
+  display: list-item;
+}
+template {
+  display: none;
+}
+[hidden] {
+  display: none;
+}
+::selection {
+  background: #262a30;
+  color: #fff;
+}
+html,
+body {
+  height: 100%;
+}
+body {
+  background: #eee;
+  color: #555;
+  font-family: 'Monda', "PingFang SC", "Microsoft YaHei", sans-serif;
+  font-size: 1em;
+  line-height: 2;
+}
+@media (max-width: 991px) {
+  body {
+    padding-left: 0 !important;
+    padding-right: 0 !important;
+  }
+}
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+  font-family: 'Roboto Slab', 'Monda', "PingFang SC", "Microsoft YaHei", sans-serif;
+  font-weight: bold;
+  line-height: 1.5;
+  margin: 20px 0 15px;
+  padding: 0;
+}
+h1 {
+  font-size: 1.5em;
+}
+h2 {
+  font-size: 1.375em;
+}
+h3 {
+  font-size: 1.25em;
+}
+h4 {
+  font-size: 1.125em;
+}
+h5 {
+  font-size: 1em;
+}
+h6 {
+  font-size: 0.875em;
+}
+p {
+  margin: 0 0 20px 0;
+}
+a,
+span.exturl {
+  border-bottom: 1px solid #999;
+  color: #555;
+  outline: 0;
+  text-decoration: none;
+  overflow-wrap: break-word;
+  word-wrap: break-word;
+  cursor: pointer;
+}
+a:hover,
+span.exturl:hover {
+  border-bottom-color: #222;
+  color: #222;
+}
+iframe,
+img,
+video {
+  display: block;
+  margin-left: auto;
+  margin-right: auto;
+  max-width: 100%;
+}
+hr {
+  background-color: #ddd;
+  background-image: repeating-linear-gradient(-45deg, #fff, #fff 4px, transparent 4px, transparent 8px);
+  border: 0;
+  height: 3px;
+  margin: 40px 0;
+}
+blockquote {
+  border-left: 4px solid #ddd;
+  color: #666;
+  margin: 0;
+  padding: 0 15px;
+}
+blockquote cite::before {
+  content: '-';
+  padding: 0 5px;
+}
+dt {
+  font-weight: 700;
+}
+dd {
+  margin: 0;
+  padding: 0;
+}
+kbd {
+  background-color: #f5f5f5;
+  background-image: linear-gradient(#eee, #fff, #eee);
+  border: 1px solid #ccc;
+  border-radius: 0.2em;
+  box-shadow: 0.1em 0.1em 0.2em rgba(0,0,0,0.1);
+  font-family: inherit;
+  padding: 0.1em 0.3em;
+  white-space: nowrap;
+}
+.table-container {
+  -webkit-overflow-scrolling: touch;
+  overflow: auto;
+}
+table {
+  border-collapse: collapse;
+  border-spacing: 0;
+  font-size: 0.875em;
+  margin: 0 0 20px 0;
+  width: 100%;
+}
+tbody tr:nth-of-type(odd) {
+  background: #f9f9f9;
+}
+tbody tr:hover {
+  background: #f5f5f5;
+}
+caption,
+th,
+td {
+  font-weight: normal;
+  padding: 8px;
+  text-align: left;
+  vertical-align: middle;
+}
+th,
+td {
+  border: 1px solid #ddd;
+  border-bottom: 3px solid #ddd;
+}
+th {
+  font-weight: 700;
+  padding-bottom: 10px;
+}
+td {
+  border-bottom-width: 1px;
+}
+.btn {
+  background: #fff;
+  border: 2px solid #555;
+  border-radius: 2px;
+  color: #555;
+  display: inline-block;
+  font-size: 0.875em;
+  line-height: 2;
+  padding: 0 20px;
+  text-decoration: none;
+  transition-property: background-color;
+  transition-delay: 0s;
+  transition-duration: 0.2s;
+  transition-timing-function: ease-in-out;
+}
+.btn:hover {
+  background: #222;
+  border-color: #222;
+  color: #fff;
+}
+.btn + .btn {
+  margin: 0 0 8px 8px;
+}
+.btn .fa-fw {
+  text-align: left;
+  width: 1.285714285714286em;
+}
+.toggle {
+  line-height: 0;
+}
+.toggle .toggle-line {
+  background: #fff;
+  display: inline-block;
+  height: 2px;
+  left: 0;
+  position: relative;
+  top: 0;
+  transition: all 0.4s;
+  vertical-align: top;
+  width: 100%;
+}
+.toggle .toggle-line:not(:first-child) {
+  margin-top: 3px;
+}
+.toggle.toggle-arrow .toggle-line-first {
+  left: 50%;
+  top: 2px;
+  transform: rotate(45deg);
+  width: 50%;
+}
+.toggle.toggle-arrow .toggle-line-middle {
+  left: 2px;
+  width: 90%;
+}
+.toggle.toggle-arrow .toggle-line-last {
+  left: 50%;
+  top: -2px;
+  transform: rotate(-45deg);
+  width: 50%;
+}
+.toggle.toggle-close .toggle-line-first {
+  transform: rotate(-45deg);
+  top: 5px;
+}
+.toggle.toggle-close .toggle-line-middle {
+  opacity: 0;
+}
+.toggle.toggle-close .toggle-line-last {
+  transform: rotate(45deg);
+  top: -5px;
+}
+.highlight-container {
+  position: relative;
+}
+.highlight-container:hover .copy-btn,
+.highlight-container .copy-btn:focus {
+  opacity: 1;
+}
+.copy-btn {
+  color: #333;
+  cursor: pointer;
+  display: inline-block;
+  font-weight: 700;
+  line-height: 1.6;
+  opacity: 0;
+  outline: 0;
+  padding: 2px 6px;
+  position: absolute;
+  transition: opacity 0.3s ease-in-out;
+  vertical-align: middle;
+  white-space: nowrap;
+  -moz-user-select: none;
+  -ms-user-select: none;
+  -webkit-user-select: none;
+  user-select: none;
+  background-color: #eee;
+  background-image: linear-gradient(#fcfcfc, #eee);
+  border: 1px solid #d5d5d5;
+  border-radius: 3px;
+  font-size: 0.8125em;
+  right: 4px;
+  top: 8px;
+}
+.highlight,
+pre {
+  background: #f7f7f7;
+  color: #4d4d4c;
+  line-height: 1.6;
+  margin: 0 auto 20px;
+}
+pre,
+code {
+  font-family: 'PT Mono', consolas, Menlo, monospace, "PingFang SC", "Microsoft YaHei";
+}
+code {
+  background: #eee;
+  border-radius: 3px;
+  color: #555;
+  padding: 2px 4px;
+  overflow-wrap: break-word;
+  word-wrap: break-word;
+}
+.highlight *::selection {
+  background: #d6d6d6;
+}
+.highlight pre {
+  border: 0;
+  margin: 0;
+  padding: 0;
+}
+.highlight table {
+  border: 0;
+  margin: 0;
+  width: auto;
+}
+.highlight tr:first-child pre {
+  padding-top: 10px;
+}
+.highlight tr:last-child pre {
+  padding-bottom: 10px;
+}
+.highlight td {
+  border: 0;
+  padding: 0;
+}
+.highlight figcaption {
+  background: #eee;
+  color: #4d4d4c;
+  font-size: 0.875em;
+  line-height: 1.2;
+  padding: 0.5em;
+}
+.highlight figcaption::before,
+.highlight figcaption::after {
+  content: ' ';
+  display: table;
+}
+.highlight figcaption::after {
+  clear: both;
+}
+.highlight figcaption a {
+  color: #4d4d4c;
+  float: right;
+}
+.highlight figcaption a:hover {
+  border-bottom-color: #4d4d4c;
+}
+.highlight .gutter pre {
+  background: #eff2f3;
+  color: #869194;
+  padding-left: 10px;
+  padding-right: 10px;
+  text-align: right;
+  -moz-user-select: none;
+  -ms-user-select: none;
+  -webkit-user-select: none;
+  user-select: none;
+}
+.highlight .code pre {
+  background: #f7f7f7;
+  padding-left: 10px;
+  width: 100%;
+}
+.gist table {
+  width: auto;
+}
+.gist table td {
+  border: 0;
+}
+pre {
+  overflow: auto;
+  padding: 10px;
+}
+pre code {
+  background: none;
+  color: #4d4d4c;
+  font-size: 0.875em;
+  padding: 0;
+  text-shadow: none;
+}
+pre .deletion {
+  background: #fdd;
+}
+pre .addition {
+  background: #dfd;
+}
+pre .meta {
+  color: #eab700;
+  -moz-user-select: none;
+  -ms-user-select: none;
+  -webkit-user-select: none;
+  user-select: none;
+}
+pre .comment {
+  color: #8e908c;
+}
+pre .variable,
+pre .attribute,
+pre .tag,
+pre .name,
+pre .regexp,
+pre .ruby .constant,
+pre .xml .tag .title,
+pre .xml .pi,
+pre .xml .doctype,
+pre .html .doctype,
+pre .css .id,
+pre .css .class,
+pre .css .pseudo {
+  color: #c82829;
+}
+pre .number,
+pre .preprocessor,
+pre .built_in,
+pre .builtin-name,
+pre .literal,
+pre .params,
+pre .constant,
+pre .command {
+  color: #f5871f;
+}
+pre .ruby .class .title,
+pre .css .rules .attribute,
+pre .string,
+pre .symbol,
+pre .value,
+pre .inheritance,
+pre .header,
+pre .ruby .symbol,
+pre .xml .cdata,
+pre .special,
+pre .formula {
+  color: #718c00;
+}
+pre .title,
+pre .css .hexcolor {
+  color: #3e999f;
+}
+pre .function,
+pre .python .decorator,
+pre .python .title,
+pre .ruby .function .title,
+pre .ruby .title .keyword,
+pre .perl .sub,
+pre .javascript .title,
+pre .coffeescript .title {
+  color: #4271ae;
+}
+pre .keyword,
+pre .javascript .function {
+  color: #8959a8;
+}
+.blockquote-center {
+  border-left: none;
+  margin: 40px 0;
+  padding: 0;
+  position: relative;
+  text-align: center;
+}
+.blockquote-center::before,
+.blockquote-center::after {
+  background-repeat: no-repeat;
+  background-size: 22px 22px;
+  content: ' ';
+  display: block;
+  height: 24px;
+  opacity: 0.2;
+  position: absolute;
+  width: 100%;
+}
+.blockquote-center::before {
+  background-image: url("../images/quote-l.svg");
+  background-position: 0 -6px;
+  border-top: 1px solid #ccc;
+  top: -20px;
+}
+.blockquote-center::after {
+  background-image: url("../images/quote-r.svg");
+  background-position: 100% 8px;
+  border-bottom: 1px solid #ccc;
+  bottom: -20px;
+}
+.blockquote-center p,
+.blockquote-center div {
+  text-align: center;
+}
+.post-body .group-picture img {
+  border: 0;
+  margin: 0 auto;
+  padding: 0 3px;
+}
+.group-picture-row {
+  margin-bottom: 6px;
+  overflow: hidden;
+}
+.group-picture-column {
+  float: left;
+  margin-bottom: 10px;
+}
+.post-body .label {
+  display: inline;
+  padding: 0 2px;
+}
+.post-body .label.default {
+  background: #f0f0f0;
+}
+.post-body .label.primary {
+  background: #efe6f7;
+}
+.post-body .label.info {
+  background: #e5f2f8;
+}
+.post-body .label.success {
+  background: #e7f4e9;
+}
+.post-body .label.warning {
+  background: #fcf6e1;
+}
+.post-body .label.danger {
+  background: #fae8eb;
+}
+.post-body .tabs {
+  margin-bottom: 20px;
+}
+.post-body .tabs,
+.tabs-comment {
+  display: block;
+  padding-top: 10px;
+  position: relative;
+}
+.post-body .tabs ul.nav-tabs,
+.tabs-comment ul.nav-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  margin: 0;
+  margin-bottom: -1px;
+  padding: 0;
+}
+@media (max-width: 413px) {
+  .post-body .tabs ul.nav-tabs,
+  .tabs-comment ul.nav-tabs {
+    display: block;
+    margin-bottom: 5px;
+  }
+}
+.post-body .tabs ul.nav-tabs li.tab,
+.tabs-comment ul.nav-tabs li.tab {
+  background: #fff;
+  border-bottom: 1px solid #ddd;
+  border-left: 1px solid transparent;
+  border-right: 1px solid transparent;
+  border-top: 3px solid transparent;
+  flex-grow: 1;
+  list-style-type: none;
+}
+@media (max-width: 413px) {
+  .post-body .tabs ul.nav-tabs li.tab,
+  .tabs-comment ul.nav-tabs li.tab {
+    border-bottom: 1px solid transparent;
+    border-left: 3px solid transparent;
+    border-right: 1px solid transparent;
+    border-top: 1px solid transparent;
+  }
+}
+.post-body .tabs ul.nav-tabs li.tab a,
+.tabs-comment ul.nav-tabs li.tab a {
+  border-bottom: initial;
+  display: block;
+  line-height: 1.8;
+  outline: 0;
+  padding: 0.25em 0.75em;
+  text-align: center;
+  transition-delay: 0s;
+  transition-duration: 0.2s;
+  transition-timing-function: ease-out;
+}
+.post-body .tabs ul.nav-tabs li.tab a i,
+.tabs-comment ul.nav-tabs li.tab a i {
+  width: 1.285714285714286em;
+}
+.post-body .tabs ul.nav-tabs li.tab.active,
+.tabs-comment ul.nav-tabs li.tab.active {
+  border-bottom: 1px solid transparent;
+  border-left: 1px solid #ddd;
+  border-right: 1px solid #ddd;
+  border-top: 3px solid #fc6423;
+}
+@media (max-width: 413px) {
+  .post-body .tabs ul.nav-tabs li.tab.active,
+  .tabs-comment ul.nav-tabs li.tab.active {
+    border-bottom: 1px solid #ddd;
+    border-left: 3px solid #fc6423;
+    border-right: 1px solid #ddd;
+    border-top: 1px solid #ddd;
+  }
+}
+.post-body .tabs ul.nav-tabs li.tab.active a,
+.tabs-comment ul.nav-tabs li.tab.active a {
+  color: #555;
+  cursor: default;
+}
+.post-body .tabs .tab-content .tab-pane,
+.tabs-comment .tab-content .tab-pane {
+  border: 1px solid #ddd;
+  padding: 20px 20px 0 20px;
+}
+.post-body .tabs .tab-content .tab-pane:not(.active),
+.tabs-comment .tab-content .tab-pane:not(.active) {
+  display: none;
+}
+.post-body .tabs .tab-content .tab-pane.active,
+.tabs-comment .tab-content .tab-pane.active {
+  display: block;
+}
+.post-body .note {
+  margin-bottom: 20px;
+  padding: 15px;
+  position: relative;
+  border: 1px solid #eee;
+  border-left-width: 5px;
+  border-radius: 3px;
+}
+.post-body .note h2,
+.post-body .note h3,
+.post-body .note h4,
+.post-body .note h5,
+.post-body .note h6 {
+  margin-top: 0;
+  border-bottom: initial;
+  margin-bottom: 0;
+  padding-top: 0;
+}
+.post-body .note p:first-child,
+.post-body .note ul:first-child,
+.post-body .note ol:first-child,
+.post-body .note table:first-child,
+.post-body .note pre:first-child,
+.post-body .note blockquote:first-child,
+.post-body .note img:first-child {
+  margin-top: 0;
+}
+.post-body .note p:last-child,
+.post-body .note ul:last-child,
+.post-body .note ol:last-child,
+.post-body .note table:last-child,
+.post-body .note pre:last-child,
+.post-body .note blockquote:last-child,
+.post-body .note img:last-child {
+  margin-bottom: 0;
+}
+.post-body .note.default {
+  border-left-color: #777;
+}
+.post-body .note.default h2,
+.post-body .note.default h3,
+.post-body .note.default h4,
+.post-body .note.default h5,
+.post-body .note.default h6 {
+  color: #777;
+}
+.post-body .note.primary {
+  border-left-color: #6f42c1;
+}
+.post-body .note.primary h2,
+.post-body .note.primary h3,
+.post-body .note.primary h4,
+.post-body .note.primary h5,
+.post-body .note.primary h6 {
+  color: #6f42c1;
+}
+.post-body .note.info {
+  border-left-color: #428bca;
+}
+.post-body .note.info h2,
+.post-body .note.info h3,
+.post-body .note.info h4,
+.post-body .note.info h5,
+.post-body .note.info h6 {
+  color: #428bca;
+}
+.post-body .note.success {
+  border-left-color: #5cb85c;
+}
+.post-body .note.success h2,
+.post-body .note.success h3,
+.post-body .note.success h4,
+.post-body .note.success h5,
+.post-body .note.success h6 {
+  color: #5cb85c;
+}
+.post-body .note.warning {
+  border-left-color: #f0ad4e;
+}
+.post-body .note.warning h2,
+.post-body .note.warning h3,
+.post-body .note.warning h4,
+.post-body .note.warning h5,
+.post-body .note.warning h6 {
+  color: #f0ad4e;
+}
+.post-body .note.danger {
+  border-left-color: #d9534f;
+}
+.post-body .note.danger h2,
+.post-body .note.danger h3,
+.post-body .note.danger h4,
+.post-body .note.danger h5,
+.post-body .note.danger h6 {
+  color: #d9534f;
+}
+.pagination .prev,
+.pagination .next,
+.pagination .page-number,
+.pagination .space {
+  display: inline-block;
+  margin: 0 10px;
+  padding: 0 11px;
+  position: relative;
+  top: -1px;
+}
+@media (max-width: 767px) {
+  .pagination .prev,
+  .pagination .next,
+  .pagination .page-number,
+  .pagination .space {
+    margin: 0 5px;
+  }
+}
+.pagination {
+  border-top: 1px solid #eee;
+  margin: 120px 0 0;
+  text-align: center;
+}
+.pagination .prev,
+.pagination .next,
+.pagination .page-number {
+  border-bottom: 0;
+  border-top: 1px solid #eee;
+  transition-property: border-color;
+  transition-delay: 0s;
+  transition-duration: 0.2s;
+  transition-timing-function: ease-in-out;
+}
+.pagination .prev:hover,
+.pagination .next:hover,
+.pagination .page-number:hover {
+  border-top-color: #222;
+}
+.pagination .space {
+  margin: 0;
+  padding: 0;
+}
+.pagination .prev {
+  margin-left: 0;
+}
+.pagination .next {
+  margin-right: 0;
+}
+.pagination .page-number.current,
+.algolia-pagination .current .page-number {
+  background: #ccc;
+  border-top-color: #ccc;
+  color: #fff;
+}
+@media (max-width: 767px) {
+  .pagination {
+    border-top: none;
+  }
+  .pagination .prev,
+  .pagination .next,
+  .pagination .page-number {
+    border-bottom: 1px solid #eee;
+    border-top: 0;
+    margin-bottom: 10px;
+    padding: 0 10px;
+  }
+  .pagination .prev:hover,
+  .pagination .next:hover,
+  .pagination .page-number:hover {
+    border-bottom-color: #222;
+  }
+}
+.comments {
+  margin: 60px 20px 0;
+  overflow: hidden;
+}
+.comment-button-group {
+  display: flex;
+  flex-wrap: wrap-reverse;
+  justify-content: center;
+  margin: 1em 0;
+}
+.comment-button-group .comment-button {
+  margin: 0.1em 0.2em;
+}
+.comment-button-group .comment-button.active {
+  background: #222;
+  border-color: #222;
+  color: #fff;
+}
+.comment-position {
+  display: none;
+}
+.comment-position.active {
+  display: block;
+}
+.tabs-comment {
+  background: #fff;
+  margin-top: 4em;
+  padding-top: 0;
+}
+.tabs-comment .comments {
+  border: 0;
+  box-shadow: none;
+  margin-top: 0;
+  padding-top: 0;
+}
+.container {
+  min-height: 100%;
+  position: relative;
+}
+.main-inner {
+  margin: 0 auto;
+  width: calc(100% - 20px);
+}
+@media (min-width: 1200px) {
+  .main-inner {
+    width: 1160px;
+  }
+}
+@media (min-width: 1600px) {
+  .main-inner {
+    width: 73%;
+  }
+}
+.header {
+  background: transparent;
+}
+.header-inner {
+  margin: 0 auto;
+  position: relative;
+  width: calc(100% - 20px);
+}
+@media (min-width: 1200px) {
+  .header-inner {
+    width: 1160px;
+  }
+}
+@media (min-width: 1600px) {
+  .header-inner {
+    width: 73%;
+  }
+}
+.headband {
+  background: #222;
+  height: 3px;
+}
+.site-meta {
+  margin: 0;
+  text-align: center;
+}
+@media (max-width: 767px) {
+  .site-meta {
+    text-align: center;
+  }
+}
+.brand {
+  background: #222;
+  border-bottom: none;
+  color: #fff;
+  display: inline-block;
+  line-height: 1.375em;
+  padding: 0 40px;
+  position: relative;
+}
+.brand:hover {
+  color: #fff;
+}
+.site-title {
+  display: inline-block;
+  font-family: 'Monda', "PingFang SC", "Microsoft YaHei", sans-serif;
+  font-size: 1.375em;
+  font-weight: normal;
+  line-height: 1.5;
+  vertical-align: top;
+}
+.site-subtitle {
+  color: #ddd;
+  font-size: 0.8125em;
+  margin-top: 10px;
+}
+.use-motion .brand {
+  opacity: 0;
+}
+.use-motion .site-title,
+.use-motion .site-subtitle,
+.use-motion .custom-logo-image {
+  opacity: 0;
+  position: relative;
+  top: -10px;
+}
+.site-nav-toggle {
+  display: none;
+  left: 10px;
+  position: absolute;
+}
+@media (max-width: 767px) {
+  .site-nav-toggle {
+    display: block;
+  }
+}
+.site-nav-toggle .toggle {
+  background: transparent;
+  border: 0;
+  margin-top: 2px;
+  padding: 10px;
+  width: 22px;
+}
+.site-nav-toggle .toggle .toggle-line {
+  background: #555;
+  border-radius: 1px;
+}
+.site-nav {
+  display: block;
+}
+@media (max-width: 767px) {
+  .site-nav {
+    border-top: 1px solid #ddd;
+    clear: both;
+    display: none;
+    margin: 0 -10px;
+    padding: 0 10px;
+  }
+}
+.site-nav.site-nav-on {
+  display: block;
+}
+.menu {
+  margin-top: 20px;
+  padding-left: 0;
+  text-align: center;
+}
+.menu-item {
+  display: inline-block;
+  list-style: none;
+  margin: 0 10px;
+}
+@media (max-width: 767px) {
+  .menu-item {
+    margin-top: 10px;
+  }
+}
+.menu-item a,
+.menu-item span.exturl {
+  border-bottom: 0;
+  display: block;
+  font-size: 0.8125em;
+  transition-property: border-color;
+  transition-delay: 0s;
+  transition-duration: 0.2s;
+  transition-timing-function: ease-in-out;
+}
+@media (hover: none) {
+  .menu-item a:hover,
+  .menu-item span.exturl:hover {
+    border-bottom-color: transparent !important;
+  }
+}
+.menu-item .fa {
+  margin-right: 8px;
+}
+.menu-item .badge {
+  display: inline-block;
+  font-weight: 700;
+  line-height: 1;
+  margin-left: 0.35em;
+  margin-top: 0.35em;
+  text-align: center;
+  white-space: nowrap;
+}
+@media (max-width: 767px) {
+  .menu-item .badge {
+    float: right;
+    margin-left: 0;
+  }
+}
+.use-motion .menu-item {
+  opacity: 0;
+}
+.github-corner :hover .octo-arm {
+  animation: octocat-wave 560ms ease-in-out;
+}
+.github-corner svg {
+  border: 0;
+  color: #fff;
+  fill: #222;
+  position: absolute;
+  right: 0;
+  top: 0;
+  z-index: 1000;
+}
+@media (max-width: 991px) {
+  .github-corner svg {
+    color: #222;
+    fill: #fff;
+  }
+  .github-corner .github-corner:hover .octo-arm {
+    animation: none;
+  }
+  .github-corner .github-corner .octo-arm {
+    animation: octocat-wave 560ms ease-in-out;
+  }
+}
+@-moz-keyframes octocat-wave {
+  0%, 100% {
+    transform: rotate(0);
+  }
+  20%, 60% {
+    transform: rotate(-25deg);
+  }
+  40%, 80% {
+    transform: rotate(10deg);
+  }
+}
+@-webkit-keyframes octocat-wave {
+  0%, 100% {
+    transform: rotate(0);
+  }
+  20%, 60% {
+    transform: rotate(-25deg);
+  }
+  40%, 80% {
+    transform: rotate(10deg);
+  }
+}
+@-o-keyframes octocat-wave {
+  0%, 100% {
+    transform: rotate(0);
+  }
+  20%, 60% {
+    transform: rotate(-25deg);
+  }
+  40%, 80% {
+    transform: rotate(10deg);
+  }
+}
+@keyframes octocat-wave {
+  0%, 100% {
+    transform: rotate(0);
+  }
+  20%, 60% {
+    transform: rotate(-25deg);
+  }
+  40%, 80% {
+    transform: rotate(10deg);
+  }
+}
+.sidebar {
+  background: #222;
+  bottom: 0;
+  box-shadow: inset 0 2px 6px #000;
+  position: fixed;
+  top: 0;
+  z-index: 1200;
+}
+.sidebar a,
+.sidebar span.exturl {
+  border-bottom-color: #555;
+  color: #999;
+}
+.sidebar a:hover,
+.sidebar span.exturl:hover {
+  border-bottom-color: #eee;
+  color: #eee;
+}
+@media (max-width: 991px) {
+  .sidebar {
+    display: none;
+  }
+}
+.sidebar-inner {
+  color: #999;
+  padding: 20px 10px;
+  text-align: center;
+}
+.site-overview-wrap {
+  overflow-x: hidden;
+  overflow-y: auto;
+}
+.cc-license {
+  margin-top: 10px;
+  text-align: center;
+}
+.cc-license .cc-opacity {
+  border-bottom: none;
+  opacity: 0.7;
+}
+.cc-license .cc-opacity:hover {
+  opacity: 0.9;
+}
+.cc-license img {
+  display: inline-block;
+}
+.site-author-image {
+  border: 1px solid #eee;
+  display: block;
+  height: auto;
+  margin: 0 auto;
+  max-width: 120px;
+  padding: 2px;
+  border-radius: 50%;
+}
+.site-author-name {
+  color: #222;
+  font-weight: 600;
+  margin: 0;
+  text-align: center;
+}
+.site-description {
+  color: #999;
+  font-size: 0.8125em;
+  margin-top: 0;
+  text-align: center;
+}
+.links-of-author {
+  margin-top: 15px;
+}
+.links-of-author a,
+.links-of-author span.exturl {
+  border-bottom-color: #555;
+  display: inline-block;
+  font-size: 0.8125em;
+  margin-bottom: 10px;
+  margin-right: 10px;
+  vertical-align: middle;
+  transition-delay: 0s;
+  transition-duration: 0.2s;
+  transition-timing-function: ease-in-out;
+}
+.links-of-author a::before,
+.links-of-author span.exturl::before {
+  background: #0ab5cd;
+  border-radius: 50%;
+  content: ' ';
+  display: inline-block;
+  height: 4px;
+  margin-right: 3px;
+  vertical-align: middle;
+  width: 4px;
+}
+.feed-link,
+.chat {
+  margin-top: 15px;
+}
+.feed-link a,
+.chat a {
+  border: 1px solid #fc6423;
+  border-radius: 4px;
+  color: #fc6423;
+  display: inline-block;
+  padding: 0 15px;
+}
+.feed-link a .fa,
+.chat a .fa {
+  margin-right: 5px;
+}
+.feed-link a:hover,
+.chat a:hover {
+  background: #fc6423;
+  border: 1px solid #fc6423;
+  color: #fff;
+}
+.feed-link a:hover .fa,
+.chat a:hover .fa {
+  color: #fff;
+}
+.links-of-blogroll {
+  font-size: 0.8125em;
+  margin-top: 10px;
+}
+.links-of-blogroll-title {
+  font-size: 0.875em;
+  font-weight: 600;
+  margin-top: 0;
+}
+.links-of-blogroll-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.links-of-blogroll-item {
+  padding: 2px 10px;
+}
+.links-of-blogroll-item a,
+.links-of-blogroll-item span.exturl {
+  box-sizing: border-box;
+  display: inline-block;
+  max-width: 280px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+#sidebar-dimmer {
+  display: none;
+}
+@media (max-width: 767px) {
+  #sidebar-dimmer {
+    background: #000;
+    display: block;
+    height: 100%;
+    left: 100%;
+    opacity: 0;
+    position: fixed;
+    top: 0;
+    width: 100%;
+    z-index: 1100;
+  }
+  .sidebar-active + #sidebar-dimmer {
+    opacity: 0.7;
+    transform: translateX(-100%);
+    transition: opacity 0.5s;
+  }
+}
+.sidebar-nav {
+  margin: 0;
+  padding-bottom: 20px;
+  padding-left: 0;
+}
+.sidebar-nav li {
+  border-bottom: 1px solid transparent;
+  color: #555;
+  cursor: pointer;
+  display: inline-block;
+  font-size: 0.875em;
+}
+.sidebar-nav li.sidebar-nav-overview {
+  margin-left: 10px;
+}
+.sidebar-nav li:hover {
+  color: #fc6423;
+}
+.sidebar-nav .sidebar-nav-active {
+  border-bottom-color: #fc6423;
+  color: #fc6423;
+}
+.sidebar-nav .sidebar-nav-active:hover {
+  color: #fc6423;
+}
+.sidebar-panel {
+  display: none;
+}
+.sidebar-panel-active {
+  display: block;
+}
+.sidebar-toggle {
+  background: #222;
+  bottom: 45px;
+  cursor: pointer;
+  height: 14px;
+  left: 30px;
+  padding: 5px;
+  position: fixed;
+  width: 14px;
+  z-index: 1300;
+}
+@media (max-width: 991px) {
+  .sidebar-toggle {
+    left: 20px;
+    opacity: 0.8;
+    display: none;
+  }
+}
+.sidebar-toggle:hover .toggle-line {
+  background: #fc6423;
+}
+.post-toc-wrap {
+  overflow-x: hidden;
+  overflow-y: auto;
+}
+.post-toc {
+  font-size: 0.875em;
+}
+.post-toc ol {
+  list-style: none;
+  margin: 0;
+  padding: 0 2px 5px 10px;
+  text-align: left;
+}
+.post-toc ol > ol {
+  padding-left: 0;
+}
+.post-toc ol a {
+  border-bottom-color: #ccc;
+  color: #666;
+  transition-property: all;
+  transition-delay: 0s;
+  transition-duration: 0.2s;
+  transition-timing-function: ease-in-out;
+}
+.post-toc ol a:hover {
+  border-bottom-color: #000;
+  color: #000;
+}
+.post-toc .nav-item {
+  line-height: 1.8;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.post-toc .nav .nav-child {
+  display: none;
+}
+.post-toc .nav .active > .nav-child {
+  display: block;
+}
+.post-toc .nav .active-current > .nav-child {
+  display: block;
+}
+.post-toc .nav .active-current > .nav-child > .nav-item {
+  display: block;
+}
+.post-toc .nav .active > a {
+  border-bottom-color: #fc6423;
+  color: #fc6423;
+}
+.post-toc .nav .active-current > a {
+  color: #fc6423;
+}
+.post-toc .nav .active-current > a:hover {
+  color: #fc6423;
+}
+.site-state {
+  display: flex;
+  justify-content: center;
+  line-height: 1.4;
+  margin-top: 10px;
+  overflow: hidden;
+  text-align: center;
+  white-space: nowrap;
+}
+.site-state-item {
+  padding: 0 15px;
+}
+.site-state-item:not(:first-child) {
+  border-left: 1px solid #eee;
+}
+.site-state-item a {
+  border-bottom: none;
+}
+.site-state-item-count {
+  color: inherit;
+  display: block;
+  font-size: 1em;
+  font-weight: 600;
+  text-align: center;
+}
+.site-state-item-name {
+  color: #999;
+  font-size: 0.8125em;
+}
+.footer {
+  color: #999;
+  font-size: 0.875em;
+  padding: 20px 0;
+}
+.footer.footer-fixed {
+  bottom: 0;
+  left: 0;
+  position: absolute;
+  right: 0;
+}
+.footer img {
+  border: 0;
+}
+.footer-inner {
+  box-sizing: border-box;
+  margin: 0 auto;
+  text-align: center;
+  width: calc(100% - 20px);
+}
+@media (min-width: 1200px) {
+  .footer-inner {
+    width: 1160px;
+  }
+}
+@media (min-width: 1600px) {
+  .footer-inner {
+    width: 73%;
+  }
+}
+.with-love {
+  color: red;
+  display: inline-block;
+  margin: 0 5px;
+  animation: iconAnimate 1.33s ease-in-out infinite;
+}
+.powered-by,
+.theme-info {
+  display: inline-block;
+}
+@-moz-keyframes iconAnimate {
+  0%, 100% {
+    transform: scale(1);
+  }
+  10%, 30% {
+    transform: scale(0.9);
+  }
+  20%, 40%, 60%, 80% {
+    transform: scale(1.1);
+  }
+  50%, 70% {
+    transform: scale(1.1);
+  }
+}
+@-webkit-keyframes iconAnimate {
+  0%, 100% {
+    transform: scale(1);
+  }
+  10%, 30% {
+    transform: scale(0.9);
+  }
+  20%, 40%, 60%, 80% {
+    transform: scale(1.1);
+  }
+  50%, 70% {
+    transform: scale(1.1);
+  }
+}
+@-o-keyframes iconAnimate {
+  0%, 100% {
+    transform: scale(1);
+  }
+  10%, 30% {
+    transform: scale(0.9);
+  }
+  20%, 40%, 60%, 80% {
+    transform: scale(1.1);
+  }
+  50%, 70% {
+    transform: scale(1.1);
+  }
+}
+@keyframes iconAnimate {
+  0%, 100% {
+    transform: scale(1);
+  }
+  10%, 30% {
+    transform: scale(0.9);
+  }
+  20%, 40%, 60%, 80% {
+    transform: scale(1.1);
+  }
+  50%, 70% {
+    transform: scale(1.1);
+  }
+}
+.back-to-top {
+  background: #eee;
+  font-size: 12px;
+  margin: 8px -10px -20px;
+  opacity: 0;
+  text-align: center;
+  transition-delay: 0s;
+  transition-duration: 0.2s;
+  transition-timing-function: ease-in-out;
+}
+.back-to-top.back-to-top-on {
+  cursor: pointer;
+  opacity: 0.6;
+}
+.back-to-top.back-to-top-on:hover {
+  opacity: 0.8;
+}
+.post-body {
+  font-family: 'Monda', "PingFang SC", "Microsoft YaHei", sans-serif;
+  overflow-wrap: break-word;
+  word-wrap: break-word;
+}
+@media (min-width: 1200px) {
+  .post-body {
+    font-size: 1.125em;
+  }
+}
+.post-body span.exturl .fa {
+  font-size: 0.875em;
+  margin-left: 4px;
+}
+.post-body .image-caption,
+.post-body .figure .caption {
+  color: #999;
+  font-size: 0.875em;
+  font-weight: bold;
+  line-height: 1;
+  margin: -20px auto 15px;
+  text-align: center;
+}
+.post-sticky-flag {
+  display: inline-block;
+  transform: rotate(30deg);
+}
+.post-button {
+  margin-top: 40px;
+  text-align: center;
+}
+.use-motion .post-block,
+.use-motion .pagination,
+.use-motion .comments {
+  opacity: 0;
+}
+.use-motion .post-header {
+  opacity: 0;
+}
+.use-motion .post-body {
+  opacity: 0;
+}
+.use-motion .collection-header {
+  opacity: 0;
+}
+.posts-collapse {
+  margin-left: 55px;
+  position: relative;
+}
+@media (max-width: 767px) {
+  .posts-collapse {
+    margin-left: 20px;
+    margin-right: 20px;
+  }
+}
+.posts-collapse .collection-title {
+  font-size: 1.125em;
+  position: relative;
+}
+.posts-collapse .collection-title::before {
+  background: #999;
+  border: 1px solid #fff;
+  border-radius: 50%;
+  content: ' ';
+  height: 10px;
+  left: 0;
+  margin-left: -6px;
+  margin-top: -4px;
+  position: absolute;
+  top: 50%;
+  width: 10px;
+}
+.posts-collapse .collection-year {
+  margin: 60px 0;
+  position: relative;
+}
+.posts-collapse .collection-year::before {
+  background: #bbb;
+  border-radius: 50%;
+  content: ' ';
+  height: 8px;
+  left: 0;
+  margin-left: -4px;
+  margin-top: -4px;
+  position: absolute;
+  top: 50%;
+  width: 8px;
+}
+.posts-collapse .collection-header {
+  display: inline-block;
+  margin: 0 0 0 20px;
+}
+.posts-collapse .collection-header small {
+  color: #bbb;
+  margin-left: 5px;
+}
+.posts-collapse .post-header {
+  border-bottom: 1px dashed #ccc;
+  margin: 30px 0;
+  padding-left: 15px;
+  position: relative;
+  transition-property: border;
+  transition-delay: 0s;
+  transition-duration: 0.2s;
+  transition-timing-function: ease-in-out;
+}
+.posts-collapse .post-header::before {
+  background: #bbb;
+  border: 1px solid #fff;
+  border-radius: 50%;
+  content: ' ';
+  height: 6px;
+  left: 0;
+  margin-left: -4px;
+  position: absolute;
+  top: 0.75em;
+  transition-property: background;
+  width: 6px;
+  transition-delay: 0s;
+  transition-duration: 0.2s;
+  transition-timing-function: ease-in-out;
+}
+.posts-collapse .post-header:hover {
+  border-bottom-color: #666;
+}
+.posts-collapse .post-header:hover::before {
+  background: #222;
+}
+.posts-collapse .post-meta {
+  display: inline;
+  font-size: 0.75em;
+  margin-right: 10px;
+}
+.posts-collapse .post-title {
+  display: inline;
+  font-size: 1em;
+  font-weight: normal;
+  margin-bottom: 0;
+  margin-top: 0;
+}
+.posts-collapse .post-title a,
+.posts-collapse .post-title span.exturl {
+  border-bottom: none;
+  color: #666;
+}
+.posts-collapse::before {
+  background: #f5f5f5;
+  content: ' ';
+  height: 100%;
+  left: 0;
+  margin-left: -2px;
+  position: absolute;
+  top: 1.25em;
+  width: 4px;
+}
+.posts-collapse .fa-external-link {
+  font-size: 0.875em;
+  margin-left: 5px;
+}
+.post-eof {
+  background: #ccc;
+  height: 1px;
+  margin: 80px auto 60px;
+  text-align: center;
+  width: 8%;
+}
+.post-block:last-child .post-eof {
+  display: none;
+}
+.posts-expand {
+  padding-top: 40px;
+}
+@media (max-width: 767px) {
+  .posts-expand {
+    margin: 0 20px;
+  }
+}
+@media (min-width: 992px) {
+  .post-body {
+    text-align: left;
+  }
+}
+@media (max-width: 991px) {
+  .post-body {
+    text-align: left;
+  }
+}
+.post-body h2,
+.post-body h3,
+.post-body h4,
+.post-body h5,
+.post-body h6 {
+  padding-top: 10px;
+}
+.post-body h2 .header-anchor,
+.post-body h3 .header-anchor,
+.post-body h4 .header-anchor,
+.post-body h5 .header-anchor,
+.post-body h6 .header-anchor {
+  border-bottom-style: none;
+  color: #ccc;
+  float: right;
+  margin-left: 10px;
+  visibility: hidden;
+}
+.post-body h2 .header-anchor:hover,
+.post-body h3 .header-anchor:hover,
+.post-body h4 .header-anchor:hover,
+.post-body h5 .header-anchor:hover,
+.post-body h6 .header-anchor:hover {
+  color: inherit;
+}
+.post-body h2:hover .header-anchor,
+.post-body h3:hover .header-anchor,
+.post-body h4:hover .header-anchor,
+.post-body h5:hover .header-anchor,
+.post-body h6:hover .header-anchor {
+  visibility: visible;
+}
+.post-body img {
+  border: 1px solid #ddd;
+  box-sizing: border-box;
+  padding: 3px;
+}
+@media (max-width: 767px) {
+  .post-body img {
+    padding: initial;
+  }
+}
+.post-body iframe,
+.post-body img,
+.post-body video {
+  margin-bottom: 20px;
+}
+.post-body .video-container {
+  height: 0;
+  margin-bottom: 20px;
+  overflow: hidden;
+  padding-top: 75%;
+  position: relative;
+  width: 100%;
+}
+.post-body .video-container iframe,
+.post-body .video-container object,
+.post-body .video-container embed {
+  height: 100%;
+  left: 0;
+  margin: 0;
+  position: absolute;
+  top: 0;
+  width: 100%;
+}
+.post-gallery {
+  border-collapse: separate;
+  display: table;
+  table-layout: fixed;
+  width: 100%;
+}
+.post-gallery .post-gallery-img {
+  border: 0;
+  display: table-cell;
+  text-align: center;
+  vertical-align: middle;
+}
+.post-gallery .post-gallery-img img {
+  border: 0;
+  max-height: 100%;
+  max-width: 100%;
+}
+.post-gallery-row {
+  display: table-row;
+}
+.posts-expand .post-header {
+  font-size: 1.125em;
+}
+.posts-expand .post-title {
+  font-weight: 400;
+  margin: initial;
+  text-align: center;
+  overflow-wrap: break-word;
+  word-wrap: break-word;
+}
+.posts-expand .post-title-link {
+  border-bottom: none;
+  color: #555;
+  display: inline-block;
+  position: relative;
+  vertical-align: top;
+}
+.posts-expand .post-title-link::before {
+  background: #000;
+  bottom: 0;
+  content: '';
+  height: 2px;
+  left: 0;
+  position: absolute;
+  transform: scaleX(0);
+  visibility: hidden;
+  width: 100%;
+  transition-delay: 0s;
+  transition-duration: 0.2s;
+  transition-timing-function: ease-in-out;
+}
+.posts-expand .post-title-link:hover::before {
+  transform: scaleX(1);
+  visibility: visible;
+}
+.posts-expand .post-title-link .fa {
+  font-size: 0.875em;
+  margin-left: 5px;
+}
+.posts-expand .post-meta {
+  color: #999;
+  font-family: 'Monda', "PingFang SC", "Microsoft YaHei", sans-serif;
+  font-size: 0.75em;
+  margin: 3px 0 60px 0;
+  text-align: center;
+}
+.posts-expand .post-meta .post-description {
+  font-size: 0.875em;
+  margin-top: 2px;
+}
+.posts-expand .post-meta time {
+  border-bottom: 1px dashed #999;
+  cursor: pointer;
+}
+.post-meta .post-meta-item + .post-meta-item::before {
+  content: '|';
+  margin: 0 0.5em;
+}
+.post-meta-divider {
+  margin: 0 0.5em;
+}
+.post-meta-item-icon {
+  margin-right: 3px;
+}
+@media (max-width: 991px) {
+  .post-meta-item-icon {
+    display: inline-block;
+  }
+}
+@media (max-width: 991px) {
+  .post-meta-item-text {
+    display: none;
+  }
+}
+.post-nav {
+  border-top: 1px solid #eee;
+  display: table;
+  margin-top: 15px;
+  width: 100%;
+}
+.post-nav-divider {
+  display: table-cell;
+  width: 10%;
+}
+.post-nav-item {
+  display: table-cell;
+  padding: 10px 0 0 0;
+  vertical-align: top;
+  width: 45%;
+}
+.post-nav-item a {
+  border-bottom: none;
+  color: #555;
+  display: block;
+  font-size: 0.875em;
+  line-height: 1.6;
+  position: relative;
+}
+.post-nav-item a:hover {
+  border-bottom: none;
+  color: #222;
+}
+.post-nav-item a:active {
+  top: 2px;
+}
+.post-nav-item .fa {
+  font-size: 0.75em;
+  margin-right: 5px;
+}
+.post-nav-next a {
+  padding-left: 5px;
+}
+.post-nav-prev {
+  text-align: right;
+}
+.post-nav-prev a {
+  padding-right: 5px;
+}
+.post-nav-prev .fa {
+  margin-left: 5px;
+}
+.rtl.post-body p,
+.rtl.post-body a,
+.rtl.post-body h1,
+.rtl.post-body h2,
+.rtl.post-body h3,
+.rtl.post-body h4,
+.rtl.post-body h5,
+.rtl.post-body h6,
+.rtl.post-body li,
+.rtl.post-body ul,
+.rtl.post-body ol {
+  direction: rtl;
+  font-family: UKIJ Ekran;
+}
+.rtl.post-title {
+  font-family: UKIJ Ekran;
+}
+.post-tags {
+  margin-top: 40px;
+  text-align: center;
+}
+.post-tags a {
+  display: inline-block;
+  font-size: 0.8125em;
+}
+.post-tags a:not(:last-child) {
+  margin-right: 10px;
+}
+.post-widgets {
+  border-top: 1px solid #eee;
+  margin-top: 15px;
+  text-align: center;
+}
+.wp_rating {
+  height: 20px;
+  line-height: 20px;
+  margin-top: 10px;
+  padding-top: 6px;
+  text-align: center;
+}
+.social-like {
+  display: flex;
+  font-size: 0.875em;
+  justify-content: center;
+  text-align: center;
+}
+.reward-container {
+  margin: 20px auto;
+  padding: 10px 0;
+  text-align: center;
+  width: 90%;
+}
+.reward-container button {
+  background: #ff2a2a;
+  border: 0;
+  border-radius: 5px;
+  color: #fff;
+  cursor: pointer;
+  line-height: 2;
+  outline: 0;
+  padding: 0 15px;
+  vertical-align: text-top;
+}
+.reward-container button:hover {
+  background: #f55;
+}
+#qr {
+  padding-top: 20px;
+}
+#qr a {
+  border: 0;
+}
+#qr img {
+  display: inline-block;
+  margin: 0.8em 2em 0 2em;
+  max-width: 100%;
+  width: 180px;
+}
+#qr p {
+  text-align: center;
+}
+.post-copyright {
+  background: #f5f5f5;
+  border-left: 3px solid #ff2a2a;
+  list-style: none;
+  margin: 2em 0 0;
+  padding: 0.5em 1em;
+}
+.category-all-page .category-all-title {
+  text-align: center;
+}
+.category-all-page .category-all {
+  margin-top: 20px;
+}
+.category-all-page .category-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.category-all-page .category-list-item {
+  margin: 5px 10px;
+}
+.category-all-page .category-list-count {
+  color: #bbb;
+}
+.category-all-page .category-list-count::before {
+  content: ' (';
+  display: inline;
+}
+.category-all-page .category-list-count::after {
+  content: ') ';
+  display: inline;
+}
+.category-all-page .category-list-child {
+  padding-left: 10px;
+}
+.event-list {
+  padding: 0;
+}
+.event-list hr {
+  background: #222;
+  margin: 20px 0 45px 0;
+}
+.event-list hr::after {
+  background: #222;
+  color: #fff;
+  content: 'NOW';
+  display: inline-block;
+  font-weight: bold;
+  padding: 0 5px;
+  text-align: right;
+}
+.event-list .event {
+  background: #222;
+  margin: 20px 0;
+  min-height: 40px;
+  padding: 15px 0 15px 10px;
+}
+.event-list .event .event-summary {
+  color: #fff;
+  margin: 0;
+  padding-bottom: 3px;
+}
+.event-list .event .event-summary::before {
+  animation: dot-flash 1s alternate infinite ease-in-out;
+  color: #fff;
+  content: '\f111';
+  display: inline-block;
+  font-family: 'FontAwesome';
+  font-size: 10px;
+  margin-right: 25px;
+  vertical-align: middle;
+}
+.event-list .event .event-relative-time {
+  color: #bbb;
+  display: inline-block;
+  font-size: 12px;
+  font-weight: 400;
+  padding-left: 12px;
+}
+.event-list .event .event-details {
+  color: #fff;
+  display: block;
+  line-height: 18px;
+  margin-left: 56px;
+  padding-bottom: 6px;
+  padding-top: 3px;
+  text-indent: -24px;
+}
+.event-list .event .event-details::before {
+  color: #fff;
+  display: inline-block;
+  font-family: 'FontAwesome';
+  margin-right: 9px;
+  text-align: center;
+  text-indent: 0;
+  width: 14px;
+}
+.event-list .event .event-details.event-location::before {
+  content: '\f041';
+}
+.event-list .event .event-details.event-duration::before {
+  content: '\f017';
+}
+.event-list .event-past {
+  background: #f5f5f5;
+}
+.event-list .event-past .event-summary,
+.event-list .event-past .event-details {
+  color: #bbb;
+  opacity: 0.9;
+}
+.event-list .event-past .event-summary::before,
+.event-list .event-past .event-details::before {
+  animation: none;
+  color: #bbb;
+}
+@-moz-keyframes dot-flash {
+  from {
+    opacity: 1;
+    transform: scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: scale(0.8);
+  }
+}
+@-webkit-keyframes dot-flash {
+  from {
+    opacity: 1;
+    transform: scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: scale(0.8);
+  }
+}
+@-o-keyframes dot-flash {
+  from {
+    opacity: 1;
+    transform: scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: scale(0.8);
+  }
+}
+@keyframes dot-flash {
+  from {
+    opacity: 1;
+    transform: scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: scale(0.8);
+  }
+}
+ul.breadcrumb {
+  font-size: 0.75em;
+  list-style: none;
+  margin: 1em 0;
+  padding: 0 2em;
+  text-align: center;
+}
+ul.breadcrumb li {
+  display: inline;
+}
+ul.breadcrumb li + li::before {
+  content: '/\00a0';
+  font-weight: normal;
+  padding: 0.5em;
+}
+ul.breadcrumb li + li:last-child {
+  font-weight: bold;
+}
+.tag-cloud {
+  text-align: center;
+}
+.tag-cloud a {
+  display: inline-block;
+  margin: 10px;
+}
+.tag-cloud a:hover {
+  color: #222 !important;
+}
+.gt-header a,
+.gt-comments a,
+.gt-popup a {
+  border-bottom: none;
+}
+.gt-container .gt-popup .gt-action.is--active::before {
+  top: 0.7em;
+}
+.search-pop-overlay {
+  background: rgba(0,0,0,0.3);
+  display: none;
+  height: 100%;
+  left: 0;
+  overflow: hidden;
+  position: fixed;
+  top: 0;
+  width: 100%;
+  z-index: 1400;
+}
+.search-popup {
+  background: #fff;
+  border-radius: 5px;
+  color: #333;
+  display: none;
+  height: 80%;
+  left: 50%;
+  margin-left: -350px;
+  padding: 0;
+  position: fixed;
+  top: 10%;
+  width: 700px;
+  z-index: 1500;
+}
+@media (max-width: 767px) {
+  .search-popup {
+    border-radius: 0;
+    height: 100%;
+    left: 0;
+    margin: 0;
+    padding: 0;
+    top: 0;
+    width: 100%;
+  }
+}
+.search-popup .search-icon,
+.search-popup .popup-btn-close {
+  color: #999;
+  display: inline-block;
+  font-size: 18px;
+  height: 36px;
+  padding-left: 10px;
+  padding-right: 10px;
+  width: 18px;
+}
+.search-popup .popup-btn-close {
+  border-left: 1px solid #eee;
+  cursor: pointer;
+  float: right;
+}
+.search-popup .popup-btn-close:hover .fa {
+  color: #222;
+}
+.search-popup .search-header {
+  background: #f5f5f5;
+  border-top-left-radius: 5px;
+  border-top-right-radius: 5px;
+  padding: 5px;
+}
+.search-input {
+  display: inline-block;
+  width: calc(90% - 30px);
+}
+.search-input input {
+  background: transparent;
+  border: 0;
+  outline: 0;
+  padding: 5px 0;
+  width: 100%;
+}
+.search-input .ais-search-box--magnifier svg,
+.search-input .ais-search-box--reset svg {
+  display: none;
+}
+.algolia-powered {
+  float: right;
+}
+.algolia-powered img {
+  display: inline-block;
+  height: 18px;
+  vertical-align: middle;
+}
+.algolia-results {
+  height: calc(100% - 55px);
+  overflow: auto;
+  padding: 5px 30px;
+  position: relative;
+}
+.algolia-results hr {
+  margin: 10px 0;
+}
+.algolia-results .highlight {
+  color: #f00;
+  font-size: inherit;
+  font-style: normal;
+  margin: 0;
+  padding: 0 2px;
+}
+.algolia-hits {
+  margin-top: 20px;
+}
+.algolia-hit-item {
+  margin: 15px 0;
+}
+.algolia-hit-item-link {
+  border-bottom: 1px dashed #ccc;
+  display: block;
+  transition-delay: 0s;
+  transition-duration: 0.2s;
+  transition-timing-function: ease-in-out;
+}
+.algolia-pagination .pagination {
+  border-top: none;
+  margin: 40px 0;
+  opacity: 1;
+  padding: 0;
+}
+.algolia-pagination .pagination-item {
+  display: inline-block;
+}
+.algolia-pagination .page-number {
+  border-top: none;
+}
+.algolia-pagination .page-number:hover {
+  border-bottom: 1px solid #222;
+}
+.algolia-pagination .disabled-item {
+  visibility: hidden;
+}
+.header {
+  margin: 0 auto;
+  position: relative;
+  width: calc(100% - 20px);
+}
+@media (min-width: 1200px) {
+  .header {
+    width: 1160px;
+  }
+}
+@media (min-width: 1600px) {
+  .header {
+    width: 73%;
+  }
+}
+@media (max-width: 991px) {
+  .header {
+    width: auto;
+  }
+}
+.header-inner {
+  background: #fff;
+  border-radius: initial;
+  box-shadow: 0 2px 2px 0 rgba(0,0,0,0.12), 0 3px 1px -2px rgba(0,0,0,0.06), 0 1px 5px 0 rgba(0,0,0,0.12);
+  overflow: hidden;
+  padding: 0;
+  position: absolute;
+  top: 0;
+  width: 240px;
+}
+@media (min-width: 1200px) {
+  .header-inner {
+    width: 240px;
+  }
+}
+@media (max-width: 991px) {
+  .header-inner {
+    border-radius: initial;
+    position: relative;
+    width: auto;
+  }
+}
+.main::before,
+.main::after {
+  content: ' ';
+  display: table;
+}
+.main::after {
+  clear: both;
+}
+@media (max-width: 991px) {
+  .main-inner {
+    width: auto;
+  }
+}
+.content-wrap {
+  background: #fff;
+  border-radius: initial;
+  box-shadow: 0 2px 2px 0 rgba(0,0,0,0.12), 0 3px 1px -2px rgba(0,0,0,0.06), 0 1px 5px 0 rgba(0,0,0,0.12);
+  box-sizing: border-box;
+  float: right;
+  padding: 40px;
+  width: calc(100% - 252px);
+}
+@media (max-width: 991px) {
+  .content-wrap {
+    border-radius: initial;
+    padding: 20px;
+    width: 100%;
+  }
+}
+.sidebar {
+  background: #eee;
+  box-shadow: none;
+  float: left;
+  position: static;
+  width: 240px;
+}
+@media (max-width: 991px) {
+  .sidebar {
+    display: none;
+  }
+}
+.sidebar-toggle {
+  display: none;
+}
+.footer-inner {
+  padding-left: 260px;
+}
+.back-to-top {
+  left: auto;
+  right: 30px;
+}
+@media (max-width: 991px) {
+  .back-to-top {
+    right: 20px;
+  }
+}
+@media (max-width: 991px) {
+  .footer-inner {
+    padding-left: 0;
+    padding-right: 0;
+    width: auto;
+  }
+}
+.site-brand-container {
+  position: relative;
+}
+.site-meta {
+  background: #222;
+  color: #fff;
+  padding: 20px 0;
+}
+@media (max-width: 991px) {
+  .site-meta {
+    box-shadow: 0 0 16px rgba(0,0,0,0.5);
+  }
+}
+.brand {
+  background: none;
+  padding: 0;
+}
+.brand:hover {
+  color: #fff;
+}
+.site-subtitle {
+  font-weight: initial;
+  margin: 10px 10px 0;
+}
+.custom-logo-image {
+  margin-top: 20px;
+}
+@media (max-width: 991px) {
+  .custom-logo-image {
+    display: none;
+  }
+}
+.site-nav-toggle {
+  left: 20px;
+  top: 50%;
+  transform: translateY(-50%);
+}
+@media (min-width: 768px) and (max-width: 991px) {
+  .site-nav-toggle {
+    display: block;
+  }
+}
+.site-nav-toggle .toggle .toggle-line {
+  background: #fff;
+}
+.site-nav {
+  border-top: none;
+}
+@media (min-width: 768px) and (max-width: 991px) {
+  .site-nav {
+    display: none;
+  }
+}
+.menu-item-active a,
+.menu .menu-item a:hover,
+.menu .menu-item span.exturl:hover {
+  background: #f5f5f5;
+}
+.menu-item-active a::after,
+.menu .menu-item a:hover::after,
+.menu .menu-item span.exturl:hover::after {
+  background: #bbb;
+  border-radius: 50%;
+  content: ' ';
+  height: 6px;
+  margin-top: -3px;
+  position: absolute;
+  right: 15px;
+  top: 50%;
+  width: 6px;
+}
+.menu .menu-item {
+  display: block;
+  margin: 0;
+}
+.menu .menu-item a,
+.menu .menu-item span.exturl {
+  padding: 5px 20px;
+  position: relative;
+  text-align: left;
+  transition-property: background-color;
+}
+.menu .menu-item .badge {
+  background: #ccc;
+  border-radius: 10px;
+  color: #fff;
+  float: right;
+  padding: 2px 5px;
+  text-shadow: 1px 1px 0 rgba(0,0,0,0.1);
+  vertical-align: middle;
+}
+.sub-menu {
+  background: #fff;
+  border-bottom: 1px solid #ddd;
+  margin: 0;
+  padding: 6px 0;
+}
+.sub-menu .menu-item {
+  display: inline-block;
+}
+.sub-menu .menu-item a,
+.sub-menu .menu-item span.exturl {
+  margin: 5px 10px;
+  padding: initial;
+}
+.sub-menu .menu-item a:hover,
+.sub-menu .menu-item span.exturl:hover {
+  background: initial;
+  color: #fc6423;
+}
+.sub-menu .menu-item a::after,
+.sub-menu .menu-item span.exturl::after {
+  content: initial !important;
+}
+.sub-menu .menu-item-active a {
+  background: #fff;
+  border-bottom-color: #fc6423;
+  color: #fc6423;
+}
+.sub-menu .menu-item-active a:hover {
+  background: #fff;
+  border-bottom-color: #fc6423;
+}
+.sidebar {
+  bottom: auto;
+  right: auto;
+}
+.sidebar a,
+.sidebar span.exturl {
+  color: #555;
+}
+.sidebar a:hover,
+.sidebar span.exturl:hover {
+  border-bottom-color: #222;
+  color: #222;
+}
+.sidebar-inner {
+  background: #fff;
+  border-radius: initial;
+  box-shadow: 0 2px 2px 0 rgba(0,0,0,0.12), 0 3px 1px -2px rgba(0,0,0,0.06), 0 1px 5px 0 rgba(0,0,0,0.12), 0 -1px 0.5px 0 rgba(0,0,0,0.09);
+  box-sizing: border-box;
+  color: #555;
+  width: 240px;
+  opacity: 0;
+}
+.sidebar-inner.affix {
+  position: fixed;
+  top: 12px;
+}
+.sidebar-inner.affix-bottom {
+  position: absolute;
+}
+.site-state-item {
+  padding: 0 10px;
+}
+.feed-link,
+.chat {
+  border-bottom: 1px dotted #ccc;
+  border-top: 1px dotted #ccc;
+  margin-top: 10px;
+  text-align: center;
+}
+.feed-link a,
+.chat a {
+  border: 0;
+  color: #fc6423;
+  display: block;
+}
+.feed-link a:hover,
+.chat a:hover {
+  background: none;
+  border: 0;
+  color: #e34603;
+}
+.feed-link a:hover .fa,
+.chat a:hover .fa {
+  color: #e34603;
+}
+.links-of-author {
+  display: flex;
+  flex-wrap: wrap;
+  margin-top: 10px;
+  justify-content: center;
+}
+.links-of-author-item {
+  margin: 5px 0 0;
+}
+.links-of-author-item a,
+.links-of-author-item span.exturl {
+  box-sizing: border-box;
+  display: inline-block;
+  margin-bottom: 0;
+  margin-right: 0;
+  max-width: 216px;
+  overflow: hidden;
+  padding: 0 5px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.links-of-author-item a,
+.links-of-author-item span.exturl {
+  border-bottom: none;
+  display: block;
+  text-decoration: none;
+}
+.links-of-author-item a::before,
+.links-of-author-item span.exturl::before {
+  display: none;
+}
+.links-of-author-item a:hover,
+.links-of-author-item span.exturl:hover {
+  background: #eee;
+  border-radius: 4px;
+}
+.links-of-author-item .fa {
+  margin-right: 2px;
+}
+.links-of-blogroll-item {
+  padding: 0;
+}
+.content-wrap {
+  background: initial;
+  box-shadow: initial;
+  padding: initial;
+}
+.post-block {
+  background: #fff;
+  border-radius: initial;
+  box-shadow: 0 2px 2px 0 rgba(0,0,0,0.12), 0 3px 1px -2px rgba(0,0,0,0.06), 0 1px 5px 0 rgba(0,0,0,0.12);
+  padding: 40px;
+}
+.post-block + .post-block {
+  border-radius: initial;
+  box-shadow: 0 2px 2px 0 rgba(0,0,0,0.12), 0 3px 1px -2px rgba(0,0,0,0.06), 0 1px 5px 0 rgba(0,0,0,0.12), 0 -1px 0.5px 0 rgba(0,0,0,0.09);
+  margin-top: 12px;
+}
+.comments {
+  background: #fff;
+  border-radius: initial;
+  box-shadow: 0 2px 2px 0 rgba(0,0,0,0.12), 0 3px 1px -2px rgba(0,0,0,0.06), 0 1px 5px 0 rgba(0,0,0,0.12), 0 -1px 0.5px 0 rgba(0,0,0,0.09);
+  margin: auto;
+  margin-top: 12px;
+  padding: 40px;
+}
+.tabs-comment {
+  margin-top: 1em;
+}
+.posts-expand {
+  padding-top: initial;
+}
+.post-nav-divider {
+  width: 4%;
+}
+.post-nav-item {
+  width: 48%;
+}
+.post-eof {
+  display: none;
+}
+.pagination {
+  background: #fff;
+  border-radius: initial;
+  border-top: initial;
+  box-shadow: 0 2px 2px 0 rgba(0,0,0,0.12), 0 3px 1px -2px rgba(0,0,0,0.06), 0 1px 5px 0 rgba(0,0,0,0.12), 0 -1px 0.5px 0 rgba(0,0,0,0.09);
+  margin: 12px 0 0;
+  padding: 10px 0 10px;
+}
+.pagination .prev,
+.pagination .next,
+.pagination .page-number {
+  margin-bottom: initial;
+  top: initial;
+}
+.main {
+  padding-bottom: initial;
+}
+.footer {
+  bottom: auto;
+}
+.sub-menu {
+  border-bottom: initial;
+  box-shadow: 0 2px 2px 0 rgba(0,0,0,0.12), 0 3px 1px -2px rgba(0,0,0,0.06), 0 1px 5px 0 rgba(0,0,0,0.12);
+}
+.sub-menu + .content .post-block {
+  box-shadow: 0 2px 2px 0 rgba(0,0,0,0.12), 0 3px 1px -2px rgba(0,0,0,0.06), 0 1px 5px 0 rgba(0,0,0,0.12), 0 -1px 0.5px 0 rgba(0,0,0,0.09);
+  margin-top: 12px;
+}
+@media (min-width: 768px) and (max-width: 991px) {
+  .sub-menu + .content .post-block {
+    margin-top: 10px;
+  }
+}
+@media (max-width: 767px) {
+  .sub-menu + .content .post-block {
+    margin-top: 8px;
+  }
+}
+.post-body h1,
+.post-body h2 {
+  border-bottom: 1px solid #eee;
+}
+.post-body h3 {
+  border-bottom: 1px solid #eee;
+}
+.post-body h4 {
+  border-bottom: 1px dotted #eee;
+}
+@media (min-width: 768px) and (max-width: 991px) {
+  .content-wrap {
+    padding: 10px;
+  }
+  .posts-expand {
+    margin: initial;
+  }
+  .posts-expand .post-button {
+    margin-top: 20px;
+  }
+  .post-block {
+    border-radius: initial;
+    box-shadow: 0 2px 2px 0 rgba(0,0,0,0.12), 0 3px 1px -2px rgba(0,0,0,0.06), 0 1px 5px 0 rgba(0,0,0,0.12), 0 -1px 0.5px 0 rgba(0,0,0,0.09);
+    padding: 20px;
+  }
+  .post-block + .post-block {
+    margin-top: 10px;
+  }
+  .comments {
+    margin-top: 10px;
+    padding: 10px 20px;
+  }
+  .pagination {
+    margin: 10px 0 0;
+  }
+}
+@media (max-width: 767px) {
+  .content-wrap {
+    padding: 8px;
+  }
+  .posts-expand {
+    margin: initial;
+  }
+  .posts-expand .post-button {
+    margin: 12px 0;
+  }
+  .post-block {
+    border-radius: initial;
+    box-shadow: 0 2px 2px 0 rgba(0,0,0,0.12), 0 3px 1px -2px rgba(0,0,0,0.06), 0 1px 5px 0 rgba(0,0,0,0.12), 0 -1px 0.5px 0 rgba(0,0,0,0.09);
+    min-height: auto;
+    padding: 12px;
+  }
+  .post-block + .post-block {
+    margin-top: 8px;
+  }
+  .comments {
+    margin-top: 8px;
+    padding: 10px 12px;
+  }
+  .pagination {
+    margin: 8px 0 0;
+  }
+}</style><noscript>
+  <style>
+  .use-motion .brand,
+  .use-motion .menu-item,
+  .sidebar-inner,
+  .use-motion .post-block,
+  .use-motion .pagination,
+  .use-motion .comments,
+  .use-motion .post-header,
+  .use-motion .post-body,
+  .use-motion .collection-header { opacity: initial; }
+
+  .use-motion .site-title,
+  .use-motion .site-subtitle {
+    opacity: initial;
+    top: initial;
+  }
+
+  .use-motion .logo-line-before i { left: initial; }
+  .use-motion .logo-line-after i { right: initial; }
+  </style>
+</noscript>
+
+<script>function loadCss(l){var d=document,h=d.head,s=d.createElement('link');s.rel='stylesheet';s.href=l;!function e(f){if (d.body)return f();setTimeout(function(){e(f)})}(function(){h.appendChild(s);});}loadCss('/style.css');loadCss('//fonts.googleapis.com/css?family=Monda:300,300italic,400,400italic,700,700italic|Roboto Slab:300,300italic,400,400italic,700,700italic|PT Mono:300,300italic,400,400italic,700,700italic&display=swap&subset=latin,latin-ext');loadCss('//cdn.jsdelivr.net/npm/instantsearch.js@2/dist/instantsearch.min.css');loadCss('//cdn.jsdelivr.net/npm/gitalk@1/dist/gitalk.min.css');</script><noscript><link rel="stylesheet" href="/style.css"><link rel="stylesheet" href="//fonts.googleapis.com/css?family=Monda:300,300italic,400,400italic,700,700italic|Roboto Slab:300,300italic,400,400italic,700,700italic|PT Mono:300,300italic,400,400italic,700,700italic&amp;display=swap&amp;subset=latin,latin-ext"><link rel="stylesheet" href="//cdn.jsdelivr.net/npm/instantsearch.js@2/dist/instantsearch.min.css"><link rel="stylesheet" href="//cdn.jsdelivr.net/npm/gitalk@1/dist/gitalk.min.css"></noscript></head>
+
+<body itemscope="" itemtype="http://schema.org/WebPage">
+  <div class="container use-motion">
+    <div class="headband"></div>
+
+    <header class="header" itemscope="" itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-container">
+  <div class="site-meta">
+
+    <div>
+      <a href="/" class="brand" rel="start">
+        <span class="logo-line-before"><i></i></span>
+        <span class="site-title">贝克街的流浪猫</span>
+        <span class="logo-line-after"><i></i></span>
+      </a>
+    </div>
+        <h1 class="site-subtitle" itemprop="description">技术博客</h1>
+      
+  </div>
+
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="切换导航栏">
+      <span class="toggle-line toggle-line-first"></span>
+      <span class="toggle-line toggle-line-middle"></span>
+      <span class="toggle-line toggle-line-last"></span>
+    </div>
+  </div>
+</div>
+
+
+<nav class="site-nav">
+  
+  <ul id="menu" class="menu">
+        <li class="menu-item menu-item-home">
+
+    <a href="/" rel="section"><i class="fa fa-fw fa-home"></i>首页</a>
+
+  </li>
+        <li class="menu-item menu-item-tags">
+
+    <a href="/tags/" rel="section"><i class="fa fa-fw fa-tags"></i>标签</a>
+
+  </li>
+        <li class="menu-item menu-item-categories">
+
+    <a href="/categories/" rel="section"><i class="fa fa-fw fa-th"></i>分类</a>
+
+  </li>
+        <li class="menu-item menu-item-archives">
+
+    <a href="/archives/" rel="section"><i class="fa fa-fw fa-archive"></i>归档</a>
+
+  </li>
+        <li class="menu-item menu-item-about">
+
+    <a href="/about/" rel="section"><i class="fa fa-fw fa-user"></i>关于</a>
+
+  </li>
+      <li class="menu-item menu-item-search">
+        <a role="button" class="popup-trigger"><i class="fa fa-search fa-fw"></i>搜索
+        </a>
+      </li>
+  </ul>
+
+</nav>
+  <div class="site-search">
+    <div class="popup search-popup">
+    <div class="search-header">
+  <span class="search-icon">
+    <i class="fa fa-search"></i>
+  </span>
+  <div class="search-input" id="search-input"></div>
+  <span class="popup-btn-close">
+    <i class="fa fa-times-circle"></i>
+  </span>
+</div>
+<div class="algolia-results">
+  <div id="algolia-stats"></div>
+  <div id="algolia-hits"></div>
+  <div id="algolia-pagination" class="algolia-pagination"></div>
+</div>
+
+  
+</div>
+<div class="search-pop-overlay"></div>
+
+  </div>
+</div>
+    </header>
+
+    
+
+  <span class="exturl github-corner" data-url="aHR0cHM6Ly9naXRodWIuY29tL0JlaUtlSmllRGVMaXVMYW5nTWFv" title="欢迎关注我的 GitHub" aria-label="欢迎关注我的 GitHub"><svg width="80" height="80" viewBox="0 0 250 250" aria-hidden="true"><path d="M0,0 L115,115 L130,115 L142,142 L250,250 L250,0 Z"></path><path d="M128.3,109.0 C113.8,99.7 119.0,89.6 119.0,89.6 C122.0,82.7 120.5,78.6 120.5,78.6 C119.2,72.0 123.4,76.3 123.4,76.3 C127.3,80.9 125.5,87.3 125.5,87.3 C122.9,97.6 130.6,101.9 134.4,103.2" fill="currentColor" style="transform-origin: 130px 106px;" class="octo-arm"></path><path d="M115.0,115.0 C114.9,115.1 118.7,116.5 119.8,115.4 L133.7,101.6 C136.9,99.2 139.9,98.4 142.2,98.6 C133.8,88.0 127.5,74.4 143.8,58.0 C148.5,53.4 154.0,51.2 159.7,51.0 C160.3,49.4 163.2,43.6 171.4,40.1 C171.4,40.1 176.1,42.5 178.8,56.2 C183.1,58.6 187.2,61.8 190.9,65.4 C194.5,69.0 197.7,73.2 200.1,77.6 C213.8,80.2 216.3,84.9 216.3,84.9 C212.7,93.1 206.9,96.0 205.4,96.6 C205.1,102.4 203.0,107.8 198.3,112.5 C181.9,128.9 168.3,122.5 157.7,114.1 C157.9,116.9 156.7,120.9 152.7,124.9 L141.0,136.5 C139.8,137.7 141.6,141.9 141.8,141.8 Z" fill="currentColor" class="octo-body"></path></svg></span>
+
+
+    <main class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          
+
+          <div class="content">
+            
+
+  <div class="posts-expand">
+      
+  
+  
+  <article itemscope="" itemtype="http://schema.org/Article" class="post-block " lang="zh-CN">
+    <link itemprop="mainEntityOfPage" href="https://www.beikejiedeliulangmao.top/middleware/dubbo/spi-impl/">
+
+    <span hidden="" itemprop="author" itemscope="" itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.jpg">
+      <meta itemprop="name" content="贝克街的流浪猫">
+      <meta itemprop="description" content="贝贝猫">
+    </span>
+
+    <span hidden="" itemprop="publisher" itemscope="" itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="贝克街的流浪猫">
+    </span>
+      <header class="post-header">
+        <h2 class="post-title" itemprop="name headline">
+          Dubbo SPI 实现
+        </h2>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="fa fa-calendar-o"></i>
+              </span>
+              <span class="post-meta-item-text">发表于</span>
+
+              <time title="创建时间：2019-08-20 16:26:56" itemprop="dateCreated datePublished" datetime="2019-08-20T16:26:56+08:00">2019-08-20</time>
+            </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="fa fa-folder-o"></i>
+              </span>
+              <span class="post-meta-item-text">分类于</span>
+                <span itemprop="about" itemscope="" itemtype="http://schema.org/Thing">
+                  <a href="/categories/Middleware/" itemprop="url" rel="index">
+                    <span itemprop="name">Middleware</span>
+                  </a>
+                </span>
+                  ，
+                <span itemprop="about" itemscope="" itemtype="http://schema.org/Thing">
+                  <a href="/categories/Middleware/Dubbo/" itemprop="url" rel="index">
+                    <span itemprop="name">Dubbo</span>
+                  </a>
+                </span>
+            </span>
+
+          
+            <span id="/middleware/dubbo/spi-impl/" class="post-meta-item leancloud_visitors" data-flag-title="Dubbo SPI 实现" title="阅读次数">
+              <span class="post-meta-item-icon">
+                <i class="fa fa-eye"></i>
+              </span>
+              <span class="post-meta-item-text">阅读次数：</span>
+              <span class="leancloud-visitors-count"></span>
+            </span><br>
+            <span class="post-meta-item" title="本文字数">
+              <span class="post-meta-item-icon">
+                <i class="fa fa-file-word-o"></i>
+              </span>
+                <span class="post-meta-item-text">本文字数：</span>
+              <span>30k</span>
+            </span>
+            <span class="post-meta-item" title="阅读时长">
+              <span class="post-meta-item-icon">
+                <i class="fa fa-clock-o"></i>
+              </span>
+                <span class="post-meta-item-text">阅读时长 ≈</span>
+              <span>28 分钟</span>
+            </span>
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+        <h2 id="引言"><a href="#引言" class="headerlink" title="引言"></a>引言</h2><p>前文中，我们已经介绍 Dubbo SPI 和 Java SPI 的区别以及一些增强，本文我们着重介绍 Dubbo SPI 的实现方式，其他 Dubbo 相关文章均收录于 <a href="https://www.beikejiedeliulangmao.top/categories/Distributed/Dubbo">&lt;Dubbo系列文章&gt;</a>。</p>
+<a id="more"></a>
+
+<h2 id="实现原理"><a href="#实现原理" class="headerlink" title="实现原理"></a>实现原理</h2><p>SPI 全称为 Service Provider Interface，是一种服务发现机制。SPI 的本质是将接口实现类的全限定名配置在文件中，并由服务加载器读取配置文件，加载实现类。这样可以在运行时，动态为接口替换实现类。正因此特性，我们可以很容易的通过 SPI 机制为我们的程序提供拓展功能。SPI 机制在第三方框架中也有所应用，比如 Dubbo 就是通过 SPI 机制加载所有的组件。不过，Dubbo 并未使用 Java 原生的 SPI 机制，而是对其进行了增强，使其能够更好的满足需求。在 Dubbo 中，SPI 是一个非常重要的模块。基于 SPI，我们可以很容易的对 Dubbo 进行拓展。</p>
+<p>我们首先通过 ExtensionLoader 的 getExtensionLoader 方法获取一个 ExtensionLoader 实例，然后再通过 ExtensionLoader 的 getExtension 方法获取拓展类对象。这其中，getExtensionLoader 方法用于从缓存中获取与拓展类对应的 ExtensionLoader，若缓存未命中，则创建一个新的实例。该方法的逻辑比较简单，本章就不进行分析了。下面我们从 ExtensionLoader 的 getExtension 方法作为入口，对拓展类对象的获取过程进行详细的分析。</p>
+<figure class="highlight java"><table><tbody><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">public</span> T <span class="title">getExtension</span><span class="params">(String name)</span> </span>{</span><br><span class="line">    <span class="keyword">if</span> (name == <span class="keyword">null</span> || name.length() == <span class="number">0</span>)</span><br><span class="line">        <span class="keyword">throw</span> <span class="keyword">new</span> IllegalArgumentException(<span class="string">"Extension name == null"</span>);</span><br><span class="line">    <span class="keyword">if</span> (<span class="string">"true"</span>.equals(name)) {</span><br><span class="line">        <span class="comment">// 获取默认的拓展实现类</span></span><br><span class="line">        <span class="keyword">return</span> getDefaultExtension();</span><br><span class="line">    }</span><br><span class="line">    <span class="comment">// Holder，顾名思义，用于持有目标对象</span></span><br><span class="line">    Holder&lt;Object&gt; holder = cachedInstances.get(name);</span><br><span class="line">    <span class="keyword">if</span> (holder == <span class="keyword">null</span>) {</span><br><span class="line">        cachedInstances.putIfAbsent(name, <span class="keyword">new</span> Holder&lt;Object&gt;());</span><br><span class="line">        holder = cachedInstances.get(name);</span><br><span class="line">    }</span><br><span class="line">    Object instance = holder.get();</span><br><span class="line">    <span class="comment">// 双重检查</span></span><br><span class="line">    <span class="keyword">if</span> (instance == <span class="keyword">null</span>) {</span><br><span class="line">        <span class="keyword">synchronized</span> (holder) {</span><br><span class="line">            instance = holder.get();</span><br><span class="line">            <span class="keyword">if</span> (instance == <span class="keyword">null</span>) {</span><br><span class="line">                <span class="comment">// 创建拓展实例</span></span><br><span class="line">                instance = createExtension(name);</span><br><span class="line">                <span class="comment">// 设置实例到 holder 中</span></span><br><span class="line">                holder.set(instance);</span><br><span class="line">            }</span><br><span class="line">        }</span><br><span class="line">    }</span><br><span class="line">    <span class="keyword">return</span> (T) instance;</span><br><span class="line">}</span><br></pre></td></tr></tbody></table></figure>
+
+<p>上面代码的逻辑比较简单，首先检查缓存，缓存未命中则创建拓展对象。下面我们来看一下创建拓展对象的过程是怎样的。</p>
+<figure class="highlight java"><table><tbody><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">private</span> T <span class="title">createExtension</span><span class="params">(String name)</span> </span>{</span><br><span class="line">    <span class="comment">// 从配置文件中加载所有的拓展类，可得到“配置项名称”到“配置类”的映射关系表</span></span><br><span class="line">    Class&lt;?&gt; clazz = getExtensionClasses().get(name);</span><br><span class="line">    <span class="keyword">if</span> (clazz == <span class="keyword">null</span>) {</span><br><span class="line">        <span class="keyword">throw</span> findException(name);</span><br><span class="line">    }</span><br><span class="line">    <span class="keyword">try</span> {</span><br><span class="line">        T instance = (T) EXTENSION_INSTANCES.get(clazz);</span><br><span class="line">        <span class="keyword">if</span> (instance == <span class="keyword">null</span>) {</span><br><span class="line">            <span class="comment">// 通过反射创建实例</span></span><br><span class="line">            EXTENSION_INSTANCES.putIfAbsent(clazz, clazz.newInstance());</span><br><span class="line">            instance = (T) EXTENSION_INSTANCES.get(clazz);</span><br><span class="line">        }</span><br><span class="line">        <span class="comment">// 向实例中注入依赖</span></span><br><span class="line">        injectExtension(instance);</span><br><span class="line">        Set&lt;Class&lt;?&gt;&gt; wrapperClasses = cachedWrapperClasses;</span><br><span class="line">        <span class="keyword">if</span> (wrapperClasses != <span class="keyword">null</span> &amp;&amp; !wrapperClasses.isEmpty()) {</span><br><span class="line">            <span class="comment">// 循环创建 Wrapper 实例</span></span><br><span class="line">            <span class="keyword">for</span> (Class&lt;?&gt; wrapperClass : wrapperClasses) {</span><br><span class="line">                <span class="comment">// 将当前 instance 作为参数传给 Wrapper 的构造方法，并通过反射创建 Wrapper 实例。</span></span><br><span class="line">                <span class="comment">// 然后向 Wrapper 实例中注入依赖，最后将 Wrapper 实例再次赋值给 instance 变量</span></span><br><span class="line">                instance = injectExtension(</span><br><span class="line">                    (T) wrapperClass.getConstructor(type).newInstance(instance));</span><br><span class="line">            }</span><br><span class="line">        }</span><br><span class="line">        <span class="keyword">return</span> instance;</span><br><span class="line">    } <span class="keyword">catch</span> (Throwable t) {</span><br><span class="line">        <span class="keyword">throw</span> <span class="keyword">new</span> IllegalStateException(<span class="string">"..."</span>);</span><br><span class="line">    }</span><br><span class="line">}</span><br></pre></td></tr></tbody></table></figure>
+
+<p>createExtension 方法的逻辑稍复杂一下，包含了如下的步骤：</p>
+<ol>
+<li>通过 getExtensionClasses 获取所有的拓展类</li>
+<li>通过反射创建拓展对象</li>
+<li>向拓展对象中注入依赖</li>
+<li>将拓展对象包裹在相应的 Wrapper 对象中</li>
+</ol>
+<p>以上步骤中，第一个步骤是加载拓展类的关键，第三和第四个步骤是 Dubbo IOC 与 AOP 的具体实现。在接下来的章节中，将会重点分析 getExtensionClasses 方法的逻辑，以及简单介绍 Dubbo IOC 的具体实现。</p>
+<h3 id="获取所有的拓展类"><a href="#获取所有的拓展类" class="headerlink" title="获取所有的拓展类"></a>获取所有的拓展类</h3><p>我们在通过名称获取拓展类之前，首先需要根据配置文件解析出拓展项名称到拓展类的映射关系表（Map&lt;名称, 拓展类&gt;），之后再根据拓展项名称从映射关系表中取出相应的拓展类即可。相关过程的代码分析如下：</p>
+<figure class="highlight java"><table><tbody><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">private</span> Map&lt;String, Class&lt;?&gt;&gt; getExtensionClasses() {</span><br><span class="line">    <span class="comment">// 从缓存中获取已加载的拓展类</span></span><br><span class="line">    Map&lt;String, Class&lt;?&gt;&gt; classes = cachedClasses.get();</span><br><span class="line">    <span class="comment">// 双重检查</span></span><br><span class="line">    <span class="keyword">if</span> (classes == <span class="keyword">null</span>) {</span><br><span class="line">        <span class="keyword">synchronized</span> (cachedClasses) {</span><br><span class="line">            classes = cachedClasses.get();</span><br><span class="line">            <span class="keyword">if</span> (classes == <span class="keyword">null</span>) {</span><br><span class="line">                <span class="comment">// 加载拓展类</span></span><br><span class="line">                classes = loadExtensionClasses();</span><br><span class="line">                cachedClasses.set(classes);</span><br><span class="line">            }</span><br><span class="line">        }</span><br><span class="line">    }</span><br><span class="line">    <span class="keyword">return</span> classes;</span><br><span class="line">}</span><br></pre></td></tr></tbody></table></figure>
+
+<p>这里也是先检查缓存，若缓存未命中，则通过 synchronized 加锁。加锁后再次检查缓存，并判空。此时如果 classes 仍为 null，则通过 loadExtensionClasses 加载拓展类。下面分析 loadExtensionClasses 方法的逻辑。</p>
+<figure class="highlight java"><table><tbody><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">private</span> Map&lt;String, Class&lt;?&gt;&gt; loadExtensionClasses() {</span><br><span class="line">    <span class="comment">// 获取 SPI 注解，这里的 type 变量是在调用 getExtensionLoader 方法时传入的</span></span><br><span class="line">    <span class="keyword">final</span> SPI defaultAnnotation = type.getAnnotation(SPI.class);</span><br><span class="line">    <span class="keyword">if</span> (defaultAnnotation != <span class="keyword">null</span>) {</span><br><span class="line">        String value = defaultAnnotation.value();</span><br><span class="line">        <span class="keyword">if</span> ((value = value.trim()).length() &gt; <span class="number">0</span>) {</span><br><span class="line">            <span class="comment">// 对 SPI 注解内容进行切分</span></span><br><span class="line">            String[] names = NAME_SEPARATOR.split(value);</span><br><span class="line">            <span class="comment">// 检测 SPI 注解内容是否合法，不合法则抛出异常</span></span><br><span class="line">            <span class="keyword">if</span> (names.length &gt; <span class="number">1</span>) {</span><br><span class="line">                <span class="keyword">throw</span> <span class="keyword">new</span> IllegalStateException(<span class="string">"more than 1 default extension name on extension..."</span>);</span><br><span class="line">            }</span><br><span class="line"></span><br><span class="line">            <span class="comment">// 设置默认名称，参考 getDefaultExtension 方法</span></span><br><span class="line">            <span class="keyword">if</span> (names.length == <span class="number">1</span>) {</span><br><span class="line">                cachedDefaultName = names[<span class="number">0</span>];</span><br><span class="line">            }</span><br><span class="line">        }</span><br><span class="line">    }</span><br><span class="line"></span><br><span class="line">    Map&lt;String, Class&lt;?&gt;&gt; extensionClasses = <span class="keyword">new</span> HashMap&lt;String, Class&lt;?&gt;&gt;();</span><br><span class="line">    <span class="comment">// 加载指定文件夹下的配置文件</span></span><br><span class="line">    loadDirectory(extensionClasses, DUBBO_INTERNAL_DIRECTORY);</span><br><span class="line">    loadDirectory(extensionClasses, DUBBO_DIRECTORY);</span><br><span class="line">    loadDirectory(extensionClasses, SERVICES_DIRECTORY);</span><br><span class="line">    <span class="keyword">return</span> extensionClasses;</span><br><span class="line">}</span><br></pre></td></tr></tbody></table></figure>
+
+<p>loadExtensionClasses 方法总共做了两件事情，一是对 SPI 注解进行解析，二是调用 loadDirectory 方法加载指定文件夹配置文件。SPI 注解解析过程比较简单，无需多说。下面我们来看一下 loadDirectory 做了哪些事情。</p>
+<figure class="highlight java"><table><tbody><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">private</span> <span class="keyword">void</span> <span class="title">loadDirectory</span><span class="params">(Map&lt;String, Class&lt;?&gt;&gt; extensionClasses, String dir)</span> </span>{</span><br><span class="line">    <span class="comment">// fileName = 文件夹路径 + type 全限定名</span></span><br><span class="line">    String fileName = dir + type.getName();</span><br><span class="line">    <span class="keyword">try</span> {</span><br><span class="line">        Enumeration&lt;java.net.URL&gt; urls;</span><br><span class="line">        ClassLoader classLoader = findClassLoader();</span><br><span class="line">        <span class="comment">// 根据文件名加载所有的同名文件</span></span><br><span class="line">        <span class="keyword">if</span> (classLoader != <span class="keyword">null</span>) {</span><br><span class="line">            urls = classLoader.getResources(fileName);</span><br><span class="line">        } <span class="keyword">else</span> {</span><br><span class="line">            urls = ClassLoader.getSystemResources(fileName);</span><br><span class="line">        }</span><br><span class="line">        <span class="keyword">if</span> (urls != <span class="keyword">null</span>) {</span><br><span class="line">            <span class="keyword">while</span> (urls.hasMoreElements()) {</span><br><span class="line">                java.net.URL resourceURL = urls.nextElement();</span><br><span class="line">                <span class="comment">// 加载资源</span></span><br><span class="line">                loadResource(extensionClasses, classLoader, resourceURL);</span><br><span class="line">            }</span><br><span class="line">        }</span><br><span class="line">    } <span class="keyword">catch</span> (Throwable t) {</span><br><span class="line">        logger.error(<span class="string">"..."</span>);</span><br><span class="line">    }</span><br><span class="line">}</span><br></pre></td></tr></tbody></table></figure>
+
+<p>loadDirectory 方法先通过 classLoader 获取所有资源链接，然后再通过 loadResource 方法加载资源。我们继续跟下去，看一下 loadResource 方法的实现。</p>
+<figure class="highlight java"><table><tbody><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">private</span> <span class="keyword">void</span> <span class="title">loadResource</span><span class="params">(Map&lt;String, Class&lt;?&gt;&gt; extensionClasses,</span></span></span><br><span class="line"><span class="function"><span class="params">    ClassLoader classLoader, java.net.URL resourceURL)</span> </span>{</span><br><span class="line">    <span class="keyword">try</span> {</span><br><span class="line">        BufferedReader reader = <span class="keyword">new</span> BufferedReader(</span><br><span class="line">            <span class="keyword">new</span> InputStreamReader(resourceURL.openStream(), <span class="string">"utf-8"</span>));</span><br><span class="line">        <span class="keyword">try</span> {</span><br><span class="line">            String line;</span><br><span class="line">            <span class="comment">// 按行读取配置内容</span></span><br><span class="line">            <span class="keyword">while</span> ((line = reader.readLine()) != <span class="keyword">null</span>) {</span><br><span class="line">                <span class="comment">// 定位 # 字符</span></span><br><span class="line">                <span class="keyword">final</span> <span class="keyword">int</span> ci = line.indexOf(<span class="string">'#'</span>);</span><br><span class="line">                <span class="keyword">if</span> (ci &gt;= <span class="number">0</span>) {</span><br><span class="line">                    <span class="comment">// 截取 # 之前的字符串，# 之后的内容为注释，需要忽略</span></span><br><span class="line">                    line = line.substring(<span class="number">0</span>, ci);</span><br><span class="line">                }</span><br><span class="line">                line = line.trim();</span><br><span class="line">                <span class="keyword">if</span> (line.length() &gt; <span class="number">0</span>) {</span><br><span class="line">                    <span class="keyword">try</span> {</span><br><span class="line">                        String name = <span class="keyword">null</span>;</span><br><span class="line">                        <span class="keyword">int</span> i = line.indexOf(<span class="string">'='</span>);</span><br><span class="line">                        <span class="keyword">if</span> (i &gt; <span class="number">0</span>) {</span><br><span class="line">                            <span class="comment">// 以等于号 = 为界，截取键与值</span></span><br><span class="line">                            name = line.substring(<span class="number">0</span>, i).trim();</span><br><span class="line">                            line = line.substring(i + <span class="number">1</span>).trim();</span><br><span class="line">                        }</span><br><span class="line">                        <span class="keyword">if</span> (line.length() &gt; <span class="number">0</span>) {</span><br><span class="line">                            <span class="comment">// 加载类，并通过 loadClass 方法对类进行缓存</span></span><br><span class="line">                            loadClass(extensionClasses, resourceURL,</span><br><span class="line">                                      Class.forName(line, <span class="keyword">true</span>, classLoader), name);</span><br><span class="line">                        }</span><br><span class="line">                    } <span class="keyword">catch</span> (Throwable t) {</span><br><span class="line">                        IllegalStateException e = <span class="keyword">new</span> IllegalStateException(<span class="string">"Failed to load extension class..."</span>);</span><br><span class="line">                    }</span><br><span class="line">                }</span><br><span class="line">            }</span><br><span class="line">        } <span class="keyword">finally</span> {</span><br><span class="line">            reader.close();</span><br><span class="line">        }</span><br><span class="line">    } <span class="keyword">catch</span> (Throwable t) {</span><br><span class="line">        logger.error(<span class="string">"Exception when load extension class..."</span>);</span><br><span class="line">    }</span><br><span class="line">}</span><br></pre></td></tr></tbody></table></figure>
+
+<p>loadResource 方法用于读取和解析配置文件，并通过反射加载类，最后调用 loadClass 方法进行其他操作。loadClass 方法用于主要用于操作缓存，该方法的逻辑如下：</p>
+<figure class="highlight java"><table><tbody><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">private</span> <span class="keyword">void</span> <span class="title">loadClass</span><span class="params">(Map&lt;String, Class&lt;?&gt;&gt; extensionClasses, java.net.URL resourceURL,</span></span></span><br><span class="line"><span class="function"><span class="params">    Class&lt;?&gt; clazz, String name)</span> <span class="keyword">throws</span> NoSuchMethodException </span>{</span><br><span class="line"></span><br><span class="line">    <span class="keyword">if</span> (!type.isAssignableFrom(clazz)) {</span><br><span class="line">        <span class="keyword">throw</span> <span class="keyword">new</span> IllegalStateException(<span class="string">"..."</span>);</span><br><span class="line">    }</span><br><span class="line"></span><br><span class="line">    <span class="comment">// 检测目标类上是否有 Adaptive 注解</span></span><br><span class="line">    <span class="keyword">if</span> (clazz.isAnnotationPresent(Adaptive.class)) {</span><br><span class="line">        <span class="keyword">if</span> (cachedAdaptiveClass == <span class="keyword">null</span>) {</span><br><span class="line">            <span class="comment">// 设置 cachedAdaptiveClass缓存</span></span><br><span class="line">            cachedAdaptiveClass = clazz;</span><br><span class="line">        } <span class="keyword">else</span> <span class="keyword">if</span> (!cachedAdaptiveClass.equals(clazz)) {</span><br><span class="line">            <span class="keyword">throw</span> <span class="keyword">new</span> IllegalStateException(<span class="string">"..."</span>);</span><br><span class="line">        }</span><br><span class="line"></span><br><span class="line">    <span class="comment">// 检测 clazz 是否是 Wrapper 类型</span></span><br><span class="line">    } <span class="keyword">else</span> <span class="keyword">if</span> (isWrapperClass(clazz)) {</span><br><span class="line">        Set&lt;Class&lt;?&gt;&gt; wrappers = cachedWrapperClasses;</span><br><span class="line">        <span class="keyword">if</span> (wrappers == <span class="keyword">null</span>) {</span><br><span class="line">            cachedWrapperClasses = <span class="keyword">new</span> ConcurrentHashSet&lt;Class&lt;?&gt;&gt;();</span><br><span class="line">            wrappers = cachedWrapperClasses;</span><br><span class="line">        }</span><br><span class="line">        <span class="comment">// 存储 clazz 到 cachedWrapperClasses 缓存中</span></span><br><span class="line">        wrappers.add(clazz);</span><br><span class="line"></span><br><span class="line">    <span class="comment">// 程序进入此分支，表明 clazz 是一个普通的拓展类</span></span><br><span class="line">    } <span class="keyword">else</span> {</span><br><span class="line">        <span class="comment">// 检测 clazz 是否有默认的构造方法，如果没有，则抛出异常</span></span><br><span class="line">        clazz.getConstructor();</span><br><span class="line">        <span class="keyword">if</span> (name == <span class="keyword">null</span> || name.length() == <span class="number">0</span>) {</span><br><span class="line">            <span class="comment">// 如果 name 为空，则尝试从 Extension 注解中获取 name，或使用小写的类名作为 name</span></span><br><span class="line">            name = findAnnotationName(clazz);</span><br><span class="line">            <span class="keyword">if</span> (name.length() == <span class="number">0</span>) {</span><br><span class="line">                <span class="keyword">throw</span> <span class="keyword">new</span> IllegalStateException(<span class="string">"..."</span>);</span><br><span class="line">            }</span><br><span class="line">        }</span><br><span class="line">        <span class="comment">// 切分 name</span></span><br><span class="line">        String[] names = NAME_SEPARATOR.split(name);</span><br><span class="line">        <span class="keyword">if</span> (names != <span class="keyword">null</span> &amp;&amp; names.length &gt; <span class="number">0</span>) {</span><br><span class="line">            Activate activate = clazz.getAnnotation(Activate.class);</span><br><span class="line">            <span class="keyword">if</span> (activate != <span class="keyword">null</span>) {</span><br><span class="line">                <span class="comment">// 如果类上有 Activate 注解，则使用 names 数组的第一个元素作为键，</span></span><br><span class="line">                <span class="comment">// 存储 name 到 Activate 注解对象的映射关系</span></span><br><span class="line">                cachedActivates.put(names[<span class="number">0</span>], activate);</span><br><span class="line">            }</span><br><span class="line">            <span class="keyword">for</span> (String n : names) {</span><br><span class="line">                <span class="keyword">if</span> (!cachedNames.containsKey(clazz)) {</span><br><span class="line">                    <span class="comment">// 存储 Class 到名称的映射关系</span></span><br><span class="line">                    cachedNames.put(clazz, n);</span><br><span class="line">                }</span><br><span class="line">                Class&lt;?&gt; c = extensionClasses.get(n);</span><br><span class="line">                <span class="keyword">if</span> (c == <span class="keyword">null</span>) {</span><br><span class="line">                    <span class="comment">// 存储名称到 Class 的映射关系</span></span><br><span class="line">                    extensionClasses.put(n, clazz);</span><br><span class="line">                } <span class="keyword">else</span> <span class="keyword">if</span> (c != clazz) {</span><br><span class="line">                    <span class="keyword">throw</span> <span class="keyword">new</span> IllegalStateException(<span class="string">"..."</span>);</span><br><span class="line">                }</span><br><span class="line">            }</span><br><span class="line">        }</span><br><span class="line">    }</span><br><span class="line">}</span><br></pre></td></tr></tbody></table></figure>
+
+<p>如上，loadClass 方法操作了不同的缓存，比如 cachedAdaptiveClass、cachedWrapperClasses 和 cachedNames 等等。除此之外，该方法没有其他什么逻辑了。</p>
+<p>到此，关于缓存类加载的过程就分析完了。整个过程没什么特别复杂的地方，大家按部就班的分析即可，不懂的地方可以调试一下。接下来，我们来聊聊 Dubbo IOC 方面的内容。</p>
+<h3 id="Dubbo-IOC"><a href="#Dubbo-IOC" class="headerlink" title="Dubbo IOC"></a>Dubbo IOC</h3><p>Dubbo IOC 是通过 setter 方法注入依赖。Dubbo 首先会通过反射获取到实例的所有方法，然后再遍历方法列表，检测方法名是否具有 setter 方法特征。若有，则通过 ObjectFactory 获取依赖对象，最后通过反射调用 setter 方法将依赖设置到目标对象中。整个过程对应的代码如下：</p>
+<figure class="highlight java"><table><tbody><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">private</span> T <span class="title">injectExtension</span><span class="params">(T instance)</span> </span>{</span><br><span class="line">    <span class="keyword">try</span> {</span><br><span class="line">        <span class="keyword">if</span> (objectFactory != <span class="keyword">null</span>) {</span><br><span class="line">            <span class="comment">// 遍历目标类的所有方法</span></span><br><span class="line">            <span class="keyword">for</span> (Method method : instance.getClass().getMethods()) {</span><br><span class="line">                <span class="comment">// 检测方法是否以 set 开头，且方法仅有一个参数，且方法访问级别为 public</span></span><br><span class="line">                <span class="keyword">if</span> (method.getName().startsWith(<span class="string">"set"</span>)</span><br><span class="line">                    &amp;&amp; method.getParameterTypes().length == <span class="number">1</span></span><br><span class="line">                    &amp;&amp; Modifier.isPublic(method.getModifiers())) {</span><br><span class="line">                    <span class="comment">// 获取 setter 方法参数类型</span></span><br><span class="line">                    Class&lt;?&gt; pt = method.getParameterTypes()[<span class="number">0</span>];</span><br><span class="line">                    <span class="keyword">try</span> {</span><br><span class="line">                        <span class="comment">// 获取属性名，比如 setName 方法对应属性名 name</span></span><br><span class="line">                        String property = method.getName().length() &gt; <span class="number">3</span> ?</span><br><span class="line">                            method.getName().substring(<span class="number">3</span>, <span class="number">4</span>).toLowerCase() +</span><br><span class="line">                                method.getName().substring(<span class="number">4</span>) : <span class="string">""</span>;</span><br><span class="line">                        <span class="comment">// 从 ObjectFactory 中获取依赖对象</span></span><br><span class="line">                        Object object = objectFactory.getExtension(pt, property);</span><br><span class="line">                        <span class="keyword">if</span> (object != <span class="keyword">null</span>) {</span><br><span class="line">                            <span class="comment">// 通过反射调用 setter 方法设置依赖</span></span><br><span class="line">                            method.invoke(instance, object);</span><br><span class="line">                        }</span><br><span class="line">                    } <span class="keyword">catch</span> (Exception e) {</span><br><span class="line">                        logger.error(<span class="string">"fail to inject via method..."</span>);</span><br><span class="line">                    }</span><br><span class="line">                }</span><br><span class="line">            }</span><br><span class="line">        }</span><br><span class="line">    } <span class="keyword">catch</span> (Exception e) {</span><br><span class="line">        logger.error(e.getMessage(), e);</span><br><span class="line">    }</span><br><span class="line">    <span class="keyword">return</span> instance;</span><br><span class="line">}</span><br></pre></td></tr></tbody></table></figure>
+
+<p>在上面代码中，objectFactory 变量的类型为 AdaptiveExtensionFactory，AdaptiveExtensionFactory 内部维护了一个 ExtensionFactory 列表，用于存储其他类型的 ExtensionFactory。Dubbo 目前提供了两种 ExtensionFactory，分别是 SpiExtensionFactory 和 SpringExtensionFactory。前者用于创建自适应的拓展，后者是用于从 Spring 的 IOC 容器中获取所需的拓展。</p>
+<p>Dubbo IOC 目前仅支持 setter 方式注入，总的来说，逻辑比较简单易懂。</p>
+<h3 id="Dubbo-自适应机制"><a href="#Dubbo-自适应机制" class="headerlink" title="Dubbo 自适应机制"></a>Dubbo 自适应机制</h3><p>在 Dubbo 中，很多拓展都是通过 SPI 机制进行加载的，比如 Protocol、Cluster、LoadBalance 等。有时，有些拓展并不想在框架启动阶段被加载，而是希望在拓展方法被调用时，根据运行时参数进行加载。这听起来有些矛盾。拓展未被加载，那么拓展方法就无法被调用（静态方法除外）。拓展方法未被调用，拓展就无法被加载。对于这个矛盾的问题，Dubbo 通过自适应拓展机制很好的解决了。自适应拓展机制的实现逻辑比较复杂，首先 Dubbo 会为拓展接口生成具有代理功能的代码。然后通过 javassist 或 jdk 编译这段代码，得到 Class 类。最后再通过反射创建代理类，整个过程比较复杂。为了让大家对自适应拓展有一个感性的认识，下面我们通过一个示例进行演示。这是一个与汽车相关的例子，我们有一个车轮制造厂接口 WheelMaker：</p>
+<p>在对自适应拓展生成过程进行深入分析之前，我们先来看一下与自适应拓展息息相关的一个注解，即 Adaptive 注解。该注解的定义如下：</p>
+<figure class="highlight java"><table><tbody><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">@Documented</span></span><br><span class="line"><span class="meta">@Retention(RetentionPolicy.RUNTIME)</span></span><br><span class="line"><span class="meta">@Target({ElementType.TYPE, ElementType.METHOD})</span></span><br><span class="line"><span class="keyword">public</span> <span class="meta">@interface</span> Adaptive {</span><br><span class="line">    String[] value() <span class="keyword">default</span> {};</span><br><span class="line">}</span><br></pre></td></tr></tbody></table></figure>
+
+<p>从上面的代码中可知，Adaptive 可注解在类或方法上。当 Adaptive 注解在类上时，Dubbo 不会为该类生成代理类。注解在方法（接口方法）上时，Dubbo 则会为该方法生成代理逻辑。Adaptive 注解在类上的情况很少，在 Dubbo 中，仅有两个类被 Adaptive 注解了，分别是 AdaptiveCompiler 和 AdaptiveExtensionFactory。此种情况，表示拓展的加载逻辑由人工编码完成。更多时候，Adaptive 是注解在接口方法上的，表示拓展的加载逻辑需由框架自动生成。Adaptive 注解的地方不同，相应的处理逻辑也是不同的。注解在类上时，处理逻辑比较简单，会直接作为自适应类。注解在接口方法上时，处理逻辑较为复杂，接下来将会重点分析此块逻辑。</p>
+<h4 id="获取自适应拓展"><a href="#获取自适应拓展" class="headerlink" title="获取自适应拓展"></a>获取自适应拓展</h4><p>getAdaptiveExtension 方法是获取自适应拓展的入口方法，因此下面我们从这个方法进行分析。相关代码如下：</p>
+<figure class="highlight java"><table><tbody><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">public</span> T <span class="title">getAdaptiveExtension</span><span class="params">()</span> </span>{</span><br><span class="line">    <span class="comment">// 从缓存中获取自适应拓展</span></span><br><span class="line">    Object instance = cachedAdaptiveInstance.get();</span><br><span class="line">    <span class="keyword">if</span> (instance == <span class="keyword">null</span>) {    <span class="comment">// 缓存未命中</span></span><br><span class="line">        <span class="keyword">if</span> (createAdaptiveInstanceError == <span class="keyword">null</span>) {</span><br><span class="line">            <span class="keyword">synchronized</span> (cachedAdaptiveInstance) {</span><br><span class="line">                instance = cachedAdaptiveInstance.get();</span><br><span class="line">                <span class="keyword">if</span> (instance == <span class="keyword">null</span>) {</span><br><span class="line">                    <span class="keyword">try</span> {</span><br><span class="line">                        <span class="comment">// 创建自适应拓展</span></span><br><span class="line">                        instance = createAdaptiveExtension();</span><br><span class="line">                        <span class="comment">// 设置自适应拓展到缓存中</span></span><br><span class="line">                        cachedAdaptiveInstance.set(instance);</span><br><span class="line">                    } <span class="keyword">catch</span> (Throwable t) {</span><br><span class="line">                        createAdaptiveInstanceError = t;</span><br><span class="line">                        <span class="keyword">throw</span> <span class="keyword">new</span> IllegalStateException(<span class="string">"fail to create adaptive instance: ..."</span>);</span><br><span class="line">                    }</span><br><span class="line">                }</span><br><span class="line">            }</span><br><span class="line">        } <span class="keyword">else</span> {</span><br><span class="line">            <span class="keyword">throw</span> <span class="keyword">new</span> IllegalStateException(<span class="string">"fail to create adaptive instance:  ..."</span>);</span><br><span class="line">        }</span><br><span class="line">    }</span><br><span class="line"></span><br><span class="line">    <span class="keyword">return</span> (T) instance;</span><br><span class="line">}</span><br></pre></td></tr></tbody></table></figure>
+
+<p>getAdaptiveExtension 方法首先会检查缓存，缓存未命中，则调用 createAdaptiveExtension 方法创建自适应拓展。下面，我们看一下 createAdaptiveExtension 方法的代码。</p>
+<figure class="highlight java"><table><tbody><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">private</span> T <span class="title">createAdaptiveExtension</span><span class="params">()</span> </span>{</span><br><span class="line">    <span class="keyword">try</span> {</span><br><span class="line">        <span class="comment">// 获取自适应拓展类，并通过反射实例化</span></span><br><span class="line">        <span class="keyword">return</span> injectExtension((T) getAdaptiveExtensionClass().newInstance());</span><br><span class="line">    } <span class="keyword">catch</span> (Exception e) {</span><br><span class="line">        <span class="keyword">throw</span> <span class="keyword">new</span> IllegalStateException(<span class="string">"Can not create adaptive extension ..."</span>);</span><br><span class="line">    }</span><br><span class="line">}</span><br></pre></td></tr></tbody></table></figure>
+
+<p>createAdaptiveExtension 方法的代码比较少，但却包含了三个逻辑，分别如下：</p>
+<ol>
+<li>调用 getAdaptiveExtensionClass 方法获取自适应拓展 Class 对象</li>
+<li>通过反射进行实例化</li>
+<li>调用 injectExtension 方法向拓展实例中注入依赖</li>
+</ol>
+<p>前两个逻辑比较好理解，第三个逻辑用于向自适应拓展对象中注入依赖。这个逻辑看似多余，但有存在的必要，这里简单说明一下。前面说过，Dubbo 中有两种类型的自适应拓展，一种是手工编码的，一种是自动生成的。手工编码的自适应拓展中可能存在着一些依赖，而自动生成的 Adaptive 拓展则不会依赖其他类。这里调用 injectExtension 方法的目的是为手工编码的自适应拓展注入依赖，这一点需要大家注意一下。关于 injectExtension 方法，前文已经分析过了，这里不再赘述。接下来，分析 getAdaptiveExtensionClass 方法的逻辑。</p>
+<figure class="highlight java"><table><tbody><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">private</span> Class&lt;?&gt; getAdaptiveExtensionClass() {</span><br><span class="line">    <span class="comment">// 通过 SPI 获取所有的拓展类</span></span><br><span class="line">    getExtensionClasses();</span><br><span class="line">    <span class="comment">// 检查缓存，若缓存不为空，则直接返回缓存</span></span><br><span class="line">    <span class="keyword">if</span> (cachedAdaptiveClass != <span class="keyword">null</span>) {</span><br><span class="line">        <span class="keyword">return</span> cachedAdaptiveClass;</span><br><span class="line">    }</span><br><span class="line">    <span class="comment">// 创建自适应拓展类</span></span><br><span class="line">    <span class="keyword">return</span> cachedAdaptiveClass = createAdaptiveExtensionClass();</span><br><span class="line">}</span><br></pre></td></tr></tbody></table></figure>
+
+<p>getAdaptiveExtensionClass 方法同样包含了三个逻辑，如下：</p>
+<ol>
+<li>调用 getExtensionClasses 获取所有的拓展类</li>
+<li>检查缓存，若缓存不为空，则返回缓存</li>
+<li>若缓存为空，则调用 createAdaptiveExtensionClass 创建自适应拓展类</li>
+</ol>
+<p>这三个逻辑看起来平淡无奇，似乎没有多讲的必要。但是这些平淡无奇的代码中隐藏了着一些细节，需要说明一下。首先从第一个逻辑说起，getExtensionClasses 这个方法用于获取某个接口的所有实现类。比如该方法可以获取 Protocol 接口的 DubboProtocol、HttpProtocol、InjvmProtocol 等实现类。在获取实现类的过程中，如果某个某个实现类被 Adaptive 注解修饰了，那么该类就会被赋值给 cachedAdaptiveClass 变量。此时，上面步骤中的第二步条件成立（缓存不为空），直接返回 cachedAdaptiveClass 即可。如果所有的实现类均未被 Adaptive 注解修饰，那么执行第三步逻辑，创建自适应拓展类。相关代码如下：</p>
+<figure class="highlight java"><table><tbody><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">private</span> Class&lt;?&gt; createAdaptiveExtensionClass() {</span><br><span class="line">    <span class="comment">// 构建自适应拓展代码</span></span><br><span class="line">    String code = createAdaptiveExtensionClassCode();</span><br><span class="line">    ClassLoader classLoader = findClassLoader();</span><br><span class="line">    <span class="comment">// 获取编译器实现类</span></span><br><span class="line">    com.alibaba.dubbo.common.compiler.Compiler compiler = ExtensionLoader.getExtensionLoader(com.alibaba.dubbo.common.compiler.Compiler.class).getAdaptiveExtension();</span><br><span class="line">    <span class="comment">// 编译代码，生成 Class</span></span><br><span class="line">    <span class="keyword">return</span> compiler.compile(code, classLoader);</span><br><span class="line">}</span><br></pre></td></tr></tbody></table></figure>
+
+<p>createAdaptiveExtensionClass 方法用于生成自适应拓展类，该方法首先会生成自适应拓展类的源码，然后通过 Compiler 实例（Dubbo 默认使用 javassist 作为编译器）编译源码，得到代理类 Class 实例。接下来，我们把重点放在代理类代码生成的逻辑上，其他逻辑大家自行分析。</p>
+<h4 id="拓展类代码生成"><a href="#拓展类代码生成" class="headerlink" title="拓展类代码生成"></a>拓展类代码生成</h4><p>在生成代理类源码之前，createAdaptiveExtensionClassCode 方法首先会通过反射检测接口方法是否包含 Adaptive 注解。对于要生成自适应拓展的接口，Dubbo 要求该接口至少有一个方法被 Adaptive 注解修饰。若不满足此条件，就会抛出运行时异常。相关代码如下：</p>
+<figure class="highlight java"><table><tbody><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// 通过反射获取所有的方法</span></span><br><span class="line">Method[] methods = type.getMethods();</span><br><span class="line"><span class="keyword">boolean</span> hasAdaptiveAnnotation = <span class="keyword">false</span>;</span><br><span class="line"><span class="comment">// 遍历方法列表</span></span><br><span class="line"><span class="keyword">for</span> (Method m : methods) {</span><br><span class="line">    <span class="comment">// 检测方法上是否有 Adaptive 注解</span></span><br><span class="line">    <span class="keyword">if</span> (m.isAnnotationPresent(Adaptive.class)) {</span><br><span class="line">        hasAdaptiveAnnotation = <span class="keyword">true</span>;</span><br><span class="line">        <span class="keyword">break</span>;</span><br><span class="line">    }</span><br><span class="line">}</span><br><span class="line"></span><br><span class="line"><span class="keyword">if</span> (!hasAdaptiveAnnotation)</span><br><span class="line">    <span class="comment">// 若所有的方法上均无 Adaptive 注解，则抛出异常</span></span><br><span class="line">    <span class="keyword">throw</span> <span class="keyword">new</span> IllegalStateException(<span class="string">"No adaptive method on extension ..."</span>);</span><br></pre></td></tr></tbody></table></figure>
+
+<p>通过 Adaptive 注解检测后，即可开始生成代码。代码生成的顺序与 Java 文件内容顺序一致，首先会生成 package 语句，然后生成 import 语句，紧接着生成类名等代码。整个逻辑如下：</p>
+<figure class="highlight java"><table><tbody><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// 生成 package 代码：package + type 所在包</span></span><br><span class="line">codeBuilder.append(<span class="string">"package "</span>).append(type.getPackage().getName()).append(<span class="string">";"</span>);</span><br><span class="line"><span class="comment">// 生成 import 代码：import + ExtensionLoader 全限定名</span></span><br><span class="line">codeBuilder.append(<span class="string">"\nimport "</span>).append(ExtensionLoader.class.getName()).append(";");</span><br><span class="line"><span class="comment">// 生成类代码：public class + type简单名称 + $Adaptive + implements + type全限定名 + {</span></span><br><span class="line">codeBuilder.append(<span class="string">"\npublic class "</span>)</span><br><span class="line">    .append(type.getSimpleName())</span><br><span class="line">    .append(<span class="string">"$Adaptive"</span>)</span><br><span class="line">    .append(<span class="string">" implements "</span>)</span><br><span class="line">    .append(type.getCanonicalName())</span><br><span class="line">    .append(<span class="string">" {"</span>);</span><br><span class="line"></span><br><span class="line"><span class="comment">// ${生成方法}</span></span><br><span class="line"></span><br><span class="line">codeBuilder.append(<span class="string">"\n}"</span>);</span><br></pre></td></tr></tbody></table></figure>
+
+<p>这里使用 ${…} 占位符代表其他代码的生成逻辑，该部分逻辑将在随后进行分析。上面代码不是很难理解，下面直接通过一个例子展示该段代码所生成的内容。以 Dubbo 的 Protocol 接口为例，生成的代码如下：</p>
+<figure class="highlight java"><table><tbody><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">package</span> com.alibaba.dubbo.rpc;</span><br><span class="line"><span class="keyword">import</span> com.alibaba.dubbo.common.extension.ExtensionLoader;</span><br><span class="line"><span class="keyword">public</span> <span class="class"><span class="keyword">class</span> <span class="title">Protocol</span>$<span class="title">Adaptive</span> <span class="keyword">implements</span> <span class="title">com</span>.<span class="title">alibaba</span>.<span class="title">dubbo</span>.<span class="title">rpc</span>.<span class="title">Protocol</span> </span>{</span><br><span class="line">    <span class="comment">// 省略方法代码</span></span><br><span class="line">}</span><br></pre></td></tr></tbody></table></figure>
+
+<p>一个方法可以被 Adaptive 注解修饰，也可以不被修饰。这里将未被 Adaptive 注解修饰的方法称为“无 Adaptive 注解方法”，下面我们先来看看此种方法的代码生成逻辑是怎样的。</p>
+<p>对于接口方法，我们可以按照需求标注 Adaptive 注解。以 Protocol 接口为例，该接口的 destroy 和 getDefaultPort 未标注 Adaptive 注解，其他方法均标注了 Adaptive 注解。Dubbo 不会为没有标注 Adaptive 注解的方法生成代理逻辑，对于该种类型的方法，仅会生成一句抛出异常的代码。生成逻辑如下：</p>
+<figure class="highlight java"><table><tbody><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">for</span> (Method method : methods) {</span><br><span class="line"></span><br><span class="line">    <span class="comment">// 省略无关逻辑</span></span><br><span class="line"></span><br><span class="line">    Adaptive adaptiveAnnotation = method.getAnnotation(Adaptive.class);</span><br><span class="line">    StringBuilder code = <span class="keyword">new</span> StringBuilder(<span class="number">512</span>);</span><br><span class="line">    <span class="comment">// 如果方法上无 Adaptive 注解，则生成 throw new UnsupportedOperationException(...) 代码</span></span><br><span class="line">    <span class="keyword">if</span> (adaptiveAnnotation == <span class="keyword">null</span>) {</span><br><span class="line">        <span class="comment">// 生成的代码格式如下：</span></span><br><span class="line">        <span class="comment">// throw new UnsupportedOperationException(</span></span><br><span class="line">        <span class="comment">//     "method " + 方法签名 + of interface + 全限定接口名 + is not adaptive method!”)</span></span><br><span class="line">        code.append(<span class="string">"throw new UnsupportedOperationException(\"method "</span>)</span><br><span class="line">            .append(method.toString()).append(<span class="string">" of interface "</span>)</span><br><span class="line">            .append(type.getName()).append(<span class="string">" is not adaptive method!\");"</span>);</span><br><span class="line">    } <span class="keyword">else</span> {</span><br><span class="line">        <span class="comment">// 省略无关逻辑</span></span><br><span class="line">    }</span><br><span class="line"></span><br><span class="line">    <span class="comment">// 省略无关逻辑</span></span><br><span class="line">}</span><br><span class="line"></span><br></pre></td></tr></tbody></table></figure>
+
+<p>以 Protocol 接口的 destroy 方法为例，上面代码生成的内容如下：</p>
+<figure class="highlight java"><table><tbody><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">throw</span> <span class="keyword">new</span> UnsupportedOperationException(</span><br><span class="line">            <span class="string">"method public abstract void com.alibaba.dubbo.rpc.Protocol.destroy() of interface com.alibaba.dubbo.rpc.Protocol is not adaptive method!"</span>);</span><br></pre></td></tr></tbody></table></figure>
+
+<p>前面说过方法代理逻辑会从 URL 中提取目标拓展的名称，因此代码生成逻辑的一个重要的任务是从方法的参数列表或者其他参数中获取 URL 数据。举例说明一下，我们要为 Protocol 接口的 refer 和 export 方法生成代理逻辑。在运行时，通过反射得到的方法定义大致如下：</p>
+<figure class="highlight java"><table><tbody><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line"><span class="function">Invoker <span class="title">refer</span><span class="params">(Class&lt;T&gt; arg0, URL arg1)</span> <span class="keyword">throws</span> RpcException</span>;</span><br><span class="line"><span class="function">Exporter <span class="title">export</span><span class="params">(Invoker&lt;T&gt; arg0)</span> <span class="keyword">throws</span> RpcException</span>;</span><br></pre></td></tr></tbody></table></figure>
+
+<p>对于 refer 方法，通过遍历 refer 的参数列表即可获取 URL 数据，这个还比较简单。对于 export 方法，获取 URL 数据则要麻烦一些。export 参数列表中没有 URL 参数，因此需要从 Invoker 参数中获取 URL 数据。获取方式是调用 Invoker 中可返回 URL 的 getter 方法，比如 getUrl。如果 Invoker 中无相关 getter 方法，此时则会抛出异常。整个逻辑如下：</p>
+<figure class="highlight java"><table><tbody><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br><span class="line">73</span><br><span class="line">74</span><br><span class="line">75</span><br><span class="line">76</span><br><span class="line">77</span><br><span class="line">78</span><br><span class="line">79</span><br><span class="line">80</span><br><span class="line">81</span><br><span class="line">82</span><br><span class="line">83</span><br><span class="line">84</span><br><span class="line">85</span><br><span class="line">86</span><br><span class="line">87</span><br><span class="line">88</span><br><span class="line">89</span><br><span class="line">90</span><br><span class="line">91</span><br><span class="line">92</span><br><span class="line">93</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">for</span> (Method method : methods) {</span><br><span class="line">    Class&lt;?&gt; rt = method.getReturnType();</span><br><span class="line">    Class&lt;?&gt;[] pts = method.getParameterTypes();</span><br><span class="line">    Class&lt;?&gt;[] ets = method.getExceptionTypes();</span><br><span class="line"></span><br><span class="line">    Adaptive adaptiveAnnotation = method.getAnnotation(Adaptive.class);</span><br><span class="line">    StringBuilder code = <span class="keyword">new</span> StringBuilder(<span class="number">512</span>);</span><br><span class="line">    <span class="keyword">if</span> (adaptiveAnnotation == <span class="keyword">null</span>) {</span><br><span class="line">        <span class="comment">// ${无 Adaptive 注解方法代码生成逻辑}</span></span><br><span class="line">    } <span class="keyword">else</span> {</span><br><span class="line">        <span class="keyword">int</span> urlTypeIndex = -<span class="number">1</span>;</span><br><span class="line">        <span class="comment">// 遍历参数列表，确定 URL 参数位置</span></span><br><span class="line">        <span class="keyword">for</span> (<span class="keyword">int</span> i = <span class="number">0</span>; i &lt; pts.length; ++i) {</span><br><span class="line">            <span class="keyword">if</span> (pts[i].equals(URL.class)) {</span><br><span class="line">                urlTypeIndex = i;</span><br><span class="line">                <span class="keyword">break</span>;</span><br><span class="line">            }</span><br><span class="line">        }</span><br><span class="line"></span><br><span class="line">        <span class="comment">// urlTypeIndex != -1，表示参数列表中存在 URL 参数</span></span><br><span class="line">        <span class="keyword">if</span> (urlTypeIndex != -<span class="number">1</span>) {</span><br><span class="line">            <span class="comment">// 为 URL 类型参数生成判空代码，格式如下：</span></span><br><span class="line">            <span class="comment">// if (arg + urlTypeIndex == null)</span></span><br><span class="line">            <span class="comment">//     throw new IllegalArgumentException("url == null");</span></span><br><span class="line">            String s = String.format(<span class="string">"\nif (arg%d == null) throw new IllegalArgumentException(\"url == null\");"</span>,</span><br><span class="line">                                     urlTypeIndex);</span><br><span class="line">            code.append(s);</span><br><span class="line"></span><br><span class="line">            <span class="comment">// 为 URL 类型参数生成赋值代码，形如 URL url = arg1</span></span><br><span class="line">            s = String.format(<span class="string">"\n%s url = arg%d;"</span>, URL.class.getName(), urlTypeIndex);</span><br><span class="line">            code.append(s);</span><br><span class="line"></span><br><span class="line">        <span class="comment">// 参数列表中不存在 URL 类型参数</span></span><br><span class="line">        } <span class="keyword">else</span> {</span><br><span class="line">            String attribMethod = <span class="keyword">null</span>;</span><br><span class="line"></span><br><span class="line">            LBL_PTS:</span><br><span class="line">            <span class="comment">// 遍历方法的参数类型列表</span></span><br><span class="line">            <span class="keyword">for</span> (<span class="keyword">int</span> i = <span class="number">0</span>; i &lt; pts.length; ++i) {</span><br><span class="line">                <span class="comment">// 获取某一类型参数的全部方法</span></span><br><span class="line">                Method[] ms = pts[i].getMethods();</span><br><span class="line">                <span class="comment">// 遍历方法列表，寻找可返回 URL 的 getter 方法</span></span><br><span class="line">                <span class="keyword">for</span> (Method m : ms) {</span><br><span class="line">                    String name = m.getName();</span><br><span class="line">                    <span class="comment">// 1. 方法名以 get 开头，或方法名大于3个字符</span></span><br><span class="line">                    <span class="comment">// 2. 方法的访问权限为 public</span></span><br><span class="line">                    <span class="comment">// 3. 非静态方法</span></span><br><span class="line">                    <span class="comment">// 4. 方法参数数量为0</span></span><br><span class="line">                    <span class="comment">// 5. 方法返回值类型为 URL</span></span><br><span class="line">                    <span class="keyword">if</span> ((name.startsWith(<span class="string">"get"</span>) || name.length() &gt; <span class="number">3</span>)</span><br><span class="line">                        &amp;&amp; Modifier.isPublic(m.getModifiers())</span><br><span class="line">                        &amp;&amp; !Modifier.isStatic(m.getModifiers())</span><br><span class="line">                        &amp;&amp; m.getParameterTypes().length == <span class="number">0</span></span><br><span class="line">                        &amp;&amp; m.getReturnType() == URL.class) {</span><br><span class="line">                        urlTypeIndex = i;</span><br><span class="line">                        attribMethod = name;</span><br><span class="line"></span><br><span class="line">                        <span class="comment">// 结束 for (int i = 0; i &lt; pts.length; ++i) 循环</span></span><br><span class="line">                        <span class="keyword">break</span> LBL_PTS;</span><br><span class="line">                    }</span><br><span class="line">                }</span><br><span class="line">            }</span><br><span class="line">            <span class="keyword">if</span> (attribMethod == <span class="keyword">null</span>) {</span><br><span class="line">                <span class="comment">// 如果所有参数中均不包含可返回 URL 的 getter 方法，则抛出异常</span></span><br><span class="line">                <span class="keyword">throw</span> <span class="keyword">new</span> IllegalStateException(<span class="string">"fail to create adaptive class for interface ..."</span>);</span><br><span class="line">            }</span><br><span class="line"></span><br><span class="line">            <span class="comment">// 为可返回 URL 的参数生成判空代码，格式如下：</span></span><br><span class="line">            <span class="comment">// if (arg + urlTypeIndex == null)</span></span><br><span class="line">            <span class="comment">//     throw new IllegalArgumentException("参数全限定名 + argument == null");</span></span><br><span class="line">            String s = String.format(<span class="string">"\nif (arg%d == null) throw new IllegalArgumentException(\"%s argument == null\");"</span>,</span><br><span class="line">                                     urlTypeIndex, pts[urlTypeIndex].getName());</span><br><span class="line">            code.append(s);</span><br><span class="line"></span><br><span class="line">            <span class="comment">// 为 getter 方法返回的 URL 生成判空代码，格式如下：</span></span><br><span class="line">            <span class="comment">// if (argN.getter方法名() == null)</span></span><br><span class="line">            <span class="comment">//     throw new IllegalArgumentException(参数全限定名 + argument getUrl() == null);</span></span><br><span class="line">            s = String.format(<span class="string">"\nif (arg%d.%s() == null) throw new IllegalArgumentException(\"%s argument %s() == null\");"</span>,</span><br><span class="line">                              urlTypeIndex, attribMethod, pts[urlTypeIndex].getName(), attribMethod);</span><br><span class="line">            code.append(s);</span><br><span class="line"></span><br><span class="line">            <span class="comment">// 生成赋值语句，格式如下：</span></span><br><span class="line">            <span class="comment">// URL全限定名 url = argN.getter方法名()，比如</span></span><br><span class="line">            <span class="comment">// com.alibaba.dubbo.common.URL url = invoker.getUrl();</span></span><br><span class="line">            s = String.format(<span class="string">"%s url = arg%d.%s();"</span>, URL.class.getName(), urlTypeIndex, attribMethod);</span><br><span class="line">            code.append(s);</span><br><span class="line">        }</span><br><span class="line"></span><br><span class="line">        <span class="comment">// 省略无关代码</span></span><br><span class="line">    }</span><br><span class="line"></span><br><span class="line">    <span class="comment">// 省略无关代码</span></span><br><span class="line">}</span><br></pre></td></tr></tbody></table></figure>
+
+<p>上面代码有点多，需要耐心看一下。这段代码主要目的是为了获取 URL 数据，并为之生成判空和赋值代码。以 Protocol 的 refer 和 export 方法为例，上面的代码为它们生成如下内容（代码已格式化）：</p>
+<figure class="highlight java"><table><tbody><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// refer:</span></span><br><span class="line"><span class="keyword">if</span> (arg1 == <span class="keyword">null</span>)</span><br><span class="line">    <span class="keyword">throw</span> <span class="keyword">new</span> IllegalArgumentException(<span class="string">"url == null"</span>);</span><br><span class="line">com.alibaba.dubbo.common.URL url = arg1;</span><br><span class="line"></span><br><span class="line"><span class="comment">// export:</span></span><br><span class="line"><span class="keyword">if</span> (arg0 == <span class="keyword">null</span>)</span><br><span class="line">    <span class="keyword">throw</span> <span class="keyword">new</span> IllegalArgumentException(<span class="string">"com.alibaba.dubbo.rpc.Invoker argument == null"</span>);</span><br><span class="line"><span class="keyword">if</span> (arg0.getUrl() == <span class="keyword">null</span>)</span><br><span class="line">    <span class="keyword">throw</span> <span class="keyword">new</span> IllegalArgumentException(<span class="string">"com.alibaba.dubbo.rpc.Invoker argument getUrl() == null"</span>);</span><br><span class="line">com.alibaba.dubbo.common.URL url = arg0.getUrl();</span><br></pre></td></tr></tbody></table></figure>
+
+<p>Adaptive 注解值 value 类型为 String[]，可填写多个值，默认情况下为空数组。若 value 为非空数组，直接获取数组内容即可。若 value 为空数组，则需进行额外处理。处理过程是将类名转换为字符数组，然后遍历字符数组，并将字符放入 StringBuilder 中。若字符为大写字母，则向 StringBuilder 中添加点号，随后将字符变为小写存入 StringBuilder 中。比如 LoadBalance 经过处理后，得到 load.balance。</p>
+<figure class="highlight java"><table><tbody><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">for</span> (Method method : methods) {</span><br><span class="line">    Class&lt;?&gt; rt = method.getReturnType();</span><br><span class="line">    Class&lt;?&gt;[] pts = method.getParameterTypes();</span><br><span class="line">    Class&lt;?&gt;[] ets = method.getExceptionTypes();</span><br><span class="line"></span><br><span class="line">    Adaptive adaptiveAnnotation = method.getAnnotation(Adaptive.class);</span><br><span class="line">    StringBuilder code = <span class="keyword">new</span> StringBuilder(<span class="number">512</span>);</span><br><span class="line">    <span class="keyword">if</span> (adaptiveAnnotation == <span class="keyword">null</span>) {</span><br><span class="line">        <span class="comment">// ${无 Adaptive 注解方法代码生成逻辑}</span></span><br><span class="line">    } <span class="keyword">else</span> {</span><br><span class="line">        <span class="comment">// ${获取 URL 数据}</span></span><br><span class="line"></span><br><span class="line">        String[] value = adaptiveAnnotation.value();</span><br><span class="line">        <span class="comment">// value 为空数组</span></span><br><span class="line">        <span class="keyword">if</span> (value.length == <span class="number">0</span>) {</span><br><span class="line">            <span class="comment">// 获取类名，并将类名转换为字符数组</span></span><br><span class="line">            <span class="keyword">char</span>[] charArray = type.getSimpleName().toCharArray();</span><br><span class="line">            StringBuilder sb = <span class="keyword">new</span> StringBuilder(<span class="number">128</span>);</span><br><span class="line">            <span class="comment">// 遍历字节数组</span></span><br><span class="line">            <span class="keyword">for</span> (<span class="keyword">int</span> i = <span class="number">0</span>; i &lt; charArray.length; i++) {</span><br><span class="line">                <span class="comment">// 检测当前字符是否为大写字母</span></span><br><span class="line">                <span class="keyword">if</span> (Character.isUpperCase(charArray[i])) {</span><br><span class="line">                    <span class="keyword">if</span> (i != <span class="number">0</span>) {</span><br><span class="line">                        <span class="comment">// 向 sb 中添加点号</span></span><br><span class="line">                        sb.append(<span class="string">"."</span>);</span><br><span class="line">                    }</span><br><span class="line">                    <span class="comment">// 将字符变为小写，并添加到 sb 中</span></span><br><span class="line">                    sb.append(Character.toLowerCase(charArray[i]));</span><br><span class="line">                } <span class="keyword">else</span> {</span><br><span class="line">                    <span class="comment">// 添加字符到 sb 中</span></span><br><span class="line">                    sb.append(charArray[i]);</span><br><span class="line">                }</span><br><span class="line">            }</span><br><span class="line">            value = <span class="keyword">new</span> String[]{sb.toString()};</span><br><span class="line">        }</span><br><span class="line"></span><br><span class="line">        <span class="comment">// 省略无关代码</span></span><br><span class="line">    }</span><br><span class="line"></span><br><span class="line">    <span class="comment">// 省略无关逻辑</span></span><br><span class="line">}</span><br></pre></td></tr></tbody></table></figure>
+
+<p>此段逻辑是检测方法列表中是否存在 Invocation 类型的参数，若存在，则为其生成判空代码和其他一些代码。相应的逻辑如下：</p>
+<figure class="highlight java"><table><tbody><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">for</span> (Method method : methods) {</span><br><span class="line">    Class&lt;?&gt; rt = method.getReturnType();</span><br><span class="line">    Class&lt;?&gt;[] pts = method.getParameterTypes();    <span class="comment">// 获取参数类型列表</span></span><br><span class="line">    Class&lt;?&gt;[] ets = method.getExceptionTypes();</span><br><span class="line"></span><br><span class="line">    Adaptive adaptiveAnnotation = method.getAnnotation(Adaptive.class);</span><br><span class="line">    StringBuilder code = <span class="keyword">new</span> StringBuilder(<span class="number">512</span>);</span><br><span class="line">    <span class="keyword">if</span> (adaptiveAnnotation == <span class="keyword">null</span>) {</span><br><span class="line">        <span class="comment">// ${无 Adaptive 注解方法代码生成逻辑}</span></span><br><span class="line">    } <span class="keyword">else</span> {</span><br><span class="line">        <span class="comment">// ${获取 URL 数据}</span></span><br><span class="line"></span><br><span class="line">        <span class="comment">// ${获取 Adaptive 注解值}</span></span><br><span class="line"></span><br><span class="line">        <span class="keyword">boolean</span> hasInvocation = <span class="keyword">false</span>;</span><br><span class="line">        <span class="comment">// 遍历参数类型列表</span></span><br><span class="line">        <span class="keyword">for</span> (<span class="keyword">int</span> i = <span class="number">0</span>; i &lt; pts.length; ++i) {</span><br><span class="line">            <span class="comment">// 判断当前参数名称是否等于 com.alibaba.dubbo.rpc.Invocation</span></span><br><span class="line">            <span class="keyword">if</span> (pts[i].getName().equals(<span class="string">"com.alibaba.dubbo.rpc.Invocation"</span>)) {</span><br><span class="line">                <span class="comment">// 为 Invocation 类型参数生成判空代码</span></span><br><span class="line">                String s = String.format(<span class="string">"\nif (arg%d == null) throw new IllegalArgumentException(\"invocation == null\");"</span>, i);</span><br><span class="line">                code.append(s);</span><br><span class="line">                <span class="comment">// 生成 getMethodName 方法调用代码，格式为：</span></span><br><span class="line">                <span class="comment">//    String methodName = argN.getMethodName();</span></span><br><span class="line">                s = String.format(<span class="string">"\nString methodName = arg%d.getMethodName();"</span>, i);</span><br><span class="line">                code.append(s);</span><br><span class="line"></span><br><span class="line">                <span class="comment">// 设置 hasInvocation 为 true</span></span><br><span class="line">                hasInvocation = <span class="keyword">true</span>;</span><br><span class="line">                <span class="keyword">break</span>;</span><br><span class="line">            }</span><br><span class="line">        }</span><br><span class="line">    }</span><br><span class="line"></span><br><span class="line">    <span class="comment">// 省略无关逻辑</span></span><br><span class="line">}</span><br></pre></td></tr></tbody></table></figure>
+
+<p>本段逻辑用于根据 SPI 和 Adaptive 注解值生成“获取拓展名逻辑”，同时生成逻辑也受 Invocation 类型参数影响，综合因素导致本段逻辑相对复杂。本段逻辑可以会生成但不限于下面的代码：</p>
+<figure class="highlight java"><table><tbody><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">String extName = (url.getProtocol() == <span class="keyword">null</span> ? <span class="string">"dubbo"</span> : url.getProtocol());</span><br><span class="line"></span><br><span class="line">String extName = url.getMethodParameter(methodName, <span class="string">"loadbalance"</span>, <span class="string">"random"</span>);</span><br><span class="line"></span><br><span class="line">String extName = url.getParameter(<span class="string">"client"</span>, url.getParameter(<span class="string">"transporter"</span>, <span class="string">"netty"</span>));</span><br></pre></td></tr></tbody></table></figure>
+
+<p>本段逻辑复杂之处在于条件分支比较多，大家在阅读源码时需要知道每个条件分支的意义是什么，否则不太容易看懂相关代码。下面开始分析本段逻辑。</p>
+<figure class="highlight java"><table><tbody><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br><span class="line">73</span><br><span class="line">74</span><br><span class="line">75</span><br><span class="line">76</span><br><span class="line">77</span><br><span class="line">78</span><br><span class="line">79</span><br><span class="line">80</span><br><span class="line">81</span><br><span class="line">82</span><br><span class="line">83</span><br><span class="line">84</span><br><span class="line">85</span><br><span class="line">86</span><br><span class="line">87</span><br><span class="line">88</span><br><span class="line">89</span><br><span class="line">90</span><br><span class="line">91</span><br><span class="line">92</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">for</span> (Method method : methods) {</span><br><span class="line">    Class&lt;?&gt; rt = method.getReturnType();</span><br><span class="line">    Class&lt;?&gt;[] pts = method.getParameterTypes();</span><br><span class="line">    Class&lt;?&gt;[] ets = method.getExceptionTypes();</span><br><span class="line"></span><br><span class="line">    Adaptive adaptiveAnnotation = method.getAnnotation(Adaptive.class);</span><br><span class="line">    StringBuilder code = <span class="keyword">new</span> StringBuilder(<span class="number">512</span>);</span><br><span class="line">    <span class="keyword">if</span> (adaptiveAnnotation == <span class="keyword">null</span>) {</span><br><span class="line">        <span class="comment">// $无 Adaptive 注解方法代码生成逻辑}</span></span><br><span class="line">    } <span class="keyword">else</span> {</span><br><span class="line">        <span class="comment">// ${获取 URL 数据}</span></span><br><span class="line"></span><br><span class="line">        <span class="comment">// ${获取 Adaptive 注解值}</span></span><br><span class="line"></span><br><span class="line">        <span class="comment">// ${检测 Invocation 参数}</span></span><br><span class="line"></span><br><span class="line">        <span class="comment">// 设置默认拓展名，cachedDefaultName 源于 SPI 注解值，默认情况下，</span></span><br><span class="line">        <span class="comment">// SPI 注解值为空串，此时 cachedDefaultName = null</span></span><br><span class="line">        String defaultExtName = cachedDefaultName;</span><br><span class="line">        String getNameCode = <span class="keyword">null</span>;</span><br><span class="line"></span><br><span class="line">        <span class="comment">// 遍历 value，这里的 value 是 Adaptive 的注解值，前面分析过 value 变量的获取过程。</span></span><br><span class="line">        <span class="comment">// 此处循环目的是生成从 URL 中获取拓展名的代码，生成的代码会赋值给 getNameCode 变量。注意这</span></span><br><span class="line">        <span class="comment">// 个循环的遍历顺序是由后向前遍历的。</span></span><br><span class="line">        <span class="keyword">for</span> (<span class="keyword">int</span> i = value.length - <span class="number">1</span>; i &gt;= <span class="number">0</span>; --i) {</span><br><span class="line">            <span class="comment">// 当 i 为最后一个元素的坐标时</span></span><br><span class="line">            <span class="keyword">if</span> (i == value.length - <span class="number">1</span>) {</span><br><span class="line">                <span class="comment">// 默认拓展名非空</span></span><br><span class="line">                <span class="keyword">if</span> (<span class="keyword">null</span> != defaultExtName) {</span><br><span class="line">                    <span class="comment">// protocol 是 url 的一部分，可通过 getProtocol 方法获取，其他的则是从</span></span><br><span class="line">                    <span class="comment">// URL 参数中获取。因为获取方式不同，所以这里要判断 value[i] 是否为 protocol</span></span><br><span class="line">                    <span class="keyword">if</span> (!<span class="string">"protocol"</span>.equals(value[i]))</span><br><span class="line">                     <span class="comment">// hasInvocation 用于标识方法参数列表中是否有 Invocation 类型参数</span></span><br><span class="line">                        <span class="keyword">if</span> (hasInvocation)</span><br><span class="line">                            <span class="comment">// 生成的代码功能等价于下面的代码：</span></span><br><span class="line">                            <span class="comment">//   url.getMethodParameter(methodName, value[i], defaultExtName)</span></span><br><span class="line">                            <span class="comment">// 以 LoadBalance 接口的 select 方法为例，最终生成的代码如下：</span></span><br><span class="line">                            <span class="comment">//   url.getMethodParameter(methodName, "loadbalance", "random")</span></span><br><span class="line">                            getNameCode = String.format(<span class="string">"url.getMethodParameter(methodName, \"%s\", \"%s\")"</span>, value[i], defaultExtName);</span><br><span class="line">                        <span class="keyword">else</span></span><br><span class="line">                            <span class="comment">// 生成的代码功能等价于下面的代码：</span></span><br><span class="line">                            <span class="comment">//   url.getParameter(value[i], defaultExtName)</span></span><br><span class="line">                            getNameCode = String.format(<span class="string">"url.getParameter(\"%s\", \"%s\")"</span>, value[i], defaultExtName);</span><br><span class="line">                    <span class="keyword">else</span></span><br><span class="line">                        <span class="comment">// 生成的代码功能等价于下面的代码：</span></span><br><span class="line">                        <span class="comment">//   ( url.getProtocol() == null ? defaultExtName : url.getProtocol() )</span></span><br><span class="line">                        getNameCode = String.format(<span class="string">"( url.getProtocol() == null ? \"%s\" : url.getProtocol() )"</span>, defaultExtName);</span><br><span class="line"></span><br><span class="line">                <span class="comment">// 默认拓展名为空</span></span><br><span class="line">                } <span class="keyword">else</span> {</span><br><span class="line">                    <span class="keyword">if</span> (!<span class="string">"protocol"</span>.equals(value[i]))</span><br><span class="line">                        <span class="keyword">if</span> (hasInvocation)</span><br><span class="line">                            <span class="comment">// 生成代码格式同上</span></span><br><span class="line">                            getNameCode = String.format(<span class="string">"url.getMethodParameter(methodName, \"%s\", \"%s\")"</span>, value[i], defaultExtName);</span><br><span class="line">                        <span class="keyword">else</span></span><br><span class="line">                            <span class="comment">// 生成的代码功能等价于下面的代码：</span></span><br><span class="line">                            <span class="comment">//   url.getParameter(value[i])</span></span><br><span class="line">                            getNameCode = String.format(<span class="string">"url.getParameter(\"%s\")"</span>, value[i]);</span><br><span class="line">                    <span class="keyword">else</span></span><br><span class="line">                        <span class="comment">// 生成从 url 中获取协议的代码，比如 "dubbo"</span></span><br><span class="line">                        getNameCode = <span class="string">"url.getProtocol()"</span>;</span><br><span class="line">                }</span><br><span class="line">            } <span class="keyword">else</span> {</span><br><span class="line">                <span class="keyword">if</span> (!<span class="string">"protocol"</span>.equals(value[i]))</span><br><span class="line">                    <span class="keyword">if</span> (hasInvocation)</span><br><span class="line">                        <span class="comment">// 生成代码格式同上</span></span><br><span class="line">                        getNameCode = String.format(<span class="string">"url.getMethodParameter(methodName, \"%s\", \"%s\")"</span>, value[i], defaultExtName);</span><br><span class="line">                    <span class="keyword">else</span></span><br><span class="line">                        <span class="comment">// 生成的代码功能等价于下面的代码：</span></span><br><span class="line">                        <span class="comment">//   url.getParameter(value[i], getNameCode)</span></span><br><span class="line">                        <span class="comment">// 以 Transporter 接口的 connect 方法为例，最终生成的代码如下：</span></span><br><span class="line">                        <span class="comment">//   url.getParameter("client", url.getParameter("transporter", "netty"))</span></span><br><span class="line">                        getNameCode = String.format(<span class="string">"url.getParameter(\"%s\", %s)"</span>, value[i], getNameCode);</span><br><span class="line">                <span class="keyword">else</span></span><br><span class="line">                    <span class="comment">// 生成的代码功能等价于下面的代码：</span></span><br><span class="line">                    <span class="comment">//   url.getProtocol() == null ? getNameCode : url.getProtocol()</span></span><br><span class="line">                    <span class="comment">// 以 Protocol 接口的 connect 方法为例，最终生成的代码如下：</span></span><br><span class="line">                    <span class="comment">//   url.getProtocol() == null ? "dubbo" : url.getProtocol()</span></span><br><span class="line">                    getNameCode = String.format(<span class="string">"url.getProtocol() == null ? (%s) : url.getProtocol()"</span>, getNameCode);</span><br><span class="line">            }</span><br><span class="line">        }</span><br><span class="line">        <span class="comment">// 生成 extName 赋值代码</span></span><br><span class="line">        code.append(<span class="string">"\nString extName = "</span>).append(getNameCode).append(<span class="string">";"</span>);</span><br><span class="line">        <span class="comment">// 生成 extName 判空代码</span></span><br><span class="line">        String s = String.format(<span class="string">"\nif(extName == null) "</span> +</span><br><span class="line">                                 <span class="string">"throw new IllegalStateException(\"Fail to get extension(%s) name from url(\" + url.toString() + \") use keys(%s)\");"</span>,</span><br><span class="line">                                 type.getName(), Arrays.toString(value));</span><br><span class="line">        code.append(s);</span><br><span class="line">    }</span><br><span class="line"></span><br><span class="line">    <span class="comment">// 省略无关逻辑</span></span><br><span class="line">}</span><br></pre></td></tr></tbody></table></figure>
+
+<p>这里我以 Transporter 接口的自适应拓展类代码生成过程举例说明。首先看一下 Transporter 接口的定义，如下：</p>
+<figure class="highlight java"><table><tbody><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">@SPI("netty")</span></span><br><span class="line"><span class="keyword">public</span> <span class="class"><span class="keyword">interface</span> <span class="title">Transporter</span> </span>{</span><br><span class="line">    <span class="comment">// @Adaptive({server, transporter})</span></span><br><span class="line">    <span class="meta">@Adaptive({Constants.SERVER_KEY, Constants.TRANSPORTER_KEY})</span></span><br><span class="line">    <span class="function">Server <span class="title">bind</span><span class="params">(URL url, ChannelHandler handler)</span> <span class="keyword">throws</span> RemotingException</span>;</span><br><span class="line"></span><br><span class="line">    <span class="comment">// @Adaptive({client, transporter})</span></span><br><span class="line">    <span class="meta">@Adaptive({Constants.CLIENT_KEY, Constants.TRANSPORTER_KEY})</span></span><br><span class="line">    <span class="function">Client <span class="title">connect</span><span class="params">(URL url, ChannelHandler handler)</span> <span class="keyword">throws</span> RemotingException</span>;</span><br><span class="line">}</span><br></pre></td></tr></tbody></table></figure>
+
+<p>下面对 connect 方法代理逻辑生成的过程进行分析，此时生成代理逻辑所用到的变量如下：</p>
+<figure class="highlight java"><table><tbody><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">String defaultExtName = <span class="string">"netty"</span>;</span><br><span class="line"><span class="keyword">boolean</span> hasInvocation = <span class="keyword">false</span>;</span><br><span class="line">String getNameCode = <span class="keyword">null</span>;</span><br><span class="line">String[] value = [<span class="string">"client"</span>, <span class="string">"transporter"</span>];</span><br></pre></td></tr></tbody></table></figure>
+
+<p>下面对 value 数组进行遍历，此时 i = 1, value[i] = “transporter”，生成的代码如下：</p>
+<figure class="highlight java"><table><tbody><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">getNameCode = url.getParameter(<span class="string">"transporter"</span>, <span class="string">"netty"</span>);</span><br></pre></td></tr></tbody></table></figure>
+
+<p>接下来，for 循环继续执行，此时 i = 0, value[i] = “client”，生成的代码如下：</p>
+<figure class="highlight java"><table><tbody><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">getNameCode = url.getParameter(<span class="string">"client"</span>, url.getParameter(<span class="string">"transporter"</span>, <span class="string">"netty"</span>));</span><br></pre></td></tr></tbody></table></figure>
+
+<p>for 循环结束运行，现在为 extName 变量生成赋值和判空代码，如下：</p>
+<figure class="highlight java"><table><tbody><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line">String extName = url.getParameter(<span class="string">"client"</span>, url.getParameter(<span class="string">"transporter"</span>, <span class="string">"netty"</span>));</span><br><span class="line"><span class="keyword">if</span> (extName == <span class="keyword">null</span>) {</span><br><span class="line">    <span class="keyword">throw</span> <span class="keyword">new</span> IllegalStateException(</span><br><span class="line">        <span class="string">"Fail to get extension(com.alibaba.dubbo.remoting.Transporter) name from url("</span> + url.toString()</span><br><span class="line">        + <span class="string">") use keys([client, transporter])"</span>);</span><br><span class="line">}</span><br></pre></td></tr></tbody></table></figure>
+
+<p>本段代码逻辑用于根据拓展名加载拓展实例，并调用拓展实例的目标方法。相关逻辑如下：</p>
+<figure class="highlight java"><table><tbody><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">for</span> (Method method : methods) {</span><br><span class="line">    Class&lt;?&gt; rt = method.getReturnType();</span><br><span class="line">    Class&lt;?&gt;[] pts = method.getParameterTypes();</span><br><span class="line">    Class&lt;?&gt;[] ets = method.getExceptionTypes();</span><br><span class="line"></span><br><span class="line">    Adaptive adaptiveAnnotation = method.getAnnotation(Adaptive.class);</span><br><span class="line">    StringBuilder code = <span class="keyword">new</span> StringBuilder(<span class="number">512</span>);</span><br><span class="line">    <span class="keyword">if</span> (adaptiveAnnotation == <span class="keyword">null</span>) {</span><br><span class="line">        <span class="comment">// $无 Adaptive 注解方法代码生成逻辑}</span></span><br><span class="line">    } <span class="keyword">else</span> {</span><br><span class="line">        <span class="comment">// ${获取 URL 数据}</span></span><br><span class="line"></span><br><span class="line">        <span class="comment">// ${获取 Adaptive 注解值}</span></span><br><span class="line"></span><br><span class="line">        <span class="comment">// ${检测 Invocation 参数}</span></span><br><span class="line"></span><br><span class="line">        <span class="comment">// ${生成拓展名获取逻辑}</span></span><br><span class="line"></span><br><span class="line">        <span class="comment">// 生成拓展获取代码，格式如下：</span></span><br><span class="line">        <span class="comment">// type全限定名 extension = (type全限定名)ExtensionLoader全限定名</span></span><br><span class="line">        <span class="comment">//     .getExtensionLoader(type全限定名.class).getExtension(extName);</span></span><br><span class="line">        <span class="comment">// Tips: 格式化字符串中的 %&lt;s 表示使用前一个转换符所描述的参数，即 type 全限定名</span></span><br><span class="line">        s = String.format(<span class="string">"\n%s extension = (%&lt;s)%s.getExtensionLoader(%s.class).getExtension(extName);"</span>,</span><br><span class="line">                        type.getName(), ExtensionLoader.class.getSimpleName(), type.getName());</span><br><span class="line">        code.append(s);</span><br><span class="line"></span><br><span class="line">        <span class="comment">// 如果方法返回值类型非 void，则生成 return 语句。</span></span><br><span class="line">        <span class="keyword">if</span> (!rt.equals(<span class="keyword">void</span>.class)) {</span><br><span class="line">            code.append(<span class="string">"\nreturn "</span>);</span><br><span class="line">        }</span><br><span class="line"></span><br><span class="line">        <span class="comment">// 生成目标方法调用逻辑，格式为：</span></span><br><span class="line">        <span class="comment">//     extension.方法名(arg0, arg2, ..., argN);</span></span><br><span class="line">        s = String.format(<span class="string">"extension.%s("</span>, method.getName());</span><br><span class="line">        code.append(s);</span><br><span class="line">        <span class="keyword">for</span> (<span class="keyword">int</span> i = <span class="number">0</span>; i &lt; pts.length; i++) {</span><br><span class="line">            <span class="keyword">if</span> (i != <span class="number">0</span>)</span><br><span class="line">                code.append(<span class="string">", "</span>);</span><br><span class="line">            code.append(<span class="string">"arg"</span>).append(i);</span><br><span class="line">        }</span><br><span class="line">        code.append(<span class="string">");"</span>);</span><br><span class="line">    }</span><br><span class="line"></span><br><span class="line">    <span class="comment">// 省略无关逻辑</span></span><br><span class="line">}</span><br></pre></td></tr></tbody></table></figure>
+
+<p>以 Protocol 接口举例说明，上面代码生成的内容如下：</p>
+<figure class="highlight java"><table><tbody><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">com.alibaba.dubbo.rpc.Protocol extension = (com.alibaba.dubbo.rpc.Protocol) ExtensionLoader</span><br><span class="line">    .getExtensionLoader(com.alibaba.dubbo.rpc.Protocol.class).getExtension(extName);</span><br><span class="line"><span class="keyword">return</span> extension.refer(arg0, arg1);</span><br></pre></td></tr></tbody></table></figure>
+
+<p>本节进行代码生成的收尾工作，主要用于生成方法定义的代码。相关逻辑如下：</p>
+<figure class="highlight java"><table><tbody><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">for</span> (Method method : methods) {</span><br><span class="line">    Class&lt;?&gt; rt = method.getReturnType();</span><br><span class="line">    Class&lt;?&gt;[] pts = method.getParameterTypes();</span><br><span class="line">    Class&lt;?&gt;[] ets = method.getExceptionTypes();</span><br><span class="line"></span><br><span class="line">    Adaptive adaptiveAnnotation = method.getAnnotation(Adaptive.class);</span><br><span class="line">    StringBuilder code = <span class="keyword">new</span> StringBuilder(<span class="number">512</span>);</span><br><span class="line">    <span class="keyword">if</span> (adaptiveAnnotation == <span class="keyword">null</span>) {</span><br><span class="line">        <span class="comment">// $无 Adaptive 注解方法代码生成逻辑}</span></span><br><span class="line">    } <span class="keyword">else</span> {</span><br><span class="line">        <span class="comment">// ${获取 URL 数据}</span></span><br><span class="line"></span><br><span class="line">        <span class="comment">// ${获取 Adaptive 注解值}</span></span><br><span class="line"></span><br><span class="line">        <span class="comment">// ${检测 Invocation 参数}</span></span><br><span class="line"></span><br><span class="line">        <span class="comment">// ${生成拓展名获取逻辑}</span></span><br><span class="line"></span><br><span class="line">        <span class="comment">// ${生成拓展加载与目标方法调用逻辑}</span></span><br><span class="line">    }</span><br><span class="line">}</span><br><span class="line"></span><br><span class="line"><span class="comment">// public + 返回值全限定名 + 方法名 + (</span></span><br><span class="line">codeBuilder.append(<span class="string">"\npublic "</span>)</span><br><span class="line">    .append(rt.getCanonicalName())</span><br><span class="line">    .append(<span class="string">" "</span>)</span><br><span class="line">    .append(method.getName())</span><br><span class="line">    .append(<span class="string">"("</span>);</span><br><span class="line"></span><br><span class="line"><span class="comment">// 添加参数列表代码</span></span><br><span class="line"><span class="keyword">for</span> (<span class="keyword">int</span> i = <span class="number">0</span>; i &lt; pts.length; i++) {</span><br><span class="line">    <span class="keyword">if</span> (i &gt; <span class="number">0</span>) {</span><br><span class="line">        codeBuilder.append(<span class="string">", "</span>);</span><br><span class="line">    }</span><br><span class="line">    codeBuilder.append(pts[i].getCanonicalName());</span><br><span class="line">    codeBuilder.append(<span class="string">" "</span>);</span><br><span class="line">    codeBuilder.append(<span class="string">"arg"</span>).append(i);</span><br><span class="line">}</span><br><span class="line">codeBuilder.append(<span class="string">")"</span>);</span><br><span class="line"></span><br><span class="line"><span class="comment">// 添加异常抛出代码</span></span><br><span class="line"><span class="keyword">if</span> (ets.length &gt; <span class="number">0</span>) {</span><br><span class="line">    codeBuilder.append(<span class="string">" throws "</span>);</span><br><span class="line">    <span class="keyword">for</span> (<span class="keyword">int</span> i = <span class="number">0</span>; i &lt; ets.length; i++) {</span><br><span class="line">        <span class="keyword">if</span> (i &gt; <span class="number">0</span>) {</span><br><span class="line">            codeBuilder.append(<span class="string">", "</span>);</span><br><span class="line">        }</span><br><span class="line">        codeBuilder.append(ets[i].getCanonicalName());</span><br><span class="line">    }</span><br><span class="line">}</span><br><span class="line">codeBuilder.append(<span class="string">" {"</span>);</span><br><span class="line">codeBuilder.append(code.toString());</span><br><span class="line">codeBuilder.append(<span class="string">"\n}"</span>);</span><br></pre></td></tr></tbody></table></figure>
+
+<p>以 Protocol 的 refer 方法为例，上面代码生成的内容如下：</p>
+<figure class="highlight java"><table><tbody><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">public</span> com.alibaba.dubbo.rpc.<span class="function">Invoker <span class="title">refer</span><span class="params">(java.lang.Class arg0, com.alibaba.dubbo.common.URL arg1)</span> </span>{</span><br><span class="line">    <span class="comment">// 方法体</span></span><br><span class="line">}</span><br></pre></td></tr></tbody></table></figure>
+
+<p>到此，关于自适应拓展的原理，实现就分析完了。总的来说自适应拓展整个逻辑还是很复杂的，并不是很容易弄懂。</p>
+<h2 id="参考内容"><a href="#参考内容" class="headerlink" title="参考内容"></a>参考内容</h2><p>[1]《深入理解Apache Dubbo与实战》<br>[2] <span class="exturl" data-url="aHR0cDovL2R1YmJvLmFwYWNoZS5vcmcvemgtY24vZG9jcy91c2VyL3F1aWNrLXN0YXJ0Lmh0bWw=" title="http://dubbo.apache.org/zh-cn/docs/user/quick-start.html">dubbo 官方文档<i class="fa fa-external-link"></i></span></p>
+
+    </div>
+
+    
+    
+    
+
+      
+        <div id="wechat_subscriber" style="display: block; padding: 10px 0; margin: 20px auto; width: 100%; text-align: center">
+  <img id="wechat_subscriber_qcode" src="/images/qrcode_for_wechat.jpg" alt="贝克街的流浪猫 wechat" style="width: 400px; max-width: 100%;">
+  <div></div>
+</div>
+
+      
+        <div class="reward-container">
+  <div>您的打赏将鼓励我继续分享!</div>
+  <button disable="enable" onclick="var qr = document.getElementById(&quot;qr&quot;); qr.style.display = (qr.style.display === 'none') ? 'block' : 'none';">
+    打赏
+  </button>
+  <div id="qr" style="display: none;">
+      
+      <div style="display: inline-block;">
+        <img src="/images/wechat.jpg" alt="贝克街的流浪猫 微信支付">
+        <p>微信支付</p>
+      </div>
+      
+      <div style="display: inline-block;">
+        <img src="/images/alipay.jpg" alt="贝克街的流浪猫 支付宝">
+        <p>支付宝</p>
+      </div>
+
+  </div>
+</div>
+
+        
+
+<div>
+<ul class="post-copyright">
+  <li class="post-copyright-author">
+    <strong>本文作者： </strong>贝克街的流浪猫
+  </li>
+  <li class="post-copyright-link">
+    <strong>本文链接：</strong>
+    <a href="https://www.beikejiedeliulangmao.top/middleware/dubbo/spi-impl/" title="Dubbo SPI 实现">https://www.beikejiedeliulangmao.top/middleware/dubbo/spi-impl/</a>
+  </li>
+  <li class="post-copyright-license">
+    <strong>版权声明： </strong>本博客所有文章除特别声明外，均采用 <span class="exturl" data-url="aHR0cHM6Ly9jcmVhdGl2ZWNvbW1vbnMub3JnL2xpY2Vuc2VzL2J5LW5jLXNhLzQuMC9udWxs"><i class="fa fa-fw fa-creative-commons"></i>BY-NC-SA</span> 许可协议，转载请注明出处！
+  </li>
+  <li class="post-copyright-license">
+    <strong>创作声明： </strong>本文基于上述所有参考内容进行创作，其中可能涉及复制、修改或者转换，图片均来自网络，如有侵权请联系我，我会第一时间进行删除。
+  </li>
+</ul>
+</div>
+
+
+      <footer class="post-footer">
+          <div class="post-tags">
+              <a href="/tags/Java/" rel="tag"># Java</a>
+              <a href="/tags/MicroService/" rel="tag"># MicroService</a>
+              <a href="/tags/RPC/" rel="tag"># RPC</a>
+              <a href="/tags/Dubbo/" rel="tag"># Dubbo</a>
+              <a href="/tags/SPI/" rel="tag"># SPI</a>
+          </div>
+
+        
+
+          <div class="post-nav">
+            <div class="post-nav-next post-nav-item">
+                <a href="/middleware/dubbo/overview/" rel="next" title="Dubbo实现方案总览">
+                  <i class="fa fa-chevron-left"></i> Dubbo实现方案总览
+                </a>
+            </div>
+
+            <span class="post-nav-divider"></span>
+
+            <div class="post-nav-prev post-nav-item">
+                <a href="/middleware/dubbo/spi/" rel="prev" title="Dubbo SPI 简介">
+                  Dubbo SPI 简介 <i class="fa fa-chevron-right"></i>
+                </a>
+            </div>
+          </div>
+      </footer>
+    
+  </article>
+  
+  
+  
+
+  </div>
+
+
+          </div>
+          
+    <div class="comments" id="gitalk-container"></div>
+
+        </div>
+          
+  
+  <div class="toggle sidebar-toggle">
+    <span class="toggle-line toggle-line-first"></span>
+    <span class="toggle-line toggle-line-middle"></span>
+    <span class="toggle-line toggle-line-last"></span>
+  </div>
+
+  <aside class="sidebar">
+    <div class="sidebar-inner">
+
+      <ul class="sidebar-nav motion-element">
+        <li class="sidebar-nav-toc">
+          文章目录
+        </li>
+        <li class="sidebar-nav-overview">
+          站点概览
+        </li>
+      </ul>
+
+      <!--noindex-->
+      <div class="post-toc-wrap sidebar-panel">
+          <div class="post-toc motion-element"><ol class="nav"><li class="nav-item nav-level-2"><a class="nav-link" href="#%E5%BC%95%E8%A8%80"><span class="nav-number">1.</span> <span class="nav-text">引言</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E5%AE%9E%E7%8E%B0%E5%8E%9F%E7%90%86"><span class="nav-number">2.</span> <span class="nav-text">实现原理</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#%E8%8E%B7%E5%8F%96%E6%89%80%E6%9C%89%E7%9A%84%E6%8B%93%E5%B1%95%E7%B1%BB"><span class="nav-number">2.1.</span> <span class="nav-text">获取所有的拓展类</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#Dubbo-IOC"><span class="nav-number">2.2.</span> <span class="nav-text">Dubbo IOC</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#Dubbo-%E8%87%AA%E9%80%82%E5%BA%94%E6%9C%BA%E5%88%B6"><span class="nav-number">2.3.</span> <span class="nav-text">Dubbo 自适应机制</span></a><ol class="nav-child"><li class="nav-item nav-level-4"><a class="nav-link" href="#%E8%8E%B7%E5%8F%96%E8%87%AA%E9%80%82%E5%BA%94%E6%8B%93%E5%B1%95"><span class="nav-number">2.3.1.</span> <span class="nav-text">获取自适应拓展</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#%E6%8B%93%E5%B1%95%E7%B1%BB%E4%BB%A3%E7%A0%81%E7%94%9F%E6%88%90"><span class="nav-number">2.3.2.</span> <span class="nav-text">拓展类代码生成</span></a></li></ol></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E5%8F%82%E8%80%83%E5%86%85%E5%AE%B9"><span class="nav-number">3.</span> <span class="nav-text">参考内容</span></a></li></ol></div>
+      </div>
+      <!--/noindex-->
+
+      <div class="site-overview-wrap sidebar-panel">
+        <div class="site-author motion-element" itemprop="author" itemscope="" itemtype="http://schema.org/Person">
+    <img class="site-author-image" itemprop="image" alt="贝克街的流浪猫" src="/images/avatar.jpg">
+  <p class="site-author-name" itemprop="name">贝克街的流浪猫</p>
+  <div class="site-description" itemprop="description">贝贝猫</div>
+</div>
+<div class="site-state-wrap motion-element">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+          <a href="/archives/">
+        
+          <span class="site-state-item-count">120</span>
+          <span class="site-state-item-name">日志</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-categories">
+            <a href="/categories/">
+          
+        <span class="site-state-item-count">24</span>
+        <span class="site-state-item-name">分类</span></a>
+      </div>
+      <div class="site-state-item site-state-tags">
+            <a href="/tags/">
+          
+        <span class="site-state-item-count">158</span>
+        <span class="site-state-item-name">标签</span></a>
+      </div>
+  </nav>
+</div>
+  <div class="feed-link motion-element">
+    <a href="/atom.xml" rel="alternate">
+      <i class="fa fa-rss"></i>RSS
+    </a>
+  </div>
+  <div class="links-of-author motion-element">
+      <span class="links-of-author-item">
+        <span class="exturl" data-url="aHR0cHM6Ly9naXRodWIuY29tL0JlaUtlSmllRGVMaXVMYW5nTWFv" title="GitHub → https://github.com/BeiKeJieDeLiuLangMao"><i class="fa fa-fw fa-github"></i></span>
+      </span>
+      <span class="links-of-author-item">
+        <span class="exturl" data-url="aHR0cHM6Ly96aHVhbmxhbi56aGlodS5jb20vY18xMTY3NDI5NTg4NzExMzM3OTg1" title="知乎 → https://zhuanlan.zhihu.com/c_1167429588711337985"><i class="fa fa-fw fa-book"></i></span>
+      </span>
+      <span class="links-of-author-item">
+        <span class="exturl" data-url="bWFpbHRvOjUxNzM3NTY4NUBxcS5jb20=" title="E-Mail → mailto:517375685@qq.com"><i class="fa fa-fw fa-envelope"></i></span>
+      </span>
+      <span class="links-of-author-item">
+        <span class="exturl" data-url="aHR0cHM6Ly9zdGFja292ZXJmbG93LmNvbS91c2Vycy84NzgyOTY0L3lhbmctY2hlbj90YWI9cHJvZmlsZQ==" title="StackOverflow → https://stackoverflow.com/users/8782964/yang-chen?tab=profile"><i class="fa fa-fw fa-stack-overflow"></i></span>
+      </span>
+  </div>
+
+
+
+      </div>
+        <div class="back-to-top motion-element">
+          <i class="fa fa-arrow-up"></i>
+          <span>0%</span>
+        </div>
+
+    </div>
+  </aside>
+  <div id="sidebar-dimmer"></div>
+
+
+      </div>
+    </main>
+
+    <footer class="footer">
+      <div class="footer-inner">
+        
+  <div class="beian"><span class="exturl" data-url="aHR0cDovL3d3dy5iZWlhbi5taWl0Lmdvdi5jbg==">辽ICP备19017854号 </span>
+  </div>
+
+<div class="copyright">
+  
+  © 2019 – 
+  <span itemprop="copyrightYear">2021</span>
+  <span class="with-love">
+    <i class="fa fa-heart"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">贝克街的流浪猫</span>
+    <span class="post-meta-divider">|</span>
+    <span class="post-meta-item-icon">
+      <i class="fa fa-area-chart"></i>
+    </span>
+      <span class="post-meta-item-text">站点总字数：</span>
+    <span title="站点总字数">1.5m</span>
+    <span class="post-meta-divider">|</span>
+    <span class="post-meta-item-icon">
+      <i class="fa fa-coffee"></i>
+    </span>
+      <span class="post-meta-item-text">站点阅读时长 ≈</span>
+    <span title="站点阅读时长">22:36</span>
+</div>
+
+        
+<div class="busuanzi-count">
+  <script async="" src="https://busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js"></script>
+    <span class="post-meta-item" id="busuanzi_container_site_uv" style="display: none;">
+      <span class="post-meta-item-icon">
+        <i class="fa fa-user"></i>
+      </span>
+      <span class="site-uv" title="总访客量">
+        贝贝猫有
+        <span id="busuanzi_value_site_uv"></span>
+        位同学
+      </span>
+    </span>
+    <span class="post-meta-divider">|</span>
+    <span class="post-meta-item" id="busuanzi_container_site_pv" style="display: none;">
+      <span class="post-meta-item-icon">
+        <i class="fa fa-eye"></i>
+      </span>
+      <span class="site-pv" title="总访问量">
+        笔记被翻阅
+        <span id="busuanzi_value_site_pv"></span>
+        次
+      </span>
+    </span>
+</div>
+
+
+
+
+
+
+  
+
+
+
+
+
+
+        
+      </div>
+    </footer>
+  </div>
+
+  
+  
+  <script src="//cdn.jsdelivr.net/npm/medium-zoom@1/dist/medium-zoom.min.js"></script>
+  <script src="//cdn.jsdelivr.net/npm/pangu@4/dist/browser/pangu.min.js"></script>
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+
+
+
+
+  
+
+<script src="//cdn.jsdelivr.net/npm/instantsearch.js@2/dist/instantsearch.min.js"></script>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+  
+  <script src="//cdn.jsdelivr.net/npm/quicklink@1/dist/quicklink.umd.js"></script>
+  
+
+
+
+
+
+
+
+<script type="text/javascript" src="/bundle.js"></script><script type="text/javascript">function leancloudSelector(url) {
+    return document.getElementById(url).querySelector('.leancloud-visitors-count');
+  }
+  if (CONFIG.page.isPost) {
+    function addCount(Counter) {
+      var visitors = document.querySelector('.leancloud_visitors');
+      var url = visitors.getAttribute('id').trim();
+      var title = visitors.getAttribute('data-flag-title').trim();
+
+      Counter('get', `/classes/Counter?where=${JSON.stringify({ url })}`)
+        .then(response => response.json())
+        .then(({ results }) => {
+          if (results.length > 0) {
+            var counter = results[0];
+              leancloudSelector(url).innerText = counter.time + 1;
+            Counter('put', '/classes/Counter/' + counter.objectId, { time: { '__op': 'Increment', 'amount': 1 } })
+              .then(response => response.json())
+              .catch(error => {
+                console.log('Failed to save visitor count', error);
+              })
+          } else {
+              leancloudSelector(url).innerText = 'Counter not initialized! More info at console err msg.';
+              console.error('ATTENTION! LeanCloud counter has security bug, see how to solve it here: https://github.com/theme-next/hexo-leancloud-counter-security. \n However, you can still use LeanCloud without security, by setting `security` option to `false`.');
+            
+          }
+        })
+        .catch(error => {
+          console.log('LeanCloud Counter Error', error);
+        });
+    }
+  } else {
+    function showTime(Counter) {
+      var visitors = document.querySelectorAll('.leancloud_visitors');
+      var entries = [...visitors].map(element => {
+        return element.getAttribute('id').trim();
+      });
+
+      Counter('get', `/classes/Counter?where=${JSON.stringify({ url: { '$in': entries } })}`)
+        .then(response => response.json())
+        .then(({ results }) => {
+          if (results.length === 0) {
+            document.querySelectorAll('.leancloud_visitors .leancloud-visitors-count').forEach(element => {
+              element.innerText = 0;
+            });
+            return;
+          }
+          for (var i = 0; i < results.length; i++) {
+            var item = results[i];
+            var url = item.url;
+            var time = item.time;
+            leancloudSelector(url).innerText = time;
+          }
+          for (var i = 0; i < entries.length; i++) {
+            var url = entries[i];
+            var element = leancloudSelector(url);
+            if (element.innerText == '') {
+              element.innerText = 0;
+            }
+          }
+        })
+        .catch(error => {
+          console.log('LeanCloud Counter Error', error);
+        });
+    }
+  }
+
+  fetch('https://app-router.leancloud.cn/2/route?appId=gmT3IkYtHVMymcwAjbwHhtiv-gzGzoHsz')
+    .then(response => response.json())
+    .then(({ api_server }) => {
+      var Counter = (method, url, data) => {
+        return fetch(`https://${api_server}/1.1${url}`, {
+          method: method,
+          headers: {
+            'X-LC-Id': 'gmT3IkYtHVMymcwAjbwHhtiv-gzGzoHsz',
+            'X-LC-Key': 'co6tpmcyS9za2D1uqQyMFtnN',
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(data)
+        });
+      };
+      if (CONFIG.page.isPost) {
+        const localhost = /http:\/\/(localhost|127.0.0.1|0.0.0.0)/;
+        if (localhost.test(document.URL)) return;
+        addCount(Counter);
+      } else if (document.querySelectorAll('.post-title-link').length >= 1) {
+        showTime(Counter);
+      }
+    });;(function(){
+      var bp = document.createElement('script');
+      var curProtocol = window.location.protocol.split(':')[0];
+      bp.src = (curProtocol === 'https') ? 'https://zz.bdstatic.com/linksubmit/push.js' : 'http://push.zhanzhang.baidu.com/push.js';
+      var s = document.getElementsByTagName("script")[0];
+      s.parentNode.insertBefore(bp, s);
+    })();;if (document.querySelectorAll('pre.mermaid').length) {
+  NexT.utils.getScript('//cdn.jsdelivr.net/npm/mermaid@8/dist/mermaid.min.js', () => {
+    mermaid.initialize({
+      theme: 'forest',
+      logLevel: 3,
+      flowchart: { curve: 'linear' },
+      gantt: { axisFormat: '%m/%d/%Y' },
+      sequence: { actorMargin: 50 }
+    });
+  }, window.mermaid);
+};window.addEventListener('load', () => {
+      quicklink({
+        timeout: 3000,
+        priority: true,
+        ignores: [uri => uri.includes('#'),uri => uri == 'https://www.beikejiedeliulangmao.top/middleware/dubbo/spi-impl/',]
+      });
+      });;NexT.utils.getScript('//cdn.jsdelivr.net/npm/gitalk@1/dist/gitalk.min.js', () => {
+    var gitalk = new Gitalk({
+      clientID: '6201d1cc2825a93aa161',
+      clientSecret: '71c60f650595a3eedba64b844f811b90acac3798',
+      repo: 'HexoBlogComment',
+      owner: 'BeiKeJieDeLiuLangMao',
+      admin: ['BeiKeJieDeLiuLangMao'],
+      id: '4cbf6579f741953142a6eb1a2a49c58b',
+        language: 'zh-CN',
+      distractionFreeMode: 'true'
+    });
+    gitalk.render('gitalk-container');
+  }, window.Gitalk);;window.imageLazyLoadSetting = {
+                isSPA: false,
+                processImages: null,
+            };;window.addEventListener("load",function(){var t=/\.(gif|jpg|jpeg|tiff|png)$/i,r=/^data:image\/[a-z]+;base64,/;Array.prototype.slice.call(document.querySelectorAll("img[data-original]")).forEach(function(a){var e=a.parentNode;"A"===e.tagName&&(e.href.match(t)||e.href.match(r))&&(e.href=a.dataset.original)})});;!function(n){n.imageLazyLoadSetting.processImages=o;var i=n.imageLazyLoadSetting.isSPA,l=Array.prototype.slice.call(document.querySelectorAll("img[data-original]"));function o(){i&&(l=Array.prototype.slice.call(document.querySelectorAll("img[data-original]")));for(var r=0;r<l.length;r++)t=l[r],void 0,0<=(e=t.getBoundingClientRect()).bottom&&0<=e.left&&e.top<=(n.innerHeight||document.documentElement.clientHeight)&&function(t){var e,n,i,o,a=l[r];e=a,n=function(){l=l.filter(function(t){return a!==t})},i=new Image,o=e.getAttribute("data-original"),i.onload=function(){e.src=o,n&&n()},i.src=o}();var t,e}o(),n.addEventListener("scroll",function(){var t,e;t=o,e=n,clearTimeout(t.tId),t.tId=setTimeout(function(){t.call(e)},500)})}(this);</script></body></html>

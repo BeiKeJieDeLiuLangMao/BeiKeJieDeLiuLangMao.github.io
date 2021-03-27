@@ -1,0 +1,3946 @@
+<!DOCTYPE html><html lang="zh-CN"><head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 5.1.1">
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/avatar.jpg">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/avatar.jpg">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/avatar.jpg">
+  <link rel="mask-icon" href="/images/avatar.jpg" color="#222">
+  <link rel="alternate" href="/atom.xml" title="贝克街的流浪猫" type="application/atom+xml">
+  <meta http-equiv="Cache-Control" content="no-transform">
+  <meta http-equiv="Cache-Control" content="no-siteapp">
+  <meta name="google-site-verification" content="PB8pKbwvyCztAdFAxM1AdLMfqXY7wDk6xWZIy3BYn0M">
+  <meta name="baidu-site-verification" content="lHxDkbImj8">
+
+
+
+
+
+  
+  
+
+
+<script id="hexo-configurations">
+  var NexT = window.NexT || {};
+  var CONFIG = {
+    root: '/',
+    scheme: 'Gemini',
+    version: '7.5.0',
+    exturl: true,
+    sidebar: {"position":"left","display":"post","offset":12,"onmobile":false},
+    copycode: {"enable":true,"show_result":true,"style":null},
+    back2top: {"enable":true,"sidebar":true,"scrollpercent":true},
+    bookmark: {"enable":false,"color":"#222","save":"auto"},
+    fancybox: false,
+    mediumzoom: true,
+    lazyload: false,
+    pangu: true,
+    algolia: {
+      appID: 'XKULKGLQCN',
+      apiKey: '59d463bff59108a7719f93aa31f249f3',
+      indexName: 'Hexo Blog',
+      hits: {"per_page":10},
+      labels: {"input_placeholder":"文章查询","hits_empty":"很抱歉，贝贝猫没有发表关于 \"${query}\" 的文章","hits_stats":"找到了 ${hits} 篇文章，耗时 ${time} 毫秒"}
+    },
+    localsearch: {"enable":false,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false},
+    path: '',
+    motion: {"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},
+    sidebarPadding: 40
+  };
+</script>
+
+  <meta name="description" content="引言前面我们已经简单地介绍了 Kubernetes 是什么以及如何使用，本文我们将更加全面的介绍 Kubernetes 常用的资源(或者说其中定义的一些概念)，更多关于 Kubernetes 的介绍均收录于<Kubernetes系列文章>中。">
+<meta property="og:type" content="article">
+<meta property="og:title" content="Kubernetes 常用功能">
+<meta property="og:url" content="https://www.beikejiedeliulangmao.top/container/kubernetes/concept/index.html">
+<meta property="og:site_name" content="贝克街的流浪猫">
+<meta property="og:description" content="引言前面我们已经简单地介绍了 Kubernetes 是什么以及如何使用，本文我们将更加全面的介绍 Kubernetes 常用的资源(或者说其中定义的一些概念)，更多关于 Kubernetes 的介绍均收录于<Kubernetes系列文章>中。">
+<meta property="og:locale" content="zh_CN">
+<meta property="og:image" content="https://www.beikejiedeliulangmao.top/images/loading-cat.gif">
+<meta property="og:image" content="https://www.beikejiedeliulangmao.top/images/loading-cat.gif">
+<meta property="og:image" content="https://www.beikejiedeliulangmao.top/images/loading-cat.gif">
+<meta property="og:image" content="https://www.beikejiedeliulangmao.top/images/loading-cat.gif">
+<meta property="og:image" content="https://www.beikejiedeliulangmao.top/images/loading-cat.gif">
+<meta property="og:image" content="https://www.beikejiedeliulangmao.top/images/loading-cat.gif">
+<meta property="og:image" content="https://www.beikejiedeliulangmao.top/images/loading-cat.gif">
+<meta property="og:image" content="https://www.beikejiedeliulangmao.top/images/loading-cat.gif">
+<meta property="og:image" content="https://www.beikejiedeliulangmao.top/images/loading-cat.gif">
+<meta property="og:image" content="https://www.beikejiedeliulangmao.top/images/loading-cat.gif">
+<meta property="og:image" content="https://www.beikejiedeliulangmao.top/images/loading-cat.gif">
+<meta property="og:image" content="https://www.beikejiedeliulangmao.top/images/loading-cat.gif">
+<meta property="og:image" content="https://www.beikejiedeliulangmao.top/images/loading-cat.gif">
+<meta property="og:image" content="https://www.beikejiedeliulangmao.top/images/loading-cat.gif">
+<meta property="og:image" content="https://www.beikejiedeliulangmao.top/images/loading-cat.gif">
+<meta property="og:image" content="https://www.beikejiedeliulangmao.top/images/loading-cat.gif">
+<meta property="og:image" content="https://www.beikejiedeliulangmao.top/images/loading-cat.gif">
+<meta property="og:image" content="https://www.beikejiedeliulangmao.top/images/loading-cat.gif">
+<meta property="og:image" content="https://www.beikejiedeliulangmao.top/images/loading-cat.gif">
+<meta property="og:image" content="https://www.beikejiedeliulangmao.top/images/loading-cat.gif">
+<meta property="og:image" content="https://www.beikejiedeliulangmao.top/images/loading-cat.gif">
+<meta property="og:image" content="https://www.beikejiedeliulangmao.top/images/loading-cat.gif">
+<meta property="og:image" content="https://www.beikejiedeliulangmao.top/images/loading-cat.gif">
+<meta property="og:image" content="https://www.beikejiedeliulangmao.top/images/loading-cat.gif">
+<meta property="og:image" content="https://www.beikejiedeliulangmao.top/images/loading-cat.gif">
+<meta property="og:image" content="https://www.beikejiedeliulangmao.top/images/loading-cat.gif">
+<meta property="og:image" content="https://www.beikejiedeliulangmao.top/images/loading-cat.gif">
+<meta property="og:image" content="https://www.beikejiedeliulangmao.top/images/loading-cat.gif">
+<meta property="og:image" content="https://www.beikejiedeliulangmao.top/images/loading-cat.gif">
+<meta property="article:published_time" content="2019-09-20T03:11:51.000Z">
+<meta property="article:modified_time" content="2021-01-17T04:25:40.551Z">
+<meta property="article:author" content="贝克街的流浪猫">
+<meta property="article:tag" content="Distributed">
+<meta property="article:tag" content="MicroService">
+<meta property="article:tag" content="Network">
+<meta property="article:tag" content="Kubernetes">
+<meta property="article:tag" content="Docker">
+<meta property="article:tag" content="k8s">
+<meta property="article:tag" content="etcd">
+<meta property="article:tag" content="Containers">
+<meta property="article:tag" content="CNCF">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="https://www.beikejiedeliulangmao.top/images/loading-cat.gif">
+
+<link rel="canonical" href="https://www.beikejiedeliulangmao.top/container/kubernetes/concept/">
+
+
+<script id="page-configurations">
+  // https://hexo.io/docs/variables.html
+  CONFIG.page = {
+    sidebar: "",
+    isHome: false,
+    isPost: true,
+    isPage: false,
+    isArchive: false
+  };
+</script>
+
+  <title>Kubernetes 常用功能 | 贝克街的流浪猫</title>
+  
+    <script>
+      function sendPageView() {
+        var host = window.location.hostname;
+        if (host == "localhost" && true) return;
+        var uid = localStorage.getItem('uid') || (Math.random() + '.' + Math.random());
+        localStorage.setItem('uid', uid);
+        navigator.sendBeacon('https://www.google-analytics.com/collect', new URLSearchParams({
+          v  : 1,
+          tid: 'UA-146830566-1',
+          cid: uid,
+          t  : 'pageview',
+          dp : encodeURIComponent(location.pathname)
+        }));
+      }
+      document.addEventListener('pjax:complete', sendPageView);
+      sendPageView();
+    </script>
+
+
+  <script>
+    var _hmt = _hmt || [];
+    (function() {
+      var hm = document.createElement("script");
+      hm.src = "https://hm.baidu.com/hm.js?818a8e6061ff2bd0b5531a739f216601";
+      var s = document.getElementsByTagName("script")[0];
+      s.parentNode.insertBefore(hm, s);
+    })();
+  </script>
+
+
+
+
+  <style>body {
+  background-image: url("https://www.beikejiedeliulangmao.top/images/background.jpeg") !important;
+  background-attachment: fixed !important;
+  background-repeat: no-repeat !important;
+  background-size: 100% 100% !important;
+}
+.bg_content {
+  position: fixed;
+  top: 0;
+  z-index: -1;
+  width: 100%;
+  height: 100%;
+}
+.copyright {
+  color: #000;
+}
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+  background-color: #fff;
+}
+::-webkit-scrollbar-button {
+  width: 0;
+  height: 0;
+}
+::-webkit-scrollbar-button:start:increment,
+::-webkit-scrollbar-button:end:decrement {
+  display: none;
+}
+::-webkit-scrollbar-corner {
+  display: block;
+}
+::-webkit-scrollbar-thumb {
+  border-radius: 6px;
+  background-color: rgba(0,0,0,0.4);
+}
+::-webkit-scrollbar-thumb:hover {
+  border-radius: 6px;
+  background-color: rgba(0,0,0,0.6);
+}
+::-webkit-scrollbar-track,
+::-webkit-scrollbar-thumb {
+  border-right: 1px solid transparent;
+  border-left: 1px solid transparent;
+}
+::-webkit-scrollbar-button:start {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-button:end {
+  width: 6px;
+  height: 6px;
+}
+html {
+  line-height: 1.15; 
+  -webkit-text-size-adjust: 100%; 
+}
+body {
+  margin: 0;
+}
+main {
+  display: block;
+}
+h1 {
+  font-size: 2em;
+  margin: 0.67em 0;
+}
+hr {
+  box-sizing: content-box; 
+  height: 0; 
+  overflow: visible; 
+}
+pre {
+  font-family: monospace, monospace; 
+  font-size: 1em; 
+}
+a {
+  background: transparent;
+}
+abbr[title] {
+  border-bottom: none; 
+  text-decoration: underline; 
+  text-decoration: underline dotted; 
+}
+b,
+strong {
+  font-weight: bolder;
+}
+code,
+kbd,
+samp {
+  font-family: monospace, monospace; 
+  font-size: 1em; 
+}
+small {
+  font-size: 80%;
+}
+sub,
+sup {
+  font-size: 75%;
+  line-height: 0;
+  position: relative;
+  vertical-align: baseline;
+}
+sub {
+  bottom: -0.25em;
+}
+sup {
+  top: -0.5em;
+}
+img {
+  border-style: none;
+}
+button,
+input,
+optgroup,
+select,
+textarea {
+  font-family: inherit; 
+  font-size: 100%; 
+  line-height: 1.15; 
+  margin: 0; 
+}
+button,
+input {
+
+  overflow: visible;
+}
+button,
+select {
+
+  text-transform: none;
+}
+button,
+[type='button'],
+[type='reset'],
+[type='submit'] {
+  -webkit-appearance: button;
+}
+button::-moz-focus-inner,
+[type='button']::-moz-focus-inner,
+[type='reset']::-moz-focus-inner,
+[type='submit']::-moz-focus-inner {
+  border-style: none;
+  padding: 0;
+}
+button:-moz-focusring,
+[type='button']:-moz-focusring,
+[type='reset']:-moz-focusring,
+[type='submit']:-moz-focusring {
+  outline: 1px dotted ButtonText;
+}
+fieldset {
+  padding: 0.35em 0.75em 0.625em;
+}
+legend {
+  box-sizing: border-box; 
+  color: inherit; 
+  display: table; 
+  max-width: 100%; 
+  padding: 0; 
+  white-space: normal; 
+}
+progress {
+  vertical-align: baseline;
+}
+textarea {
+  overflow: auto;
+}
+[type='checkbox'],
+[type='radio'] {
+  box-sizing: border-box; 
+  padding: 0; 
+}
+[type='number']::-webkit-inner-spin-button,
+[type='number']::-webkit-outer-spin-button {
+  height: auto;
+}
+[type='search'] {
+  outline-offset: -2px; 
+  -webkit-appearance: textfield; 
+}
+[type='search']::-webkit-search-decoration {
+  -webkit-appearance: none;
+}
+::-webkit-file-upload-button {
+  font: inherit; 
+  -webkit-appearance: button; 
+}
+details {
+  display: block;
+}
+summary {
+  display: list-item;
+}
+template {
+  display: none;
+}
+[hidden] {
+  display: none;
+}
+::selection {
+  background: #262a30;
+  color: #fff;
+}
+html,
+body {
+  height: 100%;
+}
+body {
+  background: #eee;
+  color: #555;
+  font-family: 'Monda', "PingFang SC", "Microsoft YaHei", sans-serif;
+  font-size: 1em;
+  line-height: 2;
+}
+@media (max-width: 991px) {
+  body {
+    padding-left: 0 !important;
+    padding-right: 0 !important;
+  }
+}
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+  font-family: 'Roboto Slab', 'Monda', "PingFang SC", "Microsoft YaHei", sans-serif;
+  font-weight: bold;
+  line-height: 1.5;
+  margin: 20px 0 15px;
+  padding: 0;
+}
+h1 {
+  font-size: 1.5em;
+}
+h2 {
+  font-size: 1.375em;
+}
+h3 {
+  font-size: 1.25em;
+}
+h4 {
+  font-size: 1.125em;
+}
+h5 {
+  font-size: 1em;
+}
+h6 {
+  font-size: 0.875em;
+}
+p {
+  margin: 0 0 20px 0;
+}
+a,
+span.exturl {
+  border-bottom: 1px solid #999;
+  color: #555;
+  outline: 0;
+  text-decoration: none;
+  overflow-wrap: break-word;
+  word-wrap: break-word;
+  cursor: pointer;
+}
+a:hover,
+span.exturl:hover {
+  border-bottom-color: #222;
+  color: #222;
+}
+iframe,
+img,
+video {
+  display: block;
+  margin-left: auto;
+  margin-right: auto;
+  max-width: 100%;
+}
+hr {
+  background-color: #ddd;
+  background-image: repeating-linear-gradient(-45deg, #fff, #fff 4px, transparent 4px, transparent 8px);
+  border: 0;
+  height: 3px;
+  margin: 40px 0;
+}
+blockquote {
+  border-left: 4px solid #ddd;
+  color: #666;
+  margin: 0;
+  padding: 0 15px;
+}
+blockquote cite::before {
+  content: '-';
+  padding: 0 5px;
+}
+dt {
+  font-weight: 700;
+}
+dd {
+  margin: 0;
+  padding: 0;
+}
+kbd {
+  background-color: #f5f5f5;
+  background-image: linear-gradient(#eee, #fff, #eee);
+  border: 1px solid #ccc;
+  border-radius: 0.2em;
+  box-shadow: 0.1em 0.1em 0.2em rgba(0,0,0,0.1);
+  font-family: inherit;
+  padding: 0.1em 0.3em;
+  white-space: nowrap;
+}
+.table-container {
+  -webkit-overflow-scrolling: touch;
+  overflow: auto;
+}
+table {
+  border-collapse: collapse;
+  border-spacing: 0;
+  font-size: 0.875em;
+  margin: 0 0 20px 0;
+  width: 100%;
+}
+tbody tr:nth-of-type(odd) {
+  background: #f9f9f9;
+}
+tbody tr:hover {
+  background: #f5f5f5;
+}
+caption,
+th,
+td {
+  font-weight: normal;
+  padding: 8px;
+  text-align: left;
+  vertical-align: middle;
+}
+th,
+td {
+  border: 1px solid #ddd;
+  border-bottom: 3px solid #ddd;
+}
+th {
+  font-weight: 700;
+  padding-bottom: 10px;
+}
+td {
+  border-bottom-width: 1px;
+}
+.btn {
+  background: #fff;
+  border: 2px solid #555;
+  border-radius: 2px;
+  color: #555;
+  display: inline-block;
+  font-size: 0.875em;
+  line-height: 2;
+  padding: 0 20px;
+  text-decoration: none;
+  transition-property: background-color;
+  transition-delay: 0s;
+  transition-duration: 0.2s;
+  transition-timing-function: ease-in-out;
+}
+.btn:hover {
+  background: #222;
+  border-color: #222;
+  color: #fff;
+}
+.btn + .btn {
+  margin: 0 0 8px 8px;
+}
+.btn .fa-fw {
+  text-align: left;
+  width: 1.285714285714286em;
+}
+.toggle {
+  line-height: 0;
+}
+.toggle .toggle-line {
+  background: #fff;
+  display: inline-block;
+  height: 2px;
+  left: 0;
+  position: relative;
+  top: 0;
+  transition: all 0.4s;
+  vertical-align: top;
+  width: 100%;
+}
+.toggle .toggle-line:not(:first-child) {
+  margin-top: 3px;
+}
+.toggle.toggle-arrow .toggle-line-first {
+  left: 50%;
+  top: 2px;
+  transform: rotate(45deg);
+  width: 50%;
+}
+.toggle.toggle-arrow .toggle-line-middle {
+  left: 2px;
+  width: 90%;
+}
+.toggle.toggle-arrow .toggle-line-last {
+  left: 50%;
+  top: -2px;
+  transform: rotate(-45deg);
+  width: 50%;
+}
+.toggle.toggle-close .toggle-line-first {
+  transform: rotate(-45deg);
+  top: 5px;
+}
+.toggle.toggle-close .toggle-line-middle {
+  opacity: 0;
+}
+.toggle.toggle-close .toggle-line-last {
+  transform: rotate(45deg);
+  top: -5px;
+}
+.highlight-container {
+  position: relative;
+}
+.highlight-container:hover .copy-btn,
+.highlight-container .copy-btn:focus {
+  opacity: 1;
+}
+.copy-btn {
+  color: #333;
+  cursor: pointer;
+  display: inline-block;
+  font-weight: 700;
+  line-height: 1.6;
+  opacity: 0;
+  outline: 0;
+  padding: 2px 6px;
+  position: absolute;
+  transition: opacity 0.3s ease-in-out;
+  vertical-align: middle;
+  white-space: nowrap;
+  -moz-user-select: none;
+  -ms-user-select: none;
+  -webkit-user-select: none;
+  user-select: none;
+  background-color: #eee;
+  background-image: linear-gradient(#fcfcfc, #eee);
+  border: 1px solid #d5d5d5;
+  border-radius: 3px;
+  font-size: 0.8125em;
+  right: 4px;
+  top: 8px;
+}
+.highlight,
+pre {
+  background: #f7f7f7;
+  color: #4d4d4c;
+  line-height: 1.6;
+  margin: 0 auto 20px;
+}
+pre,
+code {
+  font-family: 'PT Mono', consolas, Menlo, monospace, "PingFang SC", "Microsoft YaHei";
+}
+code {
+  background: #eee;
+  border-radius: 3px;
+  color: #555;
+  padding: 2px 4px;
+  overflow-wrap: break-word;
+  word-wrap: break-word;
+}
+.highlight *::selection {
+  background: #d6d6d6;
+}
+.highlight pre {
+  border: 0;
+  margin: 0;
+  padding: 0;
+}
+.highlight table {
+  border: 0;
+  margin: 0;
+  width: auto;
+}
+.highlight tr:first-child pre {
+  padding-top: 10px;
+}
+.highlight tr:last-child pre {
+  padding-bottom: 10px;
+}
+.highlight td {
+  border: 0;
+  padding: 0;
+}
+.highlight figcaption {
+  background: #eee;
+  color: #4d4d4c;
+  font-size: 0.875em;
+  line-height: 1.2;
+  padding: 0.5em;
+}
+.highlight figcaption::before,
+.highlight figcaption::after {
+  content: ' ';
+  display: table;
+}
+.highlight figcaption::after {
+  clear: both;
+}
+.highlight figcaption a {
+  color: #4d4d4c;
+  float: right;
+}
+.highlight figcaption a:hover {
+  border-bottom-color: #4d4d4c;
+}
+.highlight .gutter pre {
+  background: #eff2f3;
+  color: #869194;
+  padding-left: 10px;
+  padding-right: 10px;
+  text-align: right;
+  -moz-user-select: none;
+  -ms-user-select: none;
+  -webkit-user-select: none;
+  user-select: none;
+}
+.highlight .code pre {
+  background: #f7f7f7;
+  padding-left: 10px;
+  width: 100%;
+}
+.gist table {
+  width: auto;
+}
+.gist table td {
+  border: 0;
+}
+pre {
+  overflow: auto;
+  padding: 10px;
+}
+pre code {
+  background: none;
+  color: #4d4d4c;
+  font-size: 0.875em;
+  padding: 0;
+  text-shadow: none;
+}
+pre .deletion {
+  background: #fdd;
+}
+pre .addition {
+  background: #dfd;
+}
+pre .meta {
+  color: #eab700;
+  -moz-user-select: none;
+  -ms-user-select: none;
+  -webkit-user-select: none;
+  user-select: none;
+}
+pre .comment {
+  color: #8e908c;
+}
+pre .variable,
+pre .attribute,
+pre .tag,
+pre .name,
+pre .regexp,
+pre .ruby .constant,
+pre .xml .tag .title,
+pre .xml .pi,
+pre .xml .doctype,
+pre .html .doctype,
+pre .css .id,
+pre .css .class,
+pre .css .pseudo {
+  color: #c82829;
+}
+pre .number,
+pre .preprocessor,
+pre .built_in,
+pre .builtin-name,
+pre .literal,
+pre .params,
+pre .constant,
+pre .command {
+  color: #f5871f;
+}
+pre .ruby .class .title,
+pre .css .rules .attribute,
+pre .string,
+pre .symbol,
+pre .value,
+pre .inheritance,
+pre .header,
+pre .ruby .symbol,
+pre .xml .cdata,
+pre .special,
+pre .formula {
+  color: #718c00;
+}
+pre .title,
+pre .css .hexcolor {
+  color: #3e999f;
+}
+pre .function,
+pre .python .decorator,
+pre .python .title,
+pre .ruby .function .title,
+pre .ruby .title .keyword,
+pre .perl .sub,
+pre .javascript .title,
+pre .coffeescript .title {
+  color: #4271ae;
+}
+pre .keyword,
+pre .javascript .function {
+  color: #8959a8;
+}
+.blockquote-center {
+  border-left: none;
+  margin: 40px 0;
+  padding: 0;
+  position: relative;
+  text-align: center;
+}
+.blockquote-center::before,
+.blockquote-center::after {
+  background-repeat: no-repeat;
+  background-size: 22px 22px;
+  content: ' ';
+  display: block;
+  height: 24px;
+  opacity: 0.2;
+  position: absolute;
+  width: 100%;
+}
+.blockquote-center::before {
+  background-image: url("../images/quote-l.svg");
+  background-position: 0 -6px;
+  border-top: 1px solid #ccc;
+  top: -20px;
+}
+.blockquote-center::after {
+  background-image: url("../images/quote-r.svg");
+  background-position: 100% 8px;
+  border-bottom: 1px solid #ccc;
+  bottom: -20px;
+}
+.blockquote-center p,
+.blockquote-center div {
+  text-align: center;
+}
+.post-body .group-picture img {
+  border: 0;
+  margin: 0 auto;
+  padding: 0 3px;
+}
+.group-picture-row {
+  margin-bottom: 6px;
+  overflow: hidden;
+}
+.group-picture-column {
+  float: left;
+  margin-bottom: 10px;
+}
+.post-body .label {
+  display: inline;
+  padding: 0 2px;
+}
+.post-body .label.default {
+  background: #f0f0f0;
+}
+.post-body .label.primary {
+  background: #efe6f7;
+}
+.post-body .label.info {
+  background: #e5f2f8;
+}
+.post-body .label.success {
+  background: #e7f4e9;
+}
+.post-body .label.warning {
+  background: #fcf6e1;
+}
+.post-body .label.danger {
+  background: #fae8eb;
+}
+.post-body .tabs {
+  margin-bottom: 20px;
+}
+.post-body .tabs,
+.tabs-comment {
+  display: block;
+  padding-top: 10px;
+  position: relative;
+}
+.post-body .tabs ul.nav-tabs,
+.tabs-comment ul.nav-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  margin: 0;
+  margin-bottom: -1px;
+  padding: 0;
+}
+@media (max-width: 413px) {
+  .post-body .tabs ul.nav-tabs,
+  .tabs-comment ul.nav-tabs {
+    display: block;
+    margin-bottom: 5px;
+  }
+}
+.post-body .tabs ul.nav-tabs li.tab,
+.tabs-comment ul.nav-tabs li.tab {
+  background: #fff;
+  border-bottom: 1px solid #ddd;
+  border-left: 1px solid transparent;
+  border-right: 1px solid transparent;
+  border-top: 3px solid transparent;
+  flex-grow: 1;
+  list-style-type: none;
+}
+@media (max-width: 413px) {
+  .post-body .tabs ul.nav-tabs li.tab,
+  .tabs-comment ul.nav-tabs li.tab {
+    border-bottom: 1px solid transparent;
+    border-left: 3px solid transparent;
+    border-right: 1px solid transparent;
+    border-top: 1px solid transparent;
+  }
+}
+.post-body .tabs ul.nav-tabs li.tab a,
+.tabs-comment ul.nav-tabs li.tab a {
+  border-bottom: initial;
+  display: block;
+  line-height: 1.8;
+  outline: 0;
+  padding: 0.25em 0.75em;
+  text-align: center;
+  transition-delay: 0s;
+  transition-duration: 0.2s;
+  transition-timing-function: ease-out;
+}
+.post-body .tabs ul.nav-tabs li.tab a i,
+.tabs-comment ul.nav-tabs li.tab a i {
+  width: 1.285714285714286em;
+}
+.post-body .tabs ul.nav-tabs li.tab.active,
+.tabs-comment ul.nav-tabs li.tab.active {
+  border-bottom: 1px solid transparent;
+  border-left: 1px solid #ddd;
+  border-right: 1px solid #ddd;
+  border-top: 3px solid #fc6423;
+}
+@media (max-width: 413px) {
+  .post-body .tabs ul.nav-tabs li.tab.active,
+  .tabs-comment ul.nav-tabs li.tab.active {
+    border-bottom: 1px solid #ddd;
+    border-left: 3px solid #fc6423;
+    border-right: 1px solid #ddd;
+    border-top: 1px solid #ddd;
+  }
+}
+.post-body .tabs ul.nav-tabs li.tab.active a,
+.tabs-comment ul.nav-tabs li.tab.active a {
+  color: #555;
+  cursor: default;
+}
+.post-body .tabs .tab-content .tab-pane,
+.tabs-comment .tab-content .tab-pane {
+  border: 1px solid #ddd;
+  padding: 20px 20px 0 20px;
+}
+.post-body .tabs .tab-content .tab-pane:not(.active),
+.tabs-comment .tab-content .tab-pane:not(.active) {
+  display: none;
+}
+.post-body .tabs .tab-content .tab-pane.active,
+.tabs-comment .tab-content .tab-pane.active {
+  display: block;
+}
+.post-body .note {
+  margin-bottom: 20px;
+  padding: 15px;
+  position: relative;
+  border: 1px solid #eee;
+  border-left-width: 5px;
+  border-radius: 3px;
+}
+.post-body .note h2,
+.post-body .note h3,
+.post-body .note h4,
+.post-body .note h5,
+.post-body .note h6 {
+  margin-top: 0;
+  border-bottom: initial;
+  margin-bottom: 0;
+  padding-top: 0;
+}
+.post-body .note p:first-child,
+.post-body .note ul:first-child,
+.post-body .note ol:first-child,
+.post-body .note table:first-child,
+.post-body .note pre:first-child,
+.post-body .note blockquote:first-child,
+.post-body .note img:first-child {
+  margin-top: 0;
+}
+.post-body .note p:last-child,
+.post-body .note ul:last-child,
+.post-body .note ol:last-child,
+.post-body .note table:last-child,
+.post-body .note pre:last-child,
+.post-body .note blockquote:last-child,
+.post-body .note img:last-child {
+  margin-bottom: 0;
+}
+.post-body .note.default {
+  border-left-color: #777;
+}
+.post-body .note.default h2,
+.post-body .note.default h3,
+.post-body .note.default h4,
+.post-body .note.default h5,
+.post-body .note.default h6 {
+  color: #777;
+}
+.post-body .note.primary {
+  border-left-color: #6f42c1;
+}
+.post-body .note.primary h2,
+.post-body .note.primary h3,
+.post-body .note.primary h4,
+.post-body .note.primary h5,
+.post-body .note.primary h6 {
+  color: #6f42c1;
+}
+.post-body .note.info {
+  border-left-color: #428bca;
+}
+.post-body .note.info h2,
+.post-body .note.info h3,
+.post-body .note.info h4,
+.post-body .note.info h5,
+.post-body .note.info h6 {
+  color: #428bca;
+}
+.post-body .note.success {
+  border-left-color: #5cb85c;
+}
+.post-body .note.success h2,
+.post-body .note.success h3,
+.post-body .note.success h4,
+.post-body .note.success h5,
+.post-body .note.success h6 {
+  color: #5cb85c;
+}
+.post-body .note.warning {
+  border-left-color: #f0ad4e;
+}
+.post-body .note.warning h2,
+.post-body .note.warning h3,
+.post-body .note.warning h4,
+.post-body .note.warning h5,
+.post-body .note.warning h6 {
+  color: #f0ad4e;
+}
+.post-body .note.danger {
+  border-left-color: #d9534f;
+}
+.post-body .note.danger h2,
+.post-body .note.danger h3,
+.post-body .note.danger h4,
+.post-body .note.danger h5,
+.post-body .note.danger h6 {
+  color: #d9534f;
+}
+.pagination .prev,
+.pagination .next,
+.pagination .page-number,
+.pagination .space {
+  display: inline-block;
+  margin: 0 10px;
+  padding: 0 11px;
+  position: relative;
+  top: -1px;
+}
+@media (max-width: 767px) {
+  .pagination .prev,
+  .pagination .next,
+  .pagination .page-number,
+  .pagination .space {
+    margin: 0 5px;
+  }
+}
+.pagination {
+  border-top: 1px solid #eee;
+  margin: 120px 0 0;
+  text-align: center;
+}
+.pagination .prev,
+.pagination .next,
+.pagination .page-number {
+  border-bottom: 0;
+  border-top: 1px solid #eee;
+  transition-property: border-color;
+  transition-delay: 0s;
+  transition-duration: 0.2s;
+  transition-timing-function: ease-in-out;
+}
+.pagination .prev:hover,
+.pagination .next:hover,
+.pagination .page-number:hover {
+  border-top-color: #222;
+}
+.pagination .space {
+  margin: 0;
+  padding: 0;
+}
+.pagination .prev {
+  margin-left: 0;
+}
+.pagination .next {
+  margin-right: 0;
+}
+.pagination .page-number.current,
+.algolia-pagination .current .page-number {
+  background: #ccc;
+  border-top-color: #ccc;
+  color: #fff;
+}
+@media (max-width: 767px) {
+  .pagination {
+    border-top: none;
+  }
+  .pagination .prev,
+  .pagination .next,
+  .pagination .page-number {
+    border-bottom: 1px solid #eee;
+    border-top: 0;
+    margin-bottom: 10px;
+    padding: 0 10px;
+  }
+  .pagination .prev:hover,
+  .pagination .next:hover,
+  .pagination .page-number:hover {
+    border-bottom-color: #222;
+  }
+}
+.comments {
+  margin: 60px 20px 0;
+  overflow: hidden;
+}
+.comment-button-group {
+  display: flex;
+  flex-wrap: wrap-reverse;
+  justify-content: center;
+  margin: 1em 0;
+}
+.comment-button-group .comment-button {
+  margin: 0.1em 0.2em;
+}
+.comment-button-group .comment-button.active {
+  background: #222;
+  border-color: #222;
+  color: #fff;
+}
+.comment-position {
+  display: none;
+}
+.comment-position.active {
+  display: block;
+}
+.tabs-comment {
+  background: #fff;
+  margin-top: 4em;
+  padding-top: 0;
+}
+.tabs-comment .comments {
+  border: 0;
+  box-shadow: none;
+  margin-top: 0;
+  padding-top: 0;
+}
+.container {
+  min-height: 100%;
+  position: relative;
+}
+.main-inner {
+  margin: 0 auto;
+  width: calc(100% - 20px);
+}
+@media (min-width: 1200px) {
+  .main-inner {
+    width: 1160px;
+  }
+}
+@media (min-width: 1600px) {
+  .main-inner {
+    width: 73%;
+  }
+}
+.header {
+  background: transparent;
+}
+.header-inner {
+  margin: 0 auto;
+  position: relative;
+  width: calc(100% - 20px);
+}
+@media (min-width: 1200px) {
+  .header-inner {
+    width: 1160px;
+  }
+}
+@media (min-width: 1600px) {
+  .header-inner {
+    width: 73%;
+  }
+}
+.headband {
+  background: #222;
+  height: 3px;
+}
+.site-meta {
+  margin: 0;
+  text-align: center;
+}
+@media (max-width: 767px) {
+  .site-meta {
+    text-align: center;
+  }
+}
+.brand {
+  background: #222;
+  border-bottom: none;
+  color: #fff;
+  display: inline-block;
+  line-height: 1.375em;
+  padding: 0 40px;
+  position: relative;
+}
+.brand:hover {
+  color: #fff;
+}
+.site-title {
+  display: inline-block;
+  font-family: 'Monda', "PingFang SC", "Microsoft YaHei", sans-serif;
+  font-size: 1.375em;
+  font-weight: normal;
+  line-height: 1.5;
+  vertical-align: top;
+}
+.site-subtitle {
+  color: #ddd;
+  font-size: 0.8125em;
+  margin-top: 10px;
+}
+.use-motion .brand {
+  opacity: 0;
+}
+.use-motion .site-title,
+.use-motion .site-subtitle,
+.use-motion .custom-logo-image {
+  opacity: 0;
+  position: relative;
+  top: -10px;
+}
+.site-nav-toggle {
+  display: none;
+  left: 10px;
+  position: absolute;
+}
+@media (max-width: 767px) {
+  .site-nav-toggle {
+    display: block;
+  }
+}
+.site-nav-toggle .toggle {
+  background: transparent;
+  border: 0;
+  margin-top: 2px;
+  padding: 10px;
+  width: 22px;
+}
+.site-nav-toggle .toggle .toggle-line {
+  background: #555;
+  border-radius: 1px;
+}
+.site-nav {
+  display: block;
+}
+@media (max-width: 767px) {
+  .site-nav {
+    border-top: 1px solid #ddd;
+    clear: both;
+    display: none;
+    margin: 0 -10px;
+    padding: 0 10px;
+  }
+}
+.site-nav.site-nav-on {
+  display: block;
+}
+.menu {
+  margin-top: 20px;
+  padding-left: 0;
+  text-align: center;
+}
+.menu-item {
+  display: inline-block;
+  list-style: none;
+  margin: 0 10px;
+}
+@media (max-width: 767px) {
+  .menu-item {
+    margin-top: 10px;
+  }
+}
+.menu-item a,
+.menu-item span.exturl {
+  border-bottom: 0;
+  display: block;
+  font-size: 0.8125em;
+  transition-property: border-color;
+  transition-delay: 0s;
+  transition-duration: 0.2s;
+  transition-timing-function: ease-in-out;
+}
+@media (hover: none) {
+  .menu-item a:hover,
+  .menu-item span.exturl:hover {
+    border-bottom-color: transparent !important;
+  }
+}
+.menu-item .fa {
+  margin-right: 8px;
+}
+.menu-item .badge {
+  display: inline-block;
+  font-weight: 700;
+  line-height: 1;
+  margin-left: 0.35em;
+  margin-top: 0.35em;
+  text-align: center;
+  white-space: nowrap;
+}
+@media (max-width: 767px) {
+  .menu-item .badge {
+    float: right;
+    margin-left: 0;
+  }
+}
+.use-motion .menu-item {
+  opacity: 0;
+}
+.github-corner :hover .octo-arm {
+  animation: octocat-wave 560ms ease-in-out;
+}
+.github-corner svg {
+  border: 0;
+  color: #fff;
+  fill: #222;
+  position: absolute;
+  right: 0;
+  top: 0;
+  z-index: 1000;
+}
+@media (max-width: 991px) {
+  .github-corner svg {
+    color: #222;
+    fill: #fff;
+  }
+  .github-corner .github-corner:hover .octo-arm {
+    animation: none;
+  }
+  .github-corner .github-corner .octo-arm {
+    animation: octocat-wave 560ms ease-in-out;
+  }
+}
+@-moz-keyframes octocat-wave {
+  0%, 100% {
+    transform: rotate(0);
+  }
+  20%, 60% {
+    transform: rotate(-25deg);
+  }
+  40%, 80% {
+    transform: rotate(10deg);
+  }
+}
+@-webkit-keyframes octocat-wave {
+  0%, 100% {
+    transform: rotate(0);
+  }
+  20%, 60% {
+    transform: rotate(-25deg);
+  }
+  40%, 80% {
+    transform: rotate(10deg);
+  }
+}
+@-o-keyframes octocat-wave {
+  0%, 100% {
+    transform: rotate(0);
+  }
+  20%, 60% {
+    transform: rotate(-25deg);
+  }
+  40%, 80% {
+    transform: rotate(10deg);
+  }
+}
+@keyframes octocat-wave {
+  0%, 100% {
+    transform: rotate(0);
+  }
+  20%, 60% {
+    transform: rotate(-25deg);
+  }
+  40%, 80% {
+    transform: rotate(10deg);
+  }
+}
+.sidebar {
+  background: #222;
+  bottom: 0;
+  box-shadow: inset 0 2px 6px #000;
+  position: fixed;
+  top: 0;
+  z-index: 1200;
+}
+.sidebar a,
+.sidebar span.exturl {
+  border-bottom-color: #555;
+  color: #999;
+}
+.sidebar a:hover,
+.sidebar span.exturl:hover {
+  border-bottom-color: #eee;
+  color: #eee;
+}
+@media (max-width: 991px) {
+  .sidebar {
+    display: none;
+  }
+}
+.sidebar-inner {
+  color: #999;
+  padding: 20px 10px;
+  text-align: center;
+}
+.site-overview-wrap {
+  overflow-x: hidden;
+  overflow-y: auto;
+}
+.cc-license {
+  margin-top: 10px;
+  text-align: center;
+}
+.cc-license .cc-opacity {
+  border-bottom: none;
+  opacity: 0.7;
+}
+.cc-license .cc-opacity:hover {
+  opacity: 0.9;
+}
+.cc-license img {
+  display: inline-block;
+}
+.site-author-image {
+  border: 1px solid #eee;
+  display: block;
+  height: auto;
+  margin: 0 auto;
+  max-width: 120px;
+  padding: 2px;
+  border-radius: 50%;
+}
+.site-author-name {
+  color: #222;
+  font-weight: 600;
+  margin: 0;
+  text-align: center;
+}
+.site-description {
+  color: #999;
+  font-size: 0.8125em;
+  margin-top: 0;
+  text-align: center;
+}
+.links-of-author {
+  margin-top: 15px;
+}
+.links-of-author a,
+.links-of-author span.exturl {
+  border-bottom-color: #555;
+  display: inline-block;
+  font-size: 0.8125em;
+  margin-bottom: 10px;
+  margin-right: 10px;
+  vertical-align: middle;
+  transition-delay: 0s;
+  transition-duration: 0.2s;
+  transition-timing-function: ease-in-out;
+}
+.links-of-author a::before,
+.links-of-author span.exturl::before {
+  background: #0ab5cd;
+  border-radius: 50%;
+  content: ' ';
+  display: inline-block;
+  height: 4px;
+  margin-right: 3px;
+  vertical-align: middle;
+  width: 4px;
+}
+.feed-link,
+.chat {
+  margin-top: 15px;
+}
+.feed-link a,
+.chat a {
+  border: 1px solid #fc6423;
+  border-radius: 4px;
+  color: #fc6423;
+  display: inline-block;
+  padding: 0 15px;
+}
+.feed-link a .fa,
+.chat a .fa {
+  margin-right: 5px;
+}
+.feed-link a:hover,
+.chat a:hover {
+  background: #fc6423;
+  border: 1px solid #fc6423;
+  color: #fff;
+}
+.feed-link a:hover .fa,
+.chat a:hover .fa {
+  color: #fff;
+}
+.links-of-blogroll {
+  font-size: 0.8125em;
+  margin-top: 10px;
+}
+.links-of-blogroll-title {
+  font-size: 0.875em;
+  font-weight: 600;
+  margin-top: 0;
+}
+.links-of-blogroll-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.links-of-blogroll-item {
+  padding: 2px 10px;
+}
+.links-of-blogroll-item a,
+.links-of-blogroll-item span.exturl {
+  box-sizing: border-box;
+  display: inline-block;
+  max-width: 280px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+#sidebar-dimmer {
+  display: none;
+}
+@media (max-width: 767px) {
+  #sidebar-dimmer {
+    background: #000;
+    display: block;
+    height: 100%;
+    left: 100%;
+    opacity: 0;
+    position: fixed;
+    top: 0;
+    width: 100%;
+    z-index: 1100;
+  }
+  .sidebar-active + #sidebar-dimmer {
+    opacity: 0.7;
+    transform: translateX(-100%);
+    transition: opacity 0.5s;
+  }
+}
+.sidebar-nav {
+  margin: 0;
+  padding-bottom: 20px;
+  padding-left: 0;
+}
+.sidebar-nav li {
+  border-bottom: 1px solid transparent;
+  color: #555;
+  cursor: pointer;
+  display: inline-block;
+  font-size: 0.875em;
+}
+.sidebar-nav li.sidebar-nav-overview {
+  margin-left: 10px;
+}
+.sidebar-nav li:hover {
+  color: #fc6423;
+}
+.sidebar-nav .sidebar-nav-active {
+  border-bottom-color: #fc6423;
+  color: #fc6423;
+}
+.sidebar-nav .sidebar-nav-active:hover {
+  color: #fc6423;
+}
+.sidebar-panel {
+  display: none;
+}
+.sidebar-panel-active {
+  display: block;
+}
+.sidebar-toggle {
+  background: #222;
+  bottom: 45px;
+  cursor: pointer;
+  height: 14px;
+  left: 30px;
+  padding: 5px;
+  position: fixed;
+  width: 14px;
+  z-index: 1300;
+}
+@media (max-width: 991px) {
+  .sidebar-toggle {
+    left: 20px;
+    opacity: 0.8;
+    display: none;
+  }
+}
+.sidebar-toggle:hover .toggle-line {
+  background: #fc6423;
+}
+.post-toc-wrap {
+  overflow-x: hidden;
+  overflow-y: auto;
+}
+.post-toc {
+  font-size: 0.875em;
+}
+.post-toc ol {
+  list-style: none;
+  margin: 0;
+  padding: 0 2px 5px 10px;
+  text-align: left;
+}
+.post-toc ol > ol {
+  padding-left: 0;
+}
+.post-toc ol a {
+  border-bottom-color: #ccc;
+  color: #666;
+  transition-property: all;
+  transition-delay: 0s;
+  transition-duration: 0.2s;
+  transition-timing-function: ease-in-out;
+}
+.post-toc ol a:hover {
+  border-bottom-color: #000;
+  color: #000;
+}
+.post-toc .nav-item {
+  line-height: 1.8;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.post-toc .nav .nav-child {
+  display: none;
+}
+.post-toc .nav .active > .nav-child {
+  display: block;
+}
+.post-toc .nav .active-current > .nav-child {
+  display: block;
+}
+.post-toc .nav .active-current > .nav-child > .nav-item {
+  display: block;
+}
+.post-toc .nav .active > a {
+  border-bottom-color: #fc6423;
+  color: #fc6423;
+}
+.post-toc .nav .active-current > a {
+  color: #fc6423;
+}
+.post-toc .nav .active-current > a:hover {
+  color: #fc6423;
+}
+.site-state {
+  display: flex;
+  justify-content: center;
+  line-height: 1.4;
+  margin-top: 10px;
+  overflow: hidden;
+  text-align: center;
+  white-space: nowrap;
+}
+.site-state-item {
+  padding: 0 15px;
+}
+.site-state-item:not(:first-child) {
+  border-left: 1px solid #eee;
+}
+.site-state-item a {
+  border-bottom: none;
+}
+.site-state-item-count {
+  color: inherit;
+  display: block;
+  font-size: 1em;
+  font-weight: 600;
+  text-align: center;
+}
+.site-state-item-name {
+  color: #999;
+  font-size: 0.8125em;
+}
+.footer {
+  color: #999;
+  font-size: 0.875em;
+  padding: 20px 0;
+}
+.footer.footer-fixed {
+  bottom: 0;
+  left: 0;
+  position: absolute;
+  right: 0;
+}
+.footer img {
+  border: 0;
+}
+.footer-inner {
+  box-sizing: border-box;
+  margin: 0 auto;
+  text-align: center;
+  width: calc(100% - 20px);
+}
+@media (min-width: 1200px) {
+  .footer-inner {
+    width: 1160px;
+  }
+}
+@media (min-width: 1600px) {
+  .footer-inner {
+    width: 73%;
+  }
+}
+.with-love {
+  color: red;
+  display: inline-block;
+  margin: 0 5px;
+  animation: iconAnimate 1.33s ease-in-out infinite;
+}
+.powered-by,
+.theme-info {
+  display: inline-block;
+}
+@-moz-keyframes iconAnimate {
+  0%, 100% {
+    transform: scale(1);
+  }
+  10%, 30% {
+    transform: scale(0.9);
+  }
+  20%, 40%, 60%, 80% {
+    transform: scale(1.1);
+  }
+  50%, 70% {
+    transform: scale(1.1);
+  }
+}
+@-webkit-keyframes iconAnimate {
+  0%, 100% {
+    transform: scale(1);
+  }
+  10%, 30% {
+    transform: scale(0.9);
+  }
+  20%, 40%, 60%, 80% {
+    transform: scale(1.1);
+  }
+  50%, 70% {
+    transform: scale(1.1);
+  }
+}
+@-o-keyframes iconAnimate {
+  0%, 100% {
+    transform: scale(1);
+  }
+  10%, 30% {
+    transform: scale(0.9);
+  }
+  20%, 40%, 60%, 80% {
+    transform: scale(1.1);
+  }
+  50%, 70% {
+    transform: scale(1.1);
+  }
+}
+@keyframes iconAnimate {
+  0%, 100% {
+    transform: scale(1);
+  }
+  10%, 30% {
+    transform: scale(0.9);
+  }
+  20%, 40%, 60%, 80% {
+    transform: scale(1.1);
+  }
+  50%, 70% {
+    transform: scale(1.1);
+  }
+}
+.back-to-top {
+  background: #eee;
+  font-size: 12px;
+  margin: 8px -10px -20px;
+  opacity: 0;
+  text-align: center;
+  transition-delay: 0s;
+  transition-duration: 0.2s;
+  transition-timing-function: ease-in-out;
+}
+.back-to-top.back-to-top-on {
+  cursor: pointer;
+  opacity: 0.6;
+}
+.back-to-top.back-to-top-on:hover {
+  opacity: 0.8;
+}
+.post-body {
+  font-family: 'Monda', "PingFang SC", "Microsoft YaHei", sans-serif;
+  overflow-wrap: break-word;
+  word-wrap: break-word;
+}
+@media (min-width: 1200px) {
+  .post-body {
+    font-size: 1.125em;
+  }
+}
+.post-body span.exturl .fa {
+  font-size: 0.875em;
+  margin-left: 4px;
+}
+.post-body .image-caption,
+.post-body .figure .caption {
+  color: #999;
+  font-size: 0.875em;
+  font-weight: bold;
+  line-height: 1;
+  margin: -20px auto 15px;
+  text-align: center;
+}
+.post-sticky-flag {
+  display: inline-block;
+  transform: rotate(30deg);
+}
+.post-button {
+  margin-top: 40px;
+  text-align: center;
+}
+.use-motion .post-block,
+.use-motion .pagination,
+.use-motion .comments {
+  opacity: 0;
+}
+.use-motion .post-header {
+  opacity: 0;
+}
+.use-motion .post-body {
+  opacity: 0;
+}
+.use-motion .collection-header {
+  opacity: 0;
+}
+.posts-collapse {
+  margin-left: 55px;
+  position: relative;
+}
+@media (max-width: 767px) {
+  .posts-collapse {
+    margin-left: 20px;
+    margin-right: 20px;
+  }
+}
+.posts-collapse .collection-title {
+  font-size: 1.125em;
+  position: relative;
+}
+.posts-collapse .collection-title::before {
+  background: #999;
+  border: 1px solid #fff;
+  border-radius: 50%;
+  content: ' ';
+  height: 10px;
+  left: 0;
+  margin-left: -6px;
+  margin-top: -4px;
+  position: absolute;
+  top: 50%;
+  width: 10px;
+}
+.posts-collapse .collection-year {
+  margin: 60px 0;
+  position: relative;
+}
+.posts-collapse .collection-year::before {
+  background: #bbb;
+  border-radius: 50%;
+  content: ' ';
+  height: 8px;
+  left: 0;
+  margin-left: -4px;
+  margin-top: -4px;
+  position: absolute;
+  top: 50%;
+  width: 8px;
+}
+.posts-collapse .collection-header {
+  display: inline-block;
+  margin: 0 0 0 20px;
+}
+.posts-collapse .collection-header small {
+  color: #bbb;
+  margin-left: 5px;
+}
+.posts-collapse .post-header {
+  border-bottom: 1px dashed #ccc;
+  margin: 30px 0;
+  padding-left: 15px;
+  position: relative;
+  transition-property: border;
+  transition-delay: 0s;
+  transition-duration: 0.2s;
+  transition-timing-function: ease-in-out;
+}
+.posts-collapse .post-header::before {
+  background: #bbb;
+  border: 1px solid #fff;
+  border-radius: 50%;
+  content: ' ';
+  height: 6px;
+  left: 0;
+  margin-left: -4px;
+  position: absolute;
+  top: 0.75em;
+  transition-property: background;
+  width: 6px;
+  transition-delay: 0s;
+  transition-duration: 0.2s;
+  transition-timing-function: ease-in-out;
+}
+.posts-collapse .post-header:hover {
+  border-bottom-color: #666;
+}
+.posts-collapse .post-header:hover::before {
+  background: #222;
+}
+.posts-collapse .post-meta {
+  display: inline;
+  font-size: 0.75em;
+  margin-right: 10px;
+}
+.posts-collapse .post-title {
+  display: inline;
+  font-size: 1em;
+  font-weight: normal;
+  margin-bottom: 0;
+  margin-top: 0;
+}
+.posts-collapse .post-title a,
+.posts-collapse .post-title span.exturl {
+  border-bottom: none;
+  color: #666;
+}
+.posts-collapse::before {
+  background: #f5f5f5;
+  content: ' ';
+  height: 100%;
+  left: 0;
+  margin-left: -2px;
+  position: absolute;
+  top: 1.25em;
+  width: 4px;
+}
+.posts-collapse .fa-external-link {
+  font-size: 0.875em;
+  margin-left: 5px;
+}
+.post-eof {
+  background: #ccc;
+  height: 1px;
+  margin: 80px auto 60px;
+  text-align: center;
+  width: 8%;
+}
+.post-block:last-child .post-eof {
+  display: none;
+}
+.posts-expand {
+  padding-top: 40px;
+}
+@media (max-width: 767px) {
+  .posts-expand {
+    margin: 0 20px;
+  }
+}
+@media (min-width: 992px) {
+  .post-body {
+    text-align: left;
+  }
+}
+@media (max-width: 991px) {
+  .post-body {
+    text-align: left;
+  }
+}
+.post-body h2,
+.post-body h3,
+.post-body h4,
+.post-body h5,
+.post-body h6 {
+  padding-top: 10px;
+}
+.post-body h2 .header-anchor,
+.post-body h3 .header-anchor,
+.post-body h4 .header-anchor,
+.post-body h5 .header-anchor,
+.post-body h6 .header-anchor {
+  border-bottom-style: none;
+  color: #ccc;
+  float: right;
+  margin-left: 10px;
+  visibility: hidden;
+}
+.post-body h2 .header-anchor:hover,
+.post-body h3 .header-anchor:hover,
+.post-body h4 .header-anchor:hover,
+.post-body h5 .header-anchor:hover,
+.post-body h6 .header-anchor:hover {
+  color: inherit;
+}
+.post-body h2:hover .header-anchor,
+.post-body h3:hover .header-anchor,
+.post-body h4:hover .header-anchor,
+.post-body h5:hover .header-anchor,
+.post-body h6:hover .header-anchor {
+  visibility: visible;
+}
+.post-body img {
+  border: 1px solid #ddd;
+  box-sizing: border-box;
+  padding: 3px;
+}
+@media (max-width: 767px) {
+  .post-body img {
+    padding: initial;
+  }
+}
+.post-body iframe,
+.post-body img,
+.post-body video {
+  margin-bottom: 20px;
+}
+.post-body .video-container {
+  height: 0;
+  margin-bottom: 20px;
+  overflow: hidden;
+  padding-top: 75%;
+  position: relative;
+  width: 100%;
+}
+.post-body .video-container iframe,
+.post-body .video-container object,
+.post-body .video-container embed {
+  height: 100%;
+  left: 0;
+  margin: 0;
+  position: absolute;
+  top: 0;
+  width: 100%;
+}
+.post-gallery {
+  border-collapse: separate;
+  display: table;
+  table-layout: fixed;
+  width: 100%;
+}
+.post-gallery .post-gallery-img {
+  border: 0;
+  display: table-cell;
+  text-align: center;
+  vertical-align: middle;
+}
+.post-gallery .post-gallery-img img {
+  border: 0;
+  max-height: 100%;
+  max-width: 100%;
+}
+.post-gallery-row {
+  display: table-row;
+}
+.posts-expand .post-header {
+  font-size: 1.125em;
+}
+.posts-expand .post-title {
+  font-weight: 400;
+  margin: initial;
+  text-align: center;
+  overflow-wrap: break-word;
+  word-wrap: break-word;
+}
+.posts-expand .post-title-link {
+  border-bottom: none;
+  color: #555;
+  display: inline-block;
+  position: relative;
+  vertical-align: top;
+}
+.posts-expand .post-title-link::before {
+  background: #000;
+  bottom: 0;
+  content: '';
+  height: 2px;
+  left: 0;
+  position: absolute;
+  transform: scaleX(0);
+  visibility: hidden;
+  width: 100%;
+  transition-delay: 0s;
+  transition-duration: 0.2s;
+  transition-timing-function: ease-in-out;
+}
+.posts-expand .post-title-link:hover::before {
+  transform: scaleX(1);
+  visibility: visible;
+}
+.posts-expand .post-title-link .fa {
+  font-size: 0.875em;
+  margin-left: 5px;
+}
+.posts-expand .post-meta {
+  color: #999;
+  font-family: 'Monda', "PingFang SC", "Microsoft YaHei", sans-serif;
+  font-size: 0.75em;
+  margin: 3px 0 60px 0;
+  text-align: center;
+}
+.posts-expand .post-meta .post-description {
+  font-size: 0.875em;
+  margin-top: 2px;
+}
+.posts-expand .post-meta time {
+  border-bottom: 1px dashed #999;
+  cursor: pointer;
+}
+.post-meta .post-meta-item + .post-meta-item::before {
+  content: '|';
+  margin: 0 0.5em;
+}
+.post-meta-divider {
+  margin: 0 0.5em;
+}
+.post-meta-item-icon {
+  margin-right: 3px;
+}
+@media (max-width: 991px) {
+  .post-meta-item-icon {
+    display: inline-block;
+  }
+}
+@media (max-width: 991px) {
+  .post-meta-item-text {
+    display: none;
+  }
+}
+.post-nav {
+  border-top: 1px solid #eee;
+  display: table;
+  margin-top: 15px;
+  width: 100%;
+}
+.post-nav-divider {
+  display: table-cell;
+  width: 10%;
+}
+.post-nav-item {
+  display: table-cell;
+  padding: 10px 0 0 0;
+  vertical-align: top;
+  width: 45%;
+}
+.post-nav-item a {
+  border-bottom: none;
+  color: #555;
+  display: block;
+  font-size: 0.875em;
+  line-height: 1.6;
+  position: relative;
+}
+.post-nav-item a:hover {
+  border-bottom: none;
+  color: #222;
+}
+.post-nav-item a:active {
+  top: 2px;
+}
+.post-nav-item .fa {
+  font-size: 0.75em;
+  margin-right: 5px;
+}
+.post-nav-next a {
+  padding-left: 5px;
+}
+.post-nav-prev {
+  text-align: right;
+}
+.post-nav-prev a {
+  padding-right: 5px;
+}
+.post-nav-prev .fa {
+  margin-left: 5px;
+}
+.rtl.post-body p,
+.rtl.post-body a,
+.rtl.post-body h1,
+.rtl.post-body h2,
+.rtl.post-body h3,
+.rtl.post-body h4,
+.rtl.post-body h5,
+.rtl.post-body h6,
+.rtl.post-body li,
+.rtl.post-body ul,
+.rtl.post-body ol {
+  direction: rtl;
+  font-family: UKIJ Ekran;
+}
+.rtl.post-title {
+  font-family: UKIJ Ekran;
+}
+.post-tags {
+  margin-top: 40px;
+  text-align: center;
+}
+.post-tags a {
+  display: inline-block;
+  font-size: 0.8125em;
+}
+.post-tags a:not(:last-child) {
+  margin-right: 10px;
+}
+.post-widgets {
+  border-top: 1px solid #eee;
+  margin-top: 15px;
+  text-align: center;
+}
+.wp_rating {
+  height: 20px;
+  line-height: 20px;
+  margin-top: 10px;
+  padding-top: 6px;
+  text-align: center;
+}
+.social-like {
+  display: flex;
+  font-size: 0.875em;
+  justify-content: center;
+  text-align: center;
+}
+.reward-container {
+  margin: 20px auto;
+  padding: 10px 0;
+  text-align: center;
+  width: 90%;
+}
+.reward-container button {
+  background: #ff2a2a;
+  border: 0;
+  border-radius: 5px;
+  color: #fff;
+  cursor: pointer;
+  line-height: 2;
+  outline: 0;
+  padding: 0 15px;
+  vertical-align: text-top;
+}
+.reward-container button:hover {
+  background: #f55;
+}
+#qr {
+  padding-top: 20px;
+}
+#qr a {
+  border: 0;
+}
+#qr img {
+  display: inline-block;
+  margin: 0.8em 2em 0 2em;
+  max-width: 100%;
+  width: 180px;
+}
+#qr p {
+  text-align: center;
+}
+.post-copyright {
+  background: #f5f5f5;
+  border-left: 3px solid #ff2a2a;
+  list-style: none;
+  margin: 2em 0 0;
+  padding: 0.5em 1em;
+}
+.category-all-page .category-all-title {
+  text-align: center;
+}
+.category-all-page .category-all {
+  margin-top: 20px;
+}
+.category-all-page .category-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.category-all-page .category-list-item {
+  margin: 5px 10px;
+}
+.category-all-page .category-list-count {
+  color: #bbb;
+}
+.category-all-page .category-list-count::before {
+  content: ' (';
+  display: inline;
+}
+.category-all-page .category-list-count::after {
+  content: ') ';
+  display: inline;
+}
+.category-all-page .category-list-child {
+  padding-left: 10px;
+}
+.event-list {
+  padding: 0;
+}
+.event-list hr {
+  background: #222;
+  margin: 20px 0 45px 0;
+}
+.event-list hr::after {
+  background: #222;
+  color: #fff;
+  content: 'NOW';
+  display: inline-block;
+  font-weight: bold;
+  padding: 0 5px;
+  text-align: right;
+}
+.event-list .event {
+  background: #222;
+  margin: 20px 0;
+  min-height: 40px;
+  padding: 15px 0 15px 10px;
+}
+.event-list .event .event-summary {
+  color: #fff;
+  margin: 0;
+  padding-bottom: 3px;
+}
+.event-list .event .event-summary::before {
+  animation: dot-flash 1s alternate infinite ease-in-out;
+  color: #fff;
+  content: '\f111';
+  display: inline-block;
+  font-family: 'FontAwesome';
+  font-size: 10px;
+  margin-right: 25px;
+  vertical-align: middle;
+}
+.event-list .event .event-relative-time {
+  color: #bbb;
+  display: inline-block;
+  font-size: 12px;
+  font-weight: 400;
+  padding-left: 12px;
+}
+.event-list .event .event-details {
+  color: #fff;
+  display: block;
+  line-height: 18px;
+  margin-left: 56px;
+  padding-bottom: 6px;
+  padding-top: 3px;
+  text-indent: -24px;
+}
+.event-list .event .event-details::before {
+  color: #fff;
+  display: inline-block;
+  font-family: 'FontAwesome';
+  margin-right: 9px;
+  text-align: center;
+  text-indent: 0;
+  width: 14px;
+}
+.event-list .event .event-details.event-location::before {
+  content: '\f041';
+}
+.event-list .event .event-details.event-duration::before {
+  content: '\f017';
+}
+.event-list .event-past {
+  background: #f5f5f5;
+}
+.event-list .event-past .event-summary,
+.event-list .event-past .event-details {
+  color: #bbb;
+  opacity: 0.9;
+}
+.event-list .event-past .event-summary::before,
+.event-list .event-past .event-details::before {
+  animation: none;
+  color: #bbb;
+}
+@-moz-keyframes dot-flash {
+  from {
+    opacity: 1;
+    transform: scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: scale(0.8);
+  }
+}
+@-webkit-keyframes dot-flash {
+  from {
+    opacity: 1;
+    transform: scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: scale(0.8);
+  }
+}
+@-o-keyframes dot-flash {
+  from {
+    opacity: 1;
+    transform: scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: scale(0.8);
+  }
+}
+@keyframes dot-flash {
+  from {
+    opacity: 1;
+    transform: scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: scale(0.8);
+  }
+}
+ul.breadcrumb {
+  font-size: 0.75em;
+  list-style: none;
+  margin: 1em 0;
+  padding: 0 2em;
+  text-align: center;
+}
+ul.breadcrumb li {
+  display: inline;
+}
+ul.breadcrumb li + li::before {
+  content: '/\00a0';
+  font-weight: normal;
+  padding: 0.5em;
+}
+ul.breadcrumb li + li:last-child {
+  font-weight: bold;
+}
+.tag-cloud {
+  text-align: center;
+}
+.tag-cloud a {
+  display: inline-block;
+  margin: 10px;
+}
+.tag-cloud a:hover {
+  color: #222 !important;
+}
+.gt-header a,
+.gt-comments a,
+.gt-popup a {
+  border-bottom: none;
+}
+.gt-container .gt-popup .gt-action.is--active::before {
+  top: 0.7em;
+}
+.search-pop-overlay {
+  background: rgba(0,0,0,0.3);
+  display: none;
+  height: 100%;
+  left: 0;
+  overflow: hidden;
+  position: fixed;
+  top: 0;
+  width: 100%;
+  z-index: 1400;
+}
+.search-popup {
+  background: #fff;
+  border-radius: 5px;
+  color: #333;
+  display: none;
+  height: 80%;
+  left: 50%;
+  margin-left: -350px;
+  padding: 0;
+  position: fixed;
+  top: 10%;
+  width: 700px;
+  z-index: 1500;
+}
+@media (max-width: 767px) {
+  .search-popup {
+    border-radius: 0;
+    height: 100%;
+    left: 0;
+    margin: 0;
+    padding: 0;
+    top: 0;
+    width: 100%;
+  }
+}
+.search-popup .search-icon,
+.search-popup .popup-btn-close {
+  color: #999;
+  display: inline-block;
+  font-size: 18px;
+  height: 36px;
+  padding-left: 10px;
+  padding-right: 10px;
+  width: 18px;
+}
+.search-popup .popup-btn-close {
+  border-left: 1px solid #eee;
+  cursor: pointer;
+  float: right;
+}
+.search-popup .popup-btn-close:hover .fa {
+  color: #222;
+}
+.search-popup .search-header {
+  background: #f5f5f5;
+  border-top-left-radius: 5px;
+  border-top-right-radius: 5px;
+  padding: 5px;
+}
+.search-input {
+  display: inline-block;
+  width: calc(90% - 30px);
+}
+.search-input input {
+  background: transparent;
+  border: 0;
+  outline: 0;
+  padding: 5px 0;
+  width: 100%;
+}
+.search-input .ais-search-box--magnifier svg,
+.search-input .ais-search-box--reset svg {
+  display: none;
+}
+.algolia-powered {
+  float: right;
+}
+.algolia-powered img {
+  display: inline-block;
+  height: 18px;
+  vertical-align: middle;
+}
+.algolia-results {
+  height: calc(100% - 55px);
+  overflow: auto;
+  padding: 5px 30px;
+  position: relative;
+}
+.algolia-results hr {
+  margin: 10px 0;
+}
+.algolia-results .highlight {
+  color: #f00;
+  font-size: inherit;
+  font-style: normal;
+  margin: 0;
+  padding: 0 2px;
+}
+.algolia-hits {
+  margin-top: 20px;
+}
+.algolia-hit-item {
+  margin: 15px 0;
+}
+.algolia-hit-item-link {
+  border-bottom: 1px dashed #ccc;
+  display: block;
+  transition-delay: 0s;
+  transition-duration: 0.2s;
+  transition-timing-function: ease-in-out;
+}
+.algolia-pagination .pagination {
+  border-top: none;
+  margin: 40px 0;
+  opacity: 1;
+  padding: 0;
+}
+.algolia-pagination .pagination-item {
+  display: inline-block;
+}
+.algolia-pagination .page-number {
+  border-top: none;
+}
+.algolia-pagination .page-number:hover {
+  border-bottom: 1px solid #222;
+}
+.algolia-pagination .disabled-item {
+  visibility: hidden;
+}
+.header {
+  margin: 0 auto;
+  position: relative;
+  width: calc(100% - 20px);
+}
+@media (min-width: 1200px) {
+  .header {
+    width: 1160px;
+  }
+}
+@media (min-width: 1600px) {
+  .header {
+    width: 73%;
+  }
+}
+@media (max-width: 991px) {
+  .header {
+    width: auto;
+  }
+}
+.header-inner {
+  background: #fff;
+  border-radius: initial;
+  box-shadow: 0 2px 2px 0 rgba(0,0,0,0.12), 0 3px 1px -2px rgba(0,0,0,0.06), 0 1px 5px 0 rgba(0,0,0,0.12);
+  overflow: hidden;
+  padding: 0;
+  position: absolute;
+  top: 0;
+  width: 240px;
+}
+@media (min-width: 1200px) {
+  .header-inner {
+    width: 240px;
+  }
+}
+@media (max-width: 991px) {
+  .header-inner {
+    border-radius: initial;
+    position: relative;
+    width: auto;
+  }
+}
+.main::before,
+.main::after {
+  content: ' ';
+  display: table;
+}
+.main::after {
+  clear: both;
+}
+@media (max-width: 991px) {
+  .main-inner {
+    width: auto;
+  }
+}
+.content-wrap {
+  background: #fff;
+  border-radius: initial;
+  box-shadow: 0 2px 2px 0 rgba(0,0,0,0.12), 0 3px 1px -2px rgba(0,0,0,0.06), 0 1px 5px 0 rgba(0,0,0,0.12);
+  box-sizing: border-box;
+  float: right;
+  padding: 40px;
+  width: calc(100% - 252px);
+}
+@media (max-width: 991px) {
+  .content-wrap {
+    border-radius: initial;
+    padding: 20px;
+    width: 100%;
+  }
+}
+.sidebar {
+  background: #eee;
+  box-shadow: none;
+  float: left;
+  position: static;
+  width: 240px;
+}
+@media (max-width: 991px) {
+  .sidebar {
+    display: none;
+  }
+}
+.sidebar-toggle {
+  display: none;
+}
+.footer-inner {
+  padding-left: 260px;
+}
+.back-to-top {
+  left: auto;
+  right: 30px;
+}
+@media (max-width: 991px) {
+  .back-to-top {
+    right: 20px;
+  }
+}
+@media (max-width: 991px) {
+  .footer-inner {
+    padding-left: 0;
+    padding-right: 0;
+    width: auto;
+  }
+}
+.site-brand-container {
+  position: relative;
+}
+.site-meta {
+  background: #222;
+  color: #fff;
+  padding: 20px 0;
+}
+@media (max-width: 991px) {
+  .site-meta {
+    box-shadow: 0 0 16px rgba(0,0,0,0.5);
+  }
+}
+.brand {
+  background: none;
+  padding: 0;
+}
+.brand:hover {
+  color: #fff;
+}
+.site-subtitle {
+  font-weight: initial;
+  margin: 10px 10px 0;
+}
+.custom-logo-image {
+  margin-top: 20px;
+}
+@media (max-width: 991px) {
+  .custom-logo-image {
+    display: none;
+  }
+}
+.site-nav-toggle {
+  left: 20px;
+  top: 50%;
+  transform: translateY(-50%);
+}
+@media (min-width: 768px) and (max-width: 991px) {
+  .site-nav-toggle {
+    display: block;
+  }
+}
+.site-nav-toggle .toggle .toggle-line {
+  background: #fff;
+}
+.site-nav {
+  border-top: none;
+}
+@media (min-width: 768px) and (max-width: 991px) {
+  .site-nav {
+    display: none;
+  }
+}
+.menu-item-active a,
+.menu .menu-item a:hover,
+.menu .menu-item span.exturl:hover {
+  background: #f5f5f5;
+}
+.menu-item-active a::after,
+.menu .menu-item a:hover::after,
+.menu .menu-item span.exturl:hover::after {
+  background: #bbb;
+  border-radius: 50%;
+  content: ' ';
+  height: 6px;
+  margin-top: -3px;
+  position: absolute;
+  right: 15px;
+  top: 50%;
+  width: 6px;
+}
+.menu .menu-item {
+  display: block;
+  margin: 0;
+}
+.menu .menu-item a,
+.menu .menu-item span.exturl {
+  padding: 5px 20px;
+  position: relative;
+  text-align: left;
+  transition-property: background-color;
+}
+.menu .menu-item .badge {
+  background: #ccc;
+  border-radius: 10px;
+  color: #fff;
+  float: right;
+  padding: 2px 5px;
+  text-shadow: 1px 1px 0 rgba(0,0,0,0.1);
+  vertical-align: middle;
+}
+.sub-menu {
+  background: #fff;
+  border-bottom: 1px solid #ddd;
+  margin: 0;
+  padding: 6px 0;
+}
+.sub-menu .menu-item {
+  display: inline-block;
+}
+.sub-menu .menu-item a,
+.sub-menu .menu-item span.exturl {
+  margin: 5px 10px;
+  padding: initial;
+}
+.sub-menu .menu-item a:hover,
+.sub-menu .menu-item span.exturl:hover {
+  background: initial;
+  color: #fc6423;
+}
+.sub-menu .menu-item a::after,
+.sub-menu .menu-item span.exturl::after {
+  content: initial !important;
+}
+.sub-menu .menu-item-active a {
+  background: #fff;
+  border-bottom-color: #fc6423;
+  color: #fc6423;
+}
+.sub-menu .menu-item-active a:hover {
+  background: #fff;
+  border-bottom-color: #fc6423;
+}
+.sidebar {
+  bottom: auto;
+  right: auto;
+}
+.sidebar a,
+.sidebar span.exturl {
+  color: #555;
+}
+.sidebar a:hover,
+.sidebar span.exturl:hover {
+  border-bottom-color: #222;
+  color: #222;
+}
+.sidebar-inner {
+  background: #fff;
+  border-radius: initial;
+  box-shadow: 0 2px 2px 0 rgba(0,0,0,0.12), 0 3px 1px -2px rgba(0,0,0,0.06), 0 1px 5px 0 rgba(0,0,0,0.12), 0 -1px 0.5px 0 rgba(0,0,0,0.09);
+  box-sizing: border-box;
+  color: #555;
+  width: 240px;
+  opacity: 0;
+}
+.sidebar-inner.affix {
+  position: fixed;
+  top: 12px;
+}
+.sidebar-inner.affix-bottom {
+  position: absolute;
+}
+.site-state-item {
+  padding: 0 10px;
+}
+.feed-link,
+.chat {
+  border-bottom: 1px dotted #ccc;
+  border-top: 1px dotted #ccc;
+  margin-top: 10px;
+  text-align: center;
+}
+.feed-link a,
+.chat a {
+  border: 0;
+  color: #fc6423;
+  display: block;
+}
+.feed-link a:hover,
+.chat a:hover {
+  background: none;
+  border: 0;
+  color: #e34603;
+}
+.feed-link a:hover .fa,
+.chat a:hover .fa {
+  color: #e34603;
+}
+.links-of-author {
+  display: flex;
+  flex-wrap: wrap;
+  margin-top: 10px;
+  justify-content: center;
+}
+.links-of-author-item {
+  margin: 5px 0 0;
+}
+.links-of-author-item a,
+.links-of-author-item span.exturl {
+  box-sizing: border-box;
+  display: inline-block;
+  margin-bottom: 0;
+  margin-right: 0;
+  max-width: 216px;
+  overflow: hidden;
+  padding: 0 5px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.links-of-author-item a,
+.links-of-author-item span.exturl {
+  border-bottom: none;
+  display: block;
+  text-decoration: none;
+}
+.links-of-author-item a::before,
+.links-of-author-item span.exturl::before {
+  display: none;
+}
+.links-of-author-item a:hover,
+.links-of-author-item span.exturl:hover {
+  background: #eee;
+  border-radius: 4px;
+}
+.links-of-author-item .fa {
+  margin-right: 2px;
+}
+.links-of-blogroll-item {
+  padding: 0;
+}
+.content-wrap {
+  background: initial;
+  box-shadow: initial;
+  padding: initial;
+}
+.post-block {
+  background: #fff;
+  border-radius: initial;
+  box-shadow: 0 2px 2px 0 rgba(0,0,0,0.12), 0 3px 1px -2px rgba(0,0,0,0.06), 0 1px 5px 0 rgba(0,0,0,0.12);
+  padding: 40px;
+}
+.post-block + .post-block {
+  border-radius: initial;
+  box-shadow: 0 2px 2px 0 rgba(0,0,0,0.12), 0 3px 1px -2px rgba(0,0,0,0.06), 0 1px 5px 0 rgba(0,0,0,0.12), 0 -1px 0.5px 0 rgba(0,0,0,0.09);
+  margin-top: 12px;
+}
+.comments {
+  background: #fff;
+  border-radius: initial;
+  box-shadow: 0 2px 2px 0 rgba(0,0,0,0.12), 0 3px 1px -2px rgba(0,0,0,0.06), 0 1px 5px 0 rgba(0,0,0,0.12), 0 -1px 0.5px 0 rgba(0,0,0,0.09);
+  margin: auto;
+  margin-top: 12px;
+  padding: 40px;
+}
+.tabs-comment {
+  margin-top: 1em;
+}
+.posts-expand {
+  padding-top: initial;
+}
+.post-nav-divider {
+  width: 4%;
+}
+.post-nav-item {
+  width: 48%;
+}
+.post-eof {
+  display: none;
+}
+.pagination {
+  background: #fff;
+  border-radius: initial;
+  border-top: initial;
+  box-shadow: 0 2px 2px 0 rgba(0,0,0,0.12), 0 3px 1px -2px rgba(0,0,0,0.06), 0 1px 5px 0 rgba(0,0,0,0.12), 0 -1px 0.5px 0 rgba(0,0,0,0.09);
+  margin: 12px 0 0;
+  padding: 10px 0 10px;
+}
+.pagination .prev,
+.pagination .next,
+.pagination .page-number {
+  margin-bottom: initial;
+  top: initial;
+}
+.main {
+  padding-bottom: initial;
+}
+.footer {
+  bottom: auto;
+}
+.sub-menu {
+  border-bottom: initial;
+  box-shadow: 0 2px 2px 0 rgba(0,0,0,0.12), 0 3px 1px -2px rgba(0,0,0,0.06), 0 1px 5px 0 rgba(0,0,0,0.12);
+}
+.sub-menu + .content .post-block {
+  box-shadow: 0 2px 2px 0 rgba(0,0,0,0.12), 0 3px 1px -2px rgba(0,0,0,0.06), 0 1px 5px 0 rgba(0,0,0,0.12), 0 -1px 0.5px 0 rgba(0,0,0,0.09);
+  margin-top: 12px;
+}
+@media (min-width: 768px) and (max-width: 991px) {
+  .sub-menu + .content .post-block {
+    margin-top: 10px;
+  }
+}
+@media (max-width: 767px) {
+  .sub-menu + .content .post-block {
+    margin-top: 8px;
+  }
+}
+.post-body h1,
+.post-body h2 {
+  border-bottom: 1px solid #eee;
+}
+.post-body h3 {
+  border-bottom: 1px solid #eee;
+}
+.post-body h4 {
+  border-bottom: 1px dotted #eee;
+}
+@media (min-width: 768px) and (max-width: 991px) {
+  .content-wrap {
+    padding: 10px;
+  }
+  .posts-expand {
+    margin: initial;
+  }
+  .posts-expand .post-button {
+    margin-top: 20px;
+  }
+  .post-block {
+    border-radius: initial;
+    box-shadow: 0 2px 2px 0 rgba(0,0,0,0.12), 0 3px 1px -2px rgba(0,0,0,0.06), 0 1px 5px 0 rgba(0,0,0,0.12), 0 -1px 0.5px 0 rgba(0,0,0,0.09);
+    padding: 20px;
+  }
+  .post-block + .post-block {
+    margin-top: 10px;
+  }
+  .comments {
+    margin-top: 10px;
+    padding: 10px 20px;
+  }
+  .pagination {
+    margin: 10px 0 0;
+  }
+}
+@media (max-width: 767px) {
+  .content-wrap {
+    padding: 8px;
+  }
+  .posts-expand {
+    margin: initial;
+  }
+  .posts-expand .post-button {
+    margin: 12px 0;
+  }
+  .post-block {
+    border-radius: initial;
+    box-shadow: 0 2px 2px 0 rgba(0,0,0,0.12), 0 3px 1px -2px rgba(0,0,0,0.06), 0 1px 5px 0 rgba(0,0,0,0.12), 0 -1px 0.5px 0 rgba(0,0,0,0.09);
+    min-height: auto;
+    padding: 12px;
+  }
+  .post-block + .post-block {
+    margin-top: 8px;
+  }
+  .comments {
+    margin-top: 8px;
+    padding: 10px 12px;
+  }
+  .pagination {
+    margin: 8px 0 0;
+  }
+}</style><noscript>
+  <style>
+  .use-motion .brand,
+  .use-motion .menu-item,
+  .sidebar-inner,
+  .use-motion .post-block,
+  .use-motion .pagination,
+  .use-motion .comments,
+  .use-motion .post-header,
+  .use-motion .post-body,
+  .use-motion .collection-header { opacity: initial; }
+
+  .use-motion .site-title,
+  .use-motion .site-subtitle {
+    opacity: initial;
+    top: initial;
+  }
+
+  .use-motion .logo-line-before i { left: initial; }
+  .use-motion .logo-line-after i { right: initial; }
+  </style>
+</noscript>
+
+<script>function loadCss(l){var d=document,h=d.head,s=d.createElement('link');s.rel='stylesheet';s.href=l;!function e(f){if (d.body)return f();setTimeout(function(){e(f)})}(function(){h.appendChild(s);});}loadCss('/style.css');loadCss('//fonts.googleapis.com/css?family=Monda:300,300italic,400,400italic,700,700italic|Roboto Slab:300,300italic,400,400italic,700,700italic|PT Mono:300,300italic,400,400italic,700,700italic&display=swap&subset=latin,latin-ext');loadCss('//cdn.jsdelivr.net/npm/instantsearch.js@2/dist/instantsearch.min.css');loadCss('//cdn.jsdelivr.net/npm/gitalk@1/dist/gitalk.min.css');</script><noscript><link rel="stylesheet" href="/style.css"><link rel="stylesheet" href="//fonts.googleapis.com/css?family=Monda:300,300italic,400,400italic,700,700italic|Roboto Slab:300,300italic,400,400italic,700,700italic|PT Mono:300,300italic,400,400italic,700,700italic&amp;display=swap&amp;subset=latin,latin-ext"><link rel="stylesheet" href="//cdn.jsdelivr.net/npm/instantsearch.js@2/dist/instantsearch.min.css"><link rel="stylesheet" href="//cdn.jsdelivr.net/npm/gitalk@1/dist/gitalk.min.css"></noscript></head>
+
+<body itemscope="" itemtype="http://schema.org/WebPage">
+  <div class="container use-motion">
+    <div class="headband"></div>
+
+    <header class="header" itemscope="" itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-container">
+  <div class="site-meta">
+
+    <div>
+      <a href="/" class="brand" rel="start">
+        <span class="logo-line-before"><i></i></span>
+        <span class="site-title">贝克街的流浪猫</span>
+        <span class="logo-line-after"><i></i></span>
+      </a>
+    </div>
+        <h1 class="site-subtitle" itemprop="description">技术博客</h1>
+      
+  </div>
+
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="切换导航栏">
+      <span class="toggle-line toggle-line-first"></span>
+      <span class="toggle-line toggle-line-middle"></span>
+      <span class="toggle-line toggle-line-last"></span>
+    </div>
+  </div>
+</div>
+
+
+<nav class="site-nav">
+  
+  <ul id="menu" class="menu">
+        <li class="menu-item menu-item-home">
+
+    <a href="/" rel="section"><i class="fa fa-fw fa-home"></i>首页</a>
+
+  </li>
+        <li class="menu-item menu-item-tags">
+
+    <a href="/tags/" rel="section"><i class="fa fa-fw fa-tags"></i>标签</a>
+
+  </li>
+        <li class="menu-item menu-item-categories">
+
+    <a href="/categories/" rel="section"><i class="fa fa-fw fa-th"></i>分类</a>
+
+  </li>
+        <li class="menu-item menu-item-archives">
+
+    <a href="/archives/" rel="section"><i class="fa fa-fw fa-archive"></i>归档</a>
+
+  </li>
+        <li class="menu-item menu-item-about">
+
+    <a href="/about/" rel="section"><i class="fa fa-fw fa-user"></i>关于</a>
+
+  </li>
+      <li class="menu-item menu-item-search">
+        <a role="button" class="popup-trigger"><i class="fa fa-search fa-fw"></i>搜索
+        </a>
+      </li>
+  </ul>
+
+</nav>
+  <div class="site-search">
+    <div class="popup search-popup">
+    <div class="search-header">
+  <span class="search-icon">
+    <i class="fa fa-search"></i>
+  </span>
+  <div class="search-input" id="search-input"></div>
+  <span class="popup-btn-close">
+    <i class="fa fa-times-circle"></i>
+  </span>
+</div>
+<div class="algolia-results">
+  <div id="algolia-stats"></div>
+  <div id="algolia-hits"></div>
+  <div id="algolia-pagination" class="algolia-pagination"></div>
+</div>
+
+  
+</div>
+<div class="search-pop-overlay"></div>
+
+  </div>
+</div>
+    </header>
+
+    
+
+  <span class="exturl github-corner" data-url="aHR0cHM6Ly9naXRodWIuY29tL0JlaUtlSmllRGVMaXVMYW5nTWFv" title="欢迎关注我的 GitHub" aria-label="欢迎关注我的 GitHub"><svg width="80" height="80" viewBox="0 0 250 250" aria-hidden="true"><path d="M0,0 L115,115 L130,115 L142,142 L250,250 L250,0 Z"></path><path d="M128.3,109.0 C113.8,99.7 119.0,89.6 119.0,89.6 C122.0,82.7 120.5,78.6 120.5,78.6 C119.2,72.0 123.4,76.3 123.4,76.3 C127.3,80.9 125.5,87.3 125.5,87.3 C122.9,97.6 130.6,101.9 134.4,103.2" fill="currentColor" style="transform-origin: 130px 106px;" class="octo-arm"></path><path d="M115.0,115.0 C114.9,115.1 118.7,116.5 119.8,115.4 L133.7,101.6 C136.9,99.2 139.9,98.4 142.2,98.6 C133.8,88.0 127.5,74.4 143.8,58.0 C148.5,53.4 154.0,51.2 159.7,51.0 C160.3,49.4 163.2,43.6 171.4,40.1 C171.4,40.1 176.1,42.5 178.8,56.2 C183.1,58.6 187.2,61.8 190.9,65.4 C194.5,69.0 197.7,73.2 200.1,77.6 C213.8,80.2 216.3,84.9 216.3,84.9 C212.7,93.1 206.9,96.0 205.4,96.6 C205.1,102.4 203.0,107.8 198.3,112.5 C181.9,128.9 168.3,122.5 157.7,114.1 C157.9,116.9 156.7,120.9 152.7,124.9 L141.0,136.5 C139.8,137.7 141.6,141.9 141.8,141.8 Z" fill="currentColor" class="octo-body"></path></svg></span>
+
+
+    <main class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          
+
+          <div class="content">
+            
+
+  <div class="posts-expand">
+      
+  
+  
+  <article itemscope="" itemtype="http://schema.org/Article" class="post-block " lang="zh-CN">
+    <link itemprop="mainEntityOfPage" href="https://www.beikejiedeliulangmao.top/container/kubernetes/concept/">
+
+    <span hidden="" itemprop="author" itemscope="" itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.jpg">
+      <meta itemprop="name" content="贝克街的流浪猫">
+      <meta itemprop="description" content="贝贝猫">
+    </span>
+
+    <span hidden="" itemprop="publisher" itemscope="" itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="贝克街的流浪猫">
+    </span>
+      <header class="post-header">
+        <h2 class="post-title" itemprop="name headline">
+          Kubernetes 常用功能
+        </h2>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="fa fa-calendar-o"></i>
+              </span>
+              <span class="post-meta-item-text">发表于</span>
+
+              <time title="创建时间：2019-09-20 11:11:51" itemprop="dateCreated datePublished" datetime="2019-09-20T11:11:51+08:00">2019-09-20</time>
+            </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="fa fa-folder-o"></i>
+              </span>
+              <span class="post-meta-item-text">分类于</span>
+                <span itemprop="about" itemscope="" itemtype="http://schema.org/Thing">
+                  <a href="/categories/Container/" itemprop="url" rel="index">
+                    <span itemprop="name">Container</span>
+                  </a>
+                </span>
+                  ，
+                <span itemprop="about" itemscope="" itemtype="http://schema.org/Thing">
+                  <a href="/categories/Container/Kubernetes/" itemprop="url" rel="index">
+                    <span itemprop="name">Kubernetes</span>
+                  </a>
+                </span>
+            </span>
+
+          
+            <span id="/container/kubernetes/concept/" class="post-meta-item leancloud_visitors" data-flag-title="Kubernetes 常用功能" title="阅读次数">
+              <span class="post-meta-item-icon">
+                <i class="fa fa-eye"></i>
+              </span>
+              <span class="post-meta-item-text">阅读次数：</span>
+              <span class="leancloud-visitors-count"></span>
+            </span><br>
+            <span class="post-meta-item" title="本文字数">
+              <span class="post-meta-item-icon">
+                <i class="fa fa-file-word-o"></i>
+              </span>
+                <span class="post-meta-item-text">本文字数：</span>
+              <span>29k</span>
+            </span>
+            <span class="post-meta-item" title="阅读时长">
+              <span class="post-meta-item-icon">
+                <i class="fa fa-clock-o"></i>
+              </span>
+                <span class="post-meta-item-text">阅读时长 ≈</span>
+              <span>27 分钟</span>
+            </span>
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+        <h2 id="引言"><a href="#引言" class="headerlink" title="引言"></a>引言</h2><p>前面我们已经简单地介绍了 Kubernetes 是什么以及如何使用，本文我们将更加全面的介绍 Kubernetes 常用的资源(或者说其中定义的一些概念)，更多关于 Kubernetes 的介绍均收录于<a href="https://www.beikejiedeliulangmao.top/categories/Container/Kubernetes">&lt;Kubernetes系列文章&gt;</a>中。</p>
+<a id="more"></a>
+
+<h2 id="常用功能介绍"><a href="#常用功能介绍" class="headerlink" title="常用功能介绍"></a>常用功能介绍</h2><p>上一章已经大致介绍了在 Kubernetes 中创建的基本组件，包括他们的基本功能概述。那么接下来我们将更加详细地介绍所有类型的 Kubernetes 功能(又称对象或资源)，以便你理解在何时、如何及为何要使用每一个对象。</p>
+<h3 id="Pod"><a href="#Pod" class="headerlink" title="Pod"></a>Pod</h3><p>我们已经了解到，pod 是一组并置的容器，它是 Kubernetes 中的基本构建模块。在实际应用中我们并不会单独部署容器，更多的是针对一组 pod 的容器进行部署和操作。值得注意的是，当一个 pod 包含多个容器时，这些容器总是运行于同一个工作节点上一个 pod 绝不会跨越多个工作节点。<br><img src="/images/loading-cat.gif" data-original="https://bbm-hexo.oss-accelerate.aliyuncs.com/images/kubernetes/pod-node.png" alt="pod-node"><br>关于为何需要 pod 这种容器?为何不直接使用容器?为何甚至需要同时运行多个容器?难道不能简单地把所有进程都放在一个单独的容器中吗?接下来我们将一一回答上述问题。</p>
+<p>想象一个由多个进程组成的应用程序，无论是通过ipc (进程间通信)还是本地存储文件进行通信，都要求它们运行于同一台机器上。在 Kubernetes 中，我们经常在容器中运行进程，由于每一个容器都非常像一台独立的机器，此时你可能认为在单个容器中运行多个进程是合乎逻辑的，然而在实践中这种做法并不合理。</p>
+<p>容器被设计为每个容器只运行一个进程(除非进程本身产生子进程)。如果在单个容器中运行多个不相关的进程，那么保持所有进程运行、管理它们的日志等工作就得我们自己来做。例如，我们需要包含一种在进程崩溃时能够自动重启的机制。同时这些进程都将记录到相同的标准输出中，而此时我们将很难确定每个进程分别记录了什么。</p>
+<p>综上所述，我们需要让每个进程运行于自己的容器中，然后我们用 pod 这一层抽象来使多个容器之间的交互就像同一个主机内的多个进程之间的交互一样，而这就是 Docker 和 Kubernetes 期望使用的方式。在包含容器的 pod 下，我们可以同时运行一些密切相关的进程，并为它们提供(几乎) 相同的环境，此时这些进程就好像全部运行于单个容器中一样，同时又保持着一定的隔离。这样一来，我们便能全面地利用容器所提供的特性，同时对这些进程来说它们就像运行在一起一样，实现两全其美。</p>
+<h4 id="容器原理"><a href="#容器原理" class="headerlink" title="容器原理"></a>容器原理</h4><p>Kubernetes 通过配置 Docker 来让一个 pod 内的 所有容器共享相同的 Linux 命名空间，而不是每个容器都有自己的一组命名空间。由于一个 pod 中的所有容器都在相同的 network 和 UTS 命名空间下运行，所以它们都共享相同的主机名和网络接口。同样地，这些容器也都在相同的 IPC 命名空间下运行，因此能够通过 IPC 进行通信。但当涉及文件系统时，情况就有所不同。由于大多数容器的文件系统来自容器镜像，因此默认情况下，每个容器的文件系统与其他容器完全隔离。但我们可以使用名为 Volume 的 Kubernetes 资源来共享文件目录，这一点我们后面会介绍。</p>
+<p>这里需强调的一点是，由于一个 pod 中的容器运行于相同的 Network 命名空间中，因此它们共享相同的 IP 地址和端口空间。此外，一个 pod 中的所有容器也都具有相同的 loopback 网络接口，因此容器可以通过 localhost 与同一 pod 中的其他容器进行通信。</p>
+<p>那么，它是怎么做到共享各类命名空间的呢？实际上，这都依赖于 Pause 容器，它是一个 pod 的 init 容器，当要启动一个 pod 时，kubelet 会先为该 pod 启动一个 pause 容器，它在 pod 中担任 Linux 命名空间共享的基础。随后，kubelet 才会去启动该 pod 内的真正的容器，在这个过程中只要通过 <code>--net=container:pause</code>，<code>--ipc=contianer:pause</code>，<code>--pid=container:pause</code> 这三个参数，就能让所有容器共享 pause 容器的网络空间，ipc 空间和 pid 空间，不过 pid 空间默认是不共享的。<br><img src="/images/loading-cat.gif" data-original="https://bbm-hexo.oss-accelerate.aliyuncs.com/images/kubernetes/pod-namespace.png" alt="pod-namespace"><br>好了，我们已经知道了同一个 pod 内的容器是如何通讯的，那么不同的 pod 之间又是如何通讯的呢？Kubernetes 集群中的所有 pod 都在同一个共享网络地址空间中，还记不记得启动集群时最初配置的 PodSubnet，每个 pod 都可以通过其他 pod 的 IP 地址来实现相互访问。换句话说，它们之间没有 NAT(网络地址转换)网关。<br><img src="/images/loading-cat.gif" data-original="https://bbm-hexo.oss-accelerate.aliyuncs.com/images/kubernetes/pod-network.png" alt="pod-network"><br>因此，pod 之间的通信在逻辑上其实是非常简单的。不论是将两个 pod 安排在单一的还是不同的工作节点上，同时不管实际节点间的网络拓扑结构如何，这些 pod 内的容器都能够像在无 NAT 的平坦网络中一样相互通信，就像局域网(LAN)上的计算机一样。此时，每个 pod 都有自己的 IP 地址，并且可以通过这个专门的网络实现 pod 之间互相访问。这个专门的网络通常是由额外的软件基于真实链路实现的，我们前面使用的 flannel 就是其中的一种。</p>
+<h4 id="规划-Pod-中的容器"><a href="#规划-Pod-中的容器" class="headerlink" title="规划 Pod 中的容器"></a>规划 Pod 中的容器</h4><p>虽然我们可以在单个 pod 中同时运行多个容器，但是你要知道 pod 是 Kubernetes 缩扩容的基本单位，为了让缩扩容更有效率，我们应该根据不同应用的扩缩容需求，来决定是否应该将他们塞进同一个 pod 中。为了让缩扩容达到最灵活的水平，你可以认为是尽可能地将不同应用容器分散到不同的 pod 中。</p>
+<p>那么，什么情况下要将多个容器塞进单一 pod 呢？如果一个应用是由一个主进程和多个辅助进程组成，可以考虑将他们放入同一个 pod。主进程和辅助进程需要使用 ipc 通讯，或者它们需要相同的网络地址，或者它们需要共用相同的磁盘。<br><img src="/images/loading-cat.gif" data-original="https://bbm-hexo.oss-accelerate.aliyuncs.com/images/kubernetes/pod-with-multiple-container.png" alt="pod-with-multiple-container"></p>
+<h4 id="通过-YAML-管理-Pod"><a href="#通过-YAML-管理-Pod" class="headerlink" title="通过 YAML 管理 Pod"></a>通过 YAML 管理 Pod</h4><p>在使用 Kubernetes 时，一般都是使用 YAML 来管理 Pod 的，因为这样更加正式，而且可以通过 git 来维护 pod 的配置文件。本文不会解释 YAML 中所有属性的意义，而是简单的教大家怎么用。如果您想知道某一个属性的含义，最好直接访问<span class="exturl" data-url="aHR0cHM6Ly9rdWJlcm5ldGVzLmlvLw==" title="https://kubernetes.io/">官方文档<i class="fa fa-external-link"></i></span>。同时您也可以通过 <code>kubectl explain pod</code>，或者 <code>kubectl explain pod.spec</code>来查询每个字段的含义：</p>
+<figure class="highlight plain"><table><tbody><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br></pre></td><td class="code"><pre><span class="line"># kubectl explain pod</span><br><span class="line">KIND:     Pod</span><br><span class="line">VERSION:  v1</span><br><span class="line"></span><br><span class="line">DESCRIPTION:</span><br><span class="line">     Pod is a collection of containers that can run on a host. This resource is</span><br><span class="line">     created by clients and scheduled onto hosts.</span><br><span class="line"></span><br><span class="line">FIELDS:</span><br><span class="line">   apiVersion   &lt;string&gt;</span><br><span class="line">     APIVersion defines the versioned schema of this representation of an</span><br><span class="line">     object. Servers should convert recognized schemas to the latest internal</span><br><span class="line">     value, and may reject unrecognized values. More info:</span><br><span class="line">     https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources</span><br><span class="line"></span><br><span class="line">   kind &lt;string&gt;</span><br><span class="line">     Kind is a string value representing the REST resource this object</span><br><span class="line">     represents. Servers may infer this from the endpoint the client submits</span><br><span class="line">     requests to. Cannot be updated. In CamelCase. More info:</span><br><span class="line">     https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds</span><br><span class="line"></span><br><span class="line">   metadata     &lt;Object&gt;</span><br><span class="line">     Standard object's metadata. More info:</span><br><span class="line">     https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#metadata</span><br><span class="line"></span><br><span class="line">   spec &lt;Object&gt;</span><br><span class="line">     Specification of the desired behavior of the pod. More info:</span><br><span class="line">     https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#spec-and-status</span><br><span class="line"></span><br><span class="line">   status       &lt;Object&gt;</span><br><span class="line">     Most recently observed status of the pod. This data may not be up to date.</span><br><span class="line">     Populated by the system. Read-only. More info:</span><br><span class="line">     https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#spec-and-status</span><br></pre></td></tr></tbody></table></figure>
+
+<p>这里我们简单写一个 YAML 来启动前面的 kubia 容器：</p>
+<figure class="highlight yaml"><table><tbody><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line"><span class="attr">apiVersion:</span> <span class="string">v1</span> <span class="comment"># 该描述文件遵循 v1 版本的 API</span></span><br><span class="line"><span class="attr">kind:</span> <span class="string">Pod</span> <span class="comment"># 在描述一个 Pod 对象</span></span><br><span class="line"><span class="attr">metadata:</span> <span class="comment"># 元数据，包括名称、命名空间、标签和关于该容器 的其他信息</span></span><br><span class="line">    <span class="attr">name:</span> <span class="string">kubia-manual</span> <span class="comment"># pod 名字</span></span><br><span class="line"><span class="attr">spec:</span> <span class="comment"># 包含 pod 内容的实际说明，例如 pod 的容器、卷和其他数据</span></span><br><span class="line">    <span class="attr">containers:</span></span><br><span class="line">    <span class="bullet">-</span> <span class="attr">image:</span> <span class="string">beikejiedeliulangmao/kubia</span> <span class="comment"># 使用的容器</span></span><br><span class="line">      <span class="attr">name:</span> <span class="string">kubia</span></span><br><span class="line">      <span class="attr">ports:</span>  <span class="comment"># 应用监听的端口，在 pod 定义中指定端口纯粹是展示性的，忽略它们对于客户端是否可以通过端口连接到 pod 不会带来任何影响，但明确定义端口仍是有意义的，在端口定义下，每个使用集群的人都可以快速查看每个 pod 对外暴露的端口，还可以给每个端口指定一个名称</span></span><br><span class="line">      <span class="bullet">-</span> <span class="attr">containerPort:</span> <span class="number">8080</span></span><br><span class="line">        <span class="attr">protocol:</span> <span class="string">TCP</span></span><br></pre></td></tr></tbody></table></figure>
+
+<p>然后我们通过 <code>kubectl create -f kubia-manual.yaml</code> 启动它，启动成功后可以查看完整的 pod 描述 <code>kubectl get po kubia-manual -o yaml</code>，可以查看所有运行中的 pod <code>kubectl get pod</code>,也可以查看 pod 的 log<code>kubectl logs kubia-manual</code>，容器化的应用程序通常会将日志记录到标准输出和标准错误流，这样当pod 删除时，日志也会被删除，如果希望 log 永久保存，我们需要使用集群范围的日志系统，这些我们后面会介绍。</p>
+<blockquote>
+<p>每天或者每次日志文件达到 10MB 大小时，容器日志都会自动轮替。kubectl logs 命令仅显示最后一次轮替后的日志条目。</p>
+</blockquote>
+<p>在调试阶段，我们可以通过 <code>kubectl port-forward kubia-manual 8888:8080</code> 创建代理，这样我们就能在本地连接到 pod。<br><img src="/images/loading-cat.gif" data-original="https://bbm-hexo.oss-accelerate.aliyuncs.com/images/kubernetes/pod-port-forward.png" alt="pod-port-forward"></p>
+<p>对于微服务架构，部署的微服务数量可以轻松超过20个甚至更多。这些组件可能是副本(部署同一组件的多个副本)和多个不同的发布版本(stable、beta、canary等)同时运行。这样一来可能会导致我们在系统中拥有数百个 pod, 如果没有可以有效组织这些组件的机制，将会导致产生巨大的混乱。好在我们可以通过 label 来组织 pod 和所有其他 Kubernetes 对象。</p>
+<p>如下图所示，我们给 pod 加上 app 和 rel 两个标签来表示应用名和环境。每个可以访问集群的开发或运维人员都可以通过查看pod标签轻松看到系统的结构，以及每个pod的角色。<br><img src="/images/loading-cat.gif" data-original="https://bbm-hexo.oss-accelerate.aliyuncs.com/images/kubernetes/pod-label.png" alt="pod-label"><br>label 的内容写在 YAML 的 metadata 中：</p>
+<figure class="highlight yaml"><table><tbody><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line"><span class="attr">apiVersion:</span> <span class="string">v1</span> <span class="comment"># 该描述文件遵循 v1 版本的 API</span></span><br><span class="line"><span class="attr">kind:</span> <span class="string">Pod</span> <span class="comment"># 在描述一个 Pod 对象</span></span><br><span class="line"><span class="attr">metadata:</span> <span class="comment"># 元数据，包括名称、命名空间、标签和关于该容器 的其他信息</span></span><br><span class="line">    <span class="attr">name:</span> <span class="string">kubia-manual</span> <span class="comment"># pod 名字</span></span><br><span class="line">    <span class="attr">labels:</span> <span class="comment"># 标签</span></span><br><span class="line">      <span class="attr">app:</span> <span class="string">kubia</span></span><br><span class="line">      <span class="attr">rel:</span> <span class="string">beta</span></span><br></pre></td></tr></tbody></table></figure>
+
+<p>我们可以通过 <code>kubectl get po --show-labels</code> 查看 pod 的 labels，也可以通过 <code>kubectl get po -L app,rel</code> 将 label 直接显示在列上。但是目前来看，label 并没有实际价值。接下来我们用 label 做些真正有意义的事。</p>
+<p>我们可以通过 <code>kubectl get po -l app=kubia</code> 筛选 pod，匹配表达式可以是：</p>
+<ul>
+<li>等于：app=kubia</li>
+<li>不等于：app !=kubia</li>
+<li>范围匹配：app in (kubia)</li>
+<li>范围过滤：app notin (kubia)</li>
+<li>多匹配条件：app=kubia,rel=beta</li>
+</ul>
+<p>目前为止，我们还只是在命令行中使用 label，实际上，我们还可以在 YAML 中使用，比如通过 label 来控制 pod 的部署需求，例如：我们可以给 node 打上标记 <code>disk=ssd</code> 或者 <code>gpu=true</code>，然后在 pod 的描述中选择特定的 node 部署。</p>
+<figure class="highlight yaml"><table><tbody><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line"><span class="attr">apiVersion:</span> <span class="string">v1</span> <span class="comment"># 该描述文件遵循 v1 版本的 API</span></span><br><span class="line"><span class="attr">kind:</span> <span class="string">Pod</span> <span class="comment"># 在描述一个 Pod 对象</span></span><br><span class="line"><span class="attr">metadata:</span> <span class="comment"># 元数据，包括名称、命名空间、标签和关于该容器 的其他信息</span></span><br><span class="line">    <span class="attr">name:</span> <span class="string">kubia-manual</span> <span class="comment"># pod 名字</span></span><br><span class="line"><span class="attr">spec:</span></span><br><span class="line">    <span class="attr">nodeSelector:</span></span><br><span class="line">      <span class="attr">gpu:</span> <span class="literal">true</span></span><br><span class="line">      <span class="attr">disk:</span> <span class="string">ssd</span></span><br></pre></td></tr></tbody></table></figure>
+
+<p>除标签外，pod 和其他对象还可以包含注解。注解也是键值对，所以它们本质上与标签非常相似。但与标签不同，注解并不是为了保存标识信息而存在的，注解主要用于工具使用，或者 Kubernetes 引入新特性时，也会用注解的方式引入。就像我们前面提到的云提供商的 LB 服务，就是通过注解接入该特性的，只不过它描述的对象是 Service 而不是 pod。</p>
+<figure class="highlight yaml"><table><tbody><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line"><span class="attr">apiVersion:</span> <span class="string">v1</span></span><br><span class="line"><span class="attr">kind:</span> <span class="string">Service</span></span><br><span class="line"><span class="attr">metadata:</span></span><br><span class="line">  <span class="attr">name:</span> <span class="string">nginx</span></span><br><span class="line">  <span class="attr">annotations:</span></span><br><span class="line">    <span class="attr">service.beta.kubernetes.io/aws-load-balancer-type:</span> <span class="string">"nlb"</span></span><br></pre></td></tr></tbody></table></figure>
+
+<p>再回到如何组织 Kubernetes 资源的问题，除了使用 label 之外，我们还可以使用命名空间，它可以做到资源的隔离，我们可以通过 <code>kubectl get ns</code> 查看所有的命名空间。而且我们的 kubectl 命令行默认是针对 default 命名空间操作的，如果要操作指定命名空间的资源可以通过 <code>kubectl -n target-ns command</code>。除了隔离资源，命名空间还可用于仅允许某些用户访问某些特定资源，甚至限制单个用户可用的计算资源数量，这些我们后面会介绍。</p>
+<h3 id="副本机制"><a href="#副本机制" class="headerlink" title="副本机制"></a>副本机制</h3><p>正如你前面所学到的，pod 代表了 Kubernetes 中的基本部署单元，而且你已知道如何手动创建、监督和管理它们。但是在实际的用例里，你希望你的部署能自动保持运行，并且保持健康，无须任何手动干预。要做到这一点，你几乎不会直接创建 pod , 而是创建 ReplicationController 或 Deployment 这样的资源，接着由它们来创建并管理实际的 pod，并且在它们失败的时候自动重新启动它们。</p>
+<p>Kubernetes 可以通过存活探针 (liveness probe) 检查容器是否还在运行。可以为 pod 中的每个容器单独指定存活探针。如果探测失败，Kubemetes 将定期执行探针并重新启动容器。探针的种类有 3 种：</p>
+<ul>
+<li>HTTP GET：探针对容器的IP地址(你指定的端口和路径)执行 HTTP GET 请求。如果服务器返回错误响应状态码或者根本没有响应，那么探测就被认为是失败的，容器将被重新启动。</li>
+<li>TCP套接字：尝试与容器指定端口建立TCP连接。如果连接成功建立，则探测成功。否则，容器重新启动。</li>
+<li>Exec探针：在容器内执行任意命令，并检查命令的退出状态码。如果状态码是 0, 则探测成功。所有其他状态码都被认为失败。</li>
+</ul>
+<p>我们可以在 YAML 中指定存活探针：</p>
+<figure class="highlight yaml"><table><tbody><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br></pre></td><td class="code"><pre><span class="line"><span class="attr">apiVersion:</span> <span class="string">v1</span> <span class="comment"># 该描述文件遵循 v1 版本的 API</span></span><br><span class="line"><span class="attr">kind:</span> <span class="string">Pod</span> <span class="comment"># 在描述一个 Pod 对象</span></span><br><span class="line"><span class="attr">metadata:</span> <span class="comment"># 元数据，包括名称、命名空间、标签和关于该容器 的其他信息</span></span><br><span class="line">    <span class="attr">name:</span> <span class="string">kubia-manual</span> <span class="comment"># pod 名字</span></span><br><span class="line"><span class="attr">spec:</span></span><br><span class="line">    <span class="attr">containers:</span></span><br><span class="line">        <span class="bullet">-</span> <span class="attr">image:</span> <span class="string">beikejiedeliulangmao/kubia</span> <span class="comment"># 使用的容器</span></span><br><span class="line">          <span class="attr">name:</span> <span class="string">kubia</span></span><br><span class="line">          <span class="attr">livenessProbe:</span> <span class="comment"># 使用 http 探针</span></span><br><span class="line">            <span class="attr">httpGet:</span></span><br><span class="line">              <span class="attr">path:</span> <span class="string">/</span></span><br><span class="line">              <span class="attr">port:</span> <span class="number">8080</span></span><br><span class="line">            <span class="attr">initialDelaySeconds:</span> <span class="number">15</span> <span class="comment"># 15秒初始延迟</span></span><br><span class="line"><span class="comment"># 如果没有设置初始延迟，探针将在启动时立即开始探测容器，这通常会导致探测失败，因为应用程序还没准备好开始接收请求。如果失败次数超过阈值，在应用程序能正确响应请求之前，容器就会重启。</span></span><br></pre></td></tr></tbody></table></figure>
+
+<p>如果上述 HTTP GET 探针连续 5 次失败就会认为探测失败，并重启容器。</p>
+<blockquote>
+<p>当你想知道为什么前一个容器终止时，你想看到的是前一个容器的日志，而不是当前容器的。可以通过添加–previous选项来完成: <code>kubectl logs mypod --previous</code>, 通过 <code>kubectl describe po mypod</code> 可以查看 pod 为何重启。</p>
+</blockquote>
+<p>对于在生产中运行的 pod, 一定要定义一个存活探针。没有探针的话，Kubernetes 无法知道你的应用是否还活着。只要进程还在运行，Kubernetes 会认为容器是健康的。探针应该尽可能的检查应用的可用性，同时也要尽可能轻量不能耗费太多资源。</p>
+<p>Kubernetes 中有两种副本管理的资源 ReplicationController 和 ReplicaSet，它们本质上是一致的。它们都会持续监控正在运行的pod列表，并保证相应”类型”（通过 label 选择）的 pod 的数目与期望相符。如正在运行的 pod 太少，它会根据 pod 模板创建新的副本。如正在运行的 pod 太多，它将删除多余的副本。</p>
+<p>如下就是一个 ReplicationController 的配置文件 YAML：</p>
+<figure class="highlight yaml"><table><tbody><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br></pre></td><td class="code"><pre><span class="line"><span class="attr">apiVersion:</span> <span class="string">v1</span></span><br><span class="line"><span class="attr">kind:</span> <span class="string">ReplicationController</span></span><br><span class="line"><span class="attr">metadata:</span></span><br><span class="line">    <span class="attr">name:</span> <span class="string">kubia</span></span><br><span class="line"><span class="attr">spec:</span></span><br><span class="line">    <span class="attr">replicas:</span> <span class="number">3</span></span><br><span class="line">    <span class="attr">selector:</span> <span class="comment"># 通过 app 标签匹配 pod</span></span><br><span class="line">      <span class="attr">app:</span> <span class="string">kubia</span></span><br><span class="line">    <span class="attr">template:</span> <span class="comment"># 通过模板定义 pod</span></span><br><span class="line">      <span class="attr">metadata:</span></span><br><span class="line">        <span class="attr">labels:</span> <span class="comment"># 指定 pod 的标签</span></span><br><span class="line">          <span class="attr">app:</span> <span class="string">kubia</span></span><br><span class="line">      <span class="attr">spec:</span></span><br><span class="line">        <span class="attr">containers:</span></span><br><span class="line">        <span class="bullet">-</span> <span class="attr">image:</span> <span class="string">beikejiedeliulangmao/kubia</span> <span class="comment"># 使用的容器</span></span><br><span class="line">          <span class="attr">name:</span> <span class="string">kubia</span></span><br></pre></td></tr></tbody></table></figure>
+
+<p>模板中的 pod 标签显然必须和 ReplicationController 的标签选择器匹配，否则控制器将无休止地创建新的容器。如果定义 ReplicationController 时不要指定 pod 选择器，会让 Kubernetes 从 pod 模板中提取它。</p>
+<p>您可能会遇到这样的情况，线上环境的某一个服务节点出错了，我们需要把它摘下来确认出错的原因，这时候我们可以取消该 pod 和 ReplicationController 的绑定关系，然后单独确认它的问题，确认完后再将其还回去，这个过程可以通过修改 pod 的标签来实现，只要让 pod 的标签和 ReplicationController 的标签匹配不上就行了，这时候 ReplicationController 会自动创建一个新的 pod 来维持原来的 pod 数量。</p>
+<p>如果你想进行 pod 的缩扩容，可以直接修改 ReplicationController 的副本数量 replicas，ReplicationController 会自动帮你进行缩扩容工作。</p>
+<p>前面说过 Kubernetes 中有两种副本管理的资源 ReplicationController 和 ReplicaSet，那么用哪个呢？可以说 ReplicaSet 新一代的 ReplicationController，我们应该直接使用 ReplicaSet，但是通常我们并不是直接使用 ReplicaSet 资源，而是在创建更高层级的 Deployment 资源时自动创建他们，这个我们后面会介绍。</p>
+<p>ReplicaSet 相较于 ReplicationController，pod 的匹配能力更强，ReplicationController 智能匹配 <code>label=target</code>，而 ReplicaSet 除此之外还支持 in，notin，exists（是否存在一个 label，值不重要），DoesNotExists。</p>
+<p>ReplicationController 和 ReplicaSet 都用于在 Kubernetes 集群上运行部署特定数量的 pod。但是，当你希望 pod 在集群中的每个节点上运行时(并且每个节点都需要正好一个运行的pod实例)，就需要用到 DaemonSet。它一般用作执行日志收集器和资源监视器。</p>
+<p>让我们假设有一个名为 ssd-monitor 的守护进程，它需要在包含固态驱动器(SSD)的所有节点上运行。你将创建一个 DaemonSet，它在标记为具有SSD的所有节点上运行这个守护进程。集群管理员已经向所有此类节点添加了 disk=ssd 的标签，因此你将使用节点选择器创建 DaemonSet，该选择器只选择具有该标签的节点，如图所示。<br><img src="/images/loading-cat.gif" data-original="https://bbm-hexo.oss-accelerate.aliyuncs.com/images/kubernetes/maemon-set.png" alt="maemon-set"><br>如下的 YAML 就是 ssd-monitor 的配置文件：</p>
+<figure class="highlight yaml"><table><tbody><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br></pre></td><td class="code"><pre><span class="line"><span class="attr">apiVersion:</span> <span class="string">apps/v1beta2</span></span><br><span class="line"><span class="attr">kind:</span> <span class="string">DaemonSet</span></span><br><span class="line"><span class="attr">metadata:</span></span><br><span class="line">    <span class="attr">name:</span> <span class="string">ssd-monitor</span></span><br><span class="line"><span class="attr">spec:</span></span><br><span class="line">    <span class="attr">selector:</span></span><br><span class="line">      <span class="attr">matchLabels:</span></span><br><span class="line">        <span class="attr">app:</span> <span class="string">ssd-monitor</span></span><br><span class="line">    <span class="attr">template:</span></span><br><span class="line">      <span class="attr">metadata:</span></span><br><span class="line">        <span class="attr">labels:</span></span><br><span class="line">          <span class="attr">app:</span> <span class="string">ssd-monitor</span></span><br><span class="line">      <span class="attr">spec:</span></span><br><span class="line">        <span class="attr">nodeSelector:</span></span><br><span class="line">          <span class="attr">disk:</span> <span class="string">ssd</span></span><br><span class="line">        <span class="attr">containers:</span></span><br><span class="line">          <span class="bullet">-</span> <span class="attr">name:</span> <span class="string">main</span></span><br><span class="line">            <span class="attr">image:</span> <span class="string">luksa/ssd-monitor</span></span><br></pre></td></tr></tbody></table></figure>
+
+<p>到目前为止，我们只谈论了需要持续运行的 pod。你会遇到只想运行完成工作后就终止任务的情况。ReplicationController、ReplicaSet 和 DaemonSet 会持续运行任务，永远达不到完成态。这些 pod 中的进程在退出时会重新启动。但是在一个可完成的任务中，其进程终止后，不应该再重新启动。</p>
+<p>Kubernetes 通过 Job 资源提供了对此的支持，这与我们在本章中讨论的其他资源类似，但它允许你运行一种 pod, 该 pod 在内部进程成功结束时（通过进程返回值判断），不重启容器。一旦任务完成，pod 就被认为处于完成状态。</p>
+<p>在发生节点故障时，该节点上由 Job 管理的 pod 将按照 ReplicaSet 的 pod 的方式，重新安排到其他节点。如果进程本身异常退出(进程返回错误退出代码时)，可以将 Job 配置为重新启动容器。</p>
+<p>如下的例子就是一个简单的 Job：</p>
+<figure class="highlight yaml"><table><tbody><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br></pre></td><td class="code"><pre><span class="line"><span class="attr">apiVersion:</span> <span class="string">batch/v1</span></span><br><span class="line"><span class="attr">kind:</span> <span class="string">Job</span></span><br><span class="line"><span class="attr">metadata:</span></span><br><span class="line">    <span class="attr">name:</span> <span class="string">batch-job</span></span><br><span class="line"><span class="attr">spec:</span></span><br><span class="line">    <span class="attr">completions:</span> <span class="number">5</span> <span class="comment"># 需要执行五次</span></span><br><span class="line">    <span class="attr">paralleism:</span> <span class="number">2</span> <span class="comment"># 最多 2 个 pod 并发</span></span><br><span class="line">    <span class="attr">template:</span> <span class="comment"># pod 模板</span></span><br><span class="line">      <span class="attr">metadata:</span></span><br><span class="line">        <span class="attr">labels:</span></span><br><span class="line">          <span class="attr">app:</span> <span class="string">batch-job</span></span><br><span class="line">      <span class="attr">spec:</span></span><br><span class="line">        <span class="attr">restartPolicy:</span> <span class="string">OnFailure</span>  <span class="comment"># 出错时重启</span></span><br><span class="line">        <span class="attr">containers:</span> <span class="comment"># 使用的容器</span></span><br><span class="line">        <span class="bullet">-</span> <span class="attr">name:</span> <span class="string">main</span></span><br><span class="line">          <span class="attr">image:</span> <span class="string">luksa/batch-job</span></span><br></pre></td></tr></tbody></table></figure>
+
+<p>除了这种一次性的 Job 之外，我们还可以创建周期性的 Job，这种资源叫做 CornJob。在计划的时间内，CronJob 资源会创建 Job 资源，然后 Job 创建 pod。</p>
+<figure class="highlight yaml"><table><tbody><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br></pre></td><td class="code"><pre><span class="line"><span class="attr">apiVersion:</span> <span class="string">batch/v1beta1</span></span><br><span class="line"><span class="attr">kind:</span> <span class="string">CronJob</span></span><br><span class="line"><span class="attr">metadata:</span></span><br><span class="line">    <span class="attr">name:</span> <span class="string">batch-job-corn</span></span><br><span class="line"><span class="attr">spec:</span></span><br><span class="line">    <span class="attr">schedule:</span> <span class="string">"0,15,30,45 * * * *"</span> <span class="comment"># 每天每小时的 0 ，15，30，45分钟运行</span></span><br><span class="line">    <span class="attr">jobTemplate:</span> <span class="comment"># 创建 job 用到的模板</span></span><br><span class="line">      <span class="attr">spec:</span></span><br><span class="line">        <span class="attr">template:</span> <span class="comment"># pod 模板</span></span><br><span class="line">          <span class="attr">metadata:</span></span><br><span class="line">            <span class="attr">labels:</span></span><br><span class="line">              <span class="attr">app:</span> <span class="string">batch-job-corn</span></span><br><span class="line">          <span class="attr">spec:</span></span><br><span class="line">            <span class="attr">restartPolicy:</span> <span class="string">OnFailure</span>  <span class="comment"># 出错时重启</span></span><br><span class="line">            <span class="attr">containers:</span> <span class="comment"># 使用的容器</span></span><br><span class="line">            <span class="bullet">-</span> <span class="attr">name:</span> <span class="string">main</span></span><br><span class="line">              <span class="attr">image:</span> <span class="string">luksa/batch-job</span></span><br></pre></td></tr></tbody></table></figure>
+
+<p>如果你不熟悉 cron 时间表格式，你会在网上找到很棒的教程和解释，我这里简单地介绍一下，时间表从左到右包含以下五个条目: 分钟，小时，每月中第几天，月，星期几。</p>
+<h3 id="服务"><a href="#服务" class="headerlink" title="服务"></a>服务</h3><p>现在已经学习过了 pod, 以及如何通过 ReplicaSet 和类似资源部署运行。尽管特定的 pod 可以独立地应对外部刺激，现在大多数应用都需要根据外部请求做出响应。pod 需要一 种寻找其他 pod 的方法来使用其他 pod 提供的服务，不像在没有 Kubernetes 的世界，系统管理员要在用户端配置文件中明确指出服务的精确的 IP 地址或者主机名来配置每个客户端应用，但是同样的方式在 Kubernetes 中并不适用，因为 pod 是短暂的，它们随时会启动或者关闭，而且只有在 pod 启动时才会分配 ip，所以并不能提前预估到 ip 地址，而且水平扩容意味着会有多个 pod 提供相同服务，而实际上客户端并不关心 pod 的数量，它只希望有一个不变的 ip 可以用来访问自己期望的服务。</p>
+<p>Kubernetes 中可以使用服务来为一组功能相同的 pod 提供一个不变的接入口。当服务存在时，它的 IP 地址和端口不会改变。客户端通过 IP 地址和端口号建立连接，这些连接会被路由到提供该服务的任意一个 pod 上。通过这种方式，客户端不需要知道每个单独的提供服务的 pod 的地址，这样这些 pod 就可以在集群中随时被创建或移除。</p>
+<p>和 ReplicationController 一样，Service 也通过标签的过滤来暴露一组 pod 的服务。</p>
+<figure class="highlight yaml"><table><tbody><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line"><span class="attr">apiVersion:</span> <span class="string">v1</span></span><br><span class="line"><span class="attr">kind:</span> <span class="string">Service</span></span><br><span class="line"><span class="attr">metadata:</span></span><br><span class="line">    <span class="attr">name:</span> <span class="string">kubia</span></span><br><span class="line"><span class="attr">spec:</span></span><br><span class="line">    <span class="attr">ports:</span> <span class="comment"># 可以暴露多个端口</span></span><br><span class="line">    <span class="bullet">-</span> <span class="attr">port:</span> <span class="number">80</span> <span class="comment"># 服务端口</span></span><br><span class="line">      <span class="attr">targetPort:</span> <span class="number">8080</span> <span class="comment"># 服务将连接转发到容器端口</span></span><br><span class="line">    <span class="attr">selector:</span> <span class="comment"># 匹配标签</span></span><br><span class="line">      <span class="attr">app:</span> <span class="string">kubia</span></span><br></pre></td></tr></tbody></table></figure>
+
+<p>创建 Service 之后，会被分配一个内部集群 IP，通过这个 IP 无论是在集群内的宿主机上还是集群内的 pod 中都能访问到该服务。下面的例子展示了通过 <code>kubectl exec &lt;pod-name&gt; curl &lt;service-ip&gt;:port</code>在一个 pod 中访问服务的例子。<br><img src="/images/loading-cat.gif" data-original="https://bbm-hexo.oss-accelerate.aliyuncs.com/images/kubernetes/curl-service.png" alt="curl-service"><br>如果希望特定客户端产生的所有请求每次都指向同一个 pod, 可以设置服务的 sessionAffinity 属性为 ClientIP 这种方式将会使服务代理将来自同一个 client IP 的所有请求转发至同一个 pod 上。</p>
+<figure class="highlight yaml"><table><tbody><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line"><span class="attr">apiVersion:</span> <span class="string">v1</span></span><br><span class="line"><span class="attr">kind:</span> <span class="string">Service</span></span><br><span class="line"><span class="attr">spec:</span></span><br><span class="line">    <span class="attr">sessionAffinity:</span> <span class="string">ClientIP</span></span><br></pre></td></tr></tbody></table></figure>
+
+<p>通过服务，我们已经有了一个不变的服务 IP，Pod 内怎么知道服务的 IP 呢？Kubernetes 为客户端提供了发现服务 IP 和端口的方式。一个是通过环境变量指定，它可以在 pod 的YAML 中配置。另一个方法是通过 DNS 发现服务。Kubernetes 内部也有一个 dns 服务它会根据服务的变化快速做出响应。这种方法相较于环境变量来说更加灵活。Kubernetes 内部 DNS 的规则是 <code>&lt;service-name&gt;.&lt;service-namespace&gt;.svc.cluster.local</code>，如果客户端和服务在同一个命名空间的话，可以省略命名空间和后缀<code>kubectl exec -it kubia-kqtr6 curl kubia:8080</code>。值得一提的是，DNS 只能帮我们得到 IP 信息，至于服务使用了哪个端口，仍然需要在环境变量中配置。</p>
+<p>到目前为止，我们只是讨论了 Service 如何暴露集群内部的服务，那么能不能让 service 绑定到集群外的服务呢？这就牵扯到 Service 的 EndPoint 的资源，在创建服务时，它会根据标签选择器找到所有集群内部的 pod，然后生成对应的 EndPoint 资源，当访问服务端口时，实际上会通过 EndPoint 进行转发。</p>
+<p>我们可以通过 <code>kubectl describe svc kubia</code> 查看 service 的 EndPoint。理解了 EndPoint 的概念后，我们回到刚才的问题，因为服务与 EndPoint 的解耦，我们实际上可以为 service 手动加入自定义的 EndPoint。</p>
+<figure class="highlight yaml"><table><tbody><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line"><span class="attr">apiVersion:</span> <span class="string">v1</span></span><br><span class="line"><span class="attr">kind:</span> <span class="string">Endpoints</span></span><br><span class="line"><span class="attr">metadata:</span></span><br><span class="line">    <span class="attr">name:</span> <span class="string">external-service</span> <span class="comment"># endpoint 的名字必须和 service 名字相同，它们通过这一层纽带绑定在一起</span></span><br><span class="line"><span class="attr">subsets:</span></span><br><span class="line">    <span class="bullet">-</span> <span class="attr">addresses:</span> <span class="comment"># endpoint 的 ip</span></span><br><span class="line">      <span class="bullet">-</span> <span class="attr">ip:</span> <span class="number">11.11</span><span class="number">.11</span><span class="number">.11</span></span><br><span class="line">      <span class="bullet">-</span> <span class="attr">ip:</span> <span class="number">22.22</span><span class="number">.22</span><span class="number">.22</span></span><br><span class="line">      <span class="attr">ports:</span> <span class="comment"># endpoint 的端口</span></span><br><span class="line">        <span class="bullet">-</span> <span class="attr">port:</span> <span class="number">80</span></span><br></pre></td></tr></tbody></table></figure>
+
+<p><img src="/images/loading-cat.gif" data-original="https://bbm-hexo.oss-accelerate.aliyuncs.com/images/kubernetes/service-external-ip.png" alt="service-external-ip"><br>在前面，我们已经或多或少的提到了集群外的客户端如何访问集群内的 Service。总结一下，总共有三种方案：NodePort，LoadBalance，Ingress。</p>
+<p>将一组 pod 公开给外部客户端的第一种方法是创建一个服务并将其类型设置为 NodePort。通过创建 NodePort 服务，可以让 Kubernetes 在其所有节点上保留一个端口(所有节点上都使用相同的端口号)，并将传入的连接转发给作为服务部分的 pod。</p>
+<figure class="highlight yaml"><table><tbody><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br></pre></td><td class="code"><pre><span class="line"><span class="attr">apiVersion:</span> <span class="string">v1</span></span><br><span class="line"><span class="attr">kind:</span> <span class="string">Service</span></span><br><span class="line"><span class="attr">metadata:</span></span><br><span class="line">    <span class="attr">name:</span> <span class="string">kubia-nodeport</span></span><br><span class="line"><span class="attr">spec:</span></span><br><span class="line">    <span class="attr">type:</span> <span class="string">NodePort</span> <span class="comment"># node port 类型的服务</span></span><br><span class="line">    <span class="attr">ports:</span></span><br><span class="line">    <span class="bullet">-</span> <span class="attr">port:</span> <span class="number">80</span> <span class="comment"># service ip 对应的端口</span></span><br><span class="line">      <span class="attr">targetPort:</span> <span class="number">8080</span> <span class="comment"># pod 的目标端口</span></span><br><span class="line">      <span class="attr">nodePort:</span> <span class="number">30123</span> <span class="comment"># 通过任意节点的 30123 就可以访问服务，如果不设置该项会随机选用一个端口</span></span><br><span class="line">    <span class="attr">selector:</span></span><br><span class="line">      <span class="attr">app:</span> <span class="string">kubia</span></span><br></pre></td></tr></tbody></table></figure>
+
+<p>创建成功后，通过 <code>kubectl get svc</code>，会看到刚才创建的服务，您会发现其中 PORT 列有两个端口<code>80:30123/TCP</code>，前面的是集群内 Service IP 用到的端口，后面的是 NodePort。在使用 NodePort 类型的服务时，一定要注意尽可能让客户端能够访问到尽可能多的节点 NodePort，这样当任意一个节点宕机后，仍然不影响使用。<br><img src="/images/loading-cat.gif" data-original="https://bbm-hexo.oss-accelerate.aliyuncs.com/images/kubernetes/nodeport-service.png" alt="nodeport-service"><br>第二种方案是通过 LoadBalance，在云提供商上运行的 Kubernetes 集群通常支持从云基础架构自动提供负载平衡器。如果 Kubernetes 在不支持 LoadBalancer 服务的环境中运行，则不会调配负载平衡器，但该服务仍将表现得像一个 NodePort 服务。这是因为 LoadBalancer 服务是 NodePort 服务的扩展。</p>
+<figure class="highlight yaml"><table><tbody><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line"><span class="attr">apiVersion:</span> <span class="string">v1</span></span><br><span class="line"><span class="attr">kind:</span> <span class="string">Service</span></span><br><span class="line"><span class="attr">metadata:</span></span><br><span class="line">    <span class="attr">name:</span> <span class="string">kubia-nodeport</span></span><br><span class="line"><span class="attr">spec:</span></span><br><span class="line">    <span class="attr">type:</span> <span class="string">LoadBalancer</span> <span class="comment"># LoadBalancer 类型的服务</span></span><br><span class="line">    <span class="attr">ports:</span></span><br><span class="line">    <span class="bullet">-</span> <span class="attr">port:</span> <span class="number">80</span> <span class="comment"># service ip</span></span><br><span class="line">      <span class="attr">targetPort:</span> <span class="number">8080</span> <span class="comment"># pod 的目标端口</span></span><br></pre></td></tr></tbody></table></figure>
+
+<p>创建成功后，可以通过<code>kubectl get svc</code>，会看到刚才创建的服务，然后通过 EXTERNAL-IP + service ip 访问服务。外部客户端(可以使用 curl)连接到负载均衡器的80端口，并路由到其中一个节点上的隐式分配节点端口(实际上就是 NodePort)。之后该连接被转发到一个pod实例。<br><img src="/images/loading-cat.gif" data-original="https://bbm-hexo.oss-accelerate.aliyuncs.com/images/kubernetes/lb-service.png" alt="lb-service"><br>当外部客户端通过节点端口连接到服务时(这也包括先通过负载均衡器时的情况)，随机选择的 pod 并不一定在接收连接的同一节点上运行。可能需要额外的网络跳转才能到达 pod, 但这种行为并不符合期望。可以通过将服务配置为仅将外部通信重定向到接收连接的节点上运行的 pod 来阻止此额外跳数。</p>
+<figure class="highlight yaml"><table><tbody><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line"><span class="attr">spec:</span></span><br><span class="line">    <span class="attr">externalTrafficPolicy:</span> <span class="string">Local</span></span><br></pre></td></tr></tbody></table></figure>
+
+<p>这个参数有一个缺点，如果本地没有该服务的 Pod，它不会自动转发到其他节点的 Pod，而是挂起连接。所以，使用的时候需要确保使用的节点上至少有一个服务 Pod。而且可能会出现流量不平均分配的问题。<br><img src="/images/loading-cat.gif" data-original="https://bbm-hexo.oss-accelerate.aliyuncs.com/images/kubernetes/local-service-disadvantage.png" alt="local-service-disadvantage"><br>通常，当集群内的客户端连接到服务时，支持服务的 pod 可以获取客户端的 IP 地址。但是，当通过节点端口接收到连接时，由于对数据包执行了源网络地址转换(SNAT), 因此数据包的源 IP 将发生更改。后端的 pod 无法看到实际的客户端 IP, 这对于某些需要了解客户端 IP 的应用程序来说可能是个问题。不过前面说的 Local LB 方式，因为不涉及额外的跳跃（不执行 SNAT），所以可以保留到客户端 IP。</p>
+<p>最后一个暴露服务的方式是 Ingress，和 LB 不同的是，Ingress 只需要一个公网 IP 就能为多个服务提供外部访问能力。当客户端向 Ingress 发送 HTTP 请求时，Ingress 会根据请求的主机名和路径决定请求转发到的服务。<br><img src="/images/loading-cat.gif" data-original="https://bbm-hexo.oss-accelerate.aliyuncs.com/images/kubernetes/ingress.png" alt="ingress"><br>因为 Ingress 工作在应用层（HTTP），所以可以提供 Service 无法实现的功能，比如基于 cookie 的会话亲和性。</p>
+<p>我们可以通过如下配置文件创建一个 Ingress：</p>
+<figure class="highlight yaml"><table><tbody><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br></pre></td><td class="code"><pre><span class="line"><span class="attr">apiVersion:</span> <span class="string">extensions/v1beta1</span></span><br><span class="line"><span class="attr">kind:</span> <span class="string">Ingress</span></span><br><span class="line"><span class="attr">metadata:</span></span><br><span class="line">    <span class="attr">name:</span> <span class="string">kubia</span></span><br><span class="line"><span class="attr">spec:</span></span><br><span class="line">    <span class="attr">rules:</span> <span class="comment"># 可以匹配多个域名</span></span><br><span class="line">    <span class="bullet">-</span> <span class="attr">host:</span> <span class="string">kubia.example.com</span> <span class="comment"># 映射服务的域名</span></span><br><span class="line">      <span class="attr">http:</span></span><br><span class="line">        <span class="attr">paths:</span> <span class="comment"># 可以匹配多个地址</span></span><br><span class="line">        <span class="bullet">-</span> <span class="attr">path:</span> <span class="string">/</span></span><br><span class="line">          <span class="attr">backend:</span></span><br><span class="line">            <span class="attr">serviceName:</span> <span class="string">kubia</span> <span class="comment"># 将请求映射到服务的端口</span></span><br><span class="line">            <span class="attr">servicePort:</span> <span class="number">80</span></span><br></pre></td></tr></tbody></table></figure>
+
+<p>和 LoadBalancer 类型的 service 一样，Ingress 也需要云服务提供商的支持，如果创建成功，Ingress 的 ip 地址就能在<code>kubectl get ingress</code> 中看到，随后我们只要将该 ip 和域名绑定到 DNS 中就可以访问了。<br><img src="/images/loading-cat.gif" data-original="https://bbm-hexo.oss-accelerate.aliyuncs.com/images/kubernetes/ingress2.png" alt="ingress2"><br>可能已经从 Ingress 的配置文件中看出它的写法非常像 nginx 的配置文件，实际上 Ingress 的其中一种实现方式就是基于 nginx。你可以像在 nginx 中配置多个域名多个 path 的匹配规则，将他们映射到不同的 service pod 中。同样你也可以像 nginx 一样支持 TLS 认证，一般来说我们会将证书和秘钥存储在 Kubernetes 的secret 资源中，然后在 Ingress 配置文件中引用它们。</p>
+<figure class="highlight yaml"><table><tbody><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line"><span class="attr">apiVersion:</span> <span class="string">extensions/v1beta1</span></span><br><span class="line"><span class="attr">kind:</span> <span class="string">Ingress</span></span><br><span class="line"><span class="attr">metadata:</span></span><br><span class="line">    <span class="attr">name:</span> <span class="string">kubia</span></span><br><span class="line"><span class="attr">spec:</span></span><br><span class="line">    <span class="attr">tls:</span> <span class="comment"># 所有 tls 设置</span></span><br><span class="line">    <span class="bullet">-</span> <span class="attr">hosts:</span></span><br><span class="line">      <span class="bullet">-</span> <span class="string">kubia.example.com</span> <span class="comment"># 需要使用 tls 的域名</span></span><br><span class="line">      <span class="attr">secretName:</span> <span class="string">tls-secret</span>   <span class="comment"># secret 资源的名字</span></span><br></pre></td></tr></tbody></table></figure>
+
+<p>我们已经知道，如果 pod 的标签与服务的 pod 选择器相匹配，那么 pod 就将作为服务的后端。只要创建了具有适当标签的新 pod，它就成为服务的一部分，并且请求开始被重定向到 pod。那么如果新启动的 pod 还没有准备好接受请求呢，该 pod 可能需要时间来加载配置或数据，或者可能需要执行预热过程以防止第一个用户请求时间太长影响了用户体验。在这种情况下，不希望该 pod 立即开始接收请求，尤其是在运行的实例可以正确快速地处理请求的情况下。不要将请求转发到正在启动的 pod 中，直到完全准备就绪。</p>
+<p>在前面，我们介绍了存活探针，通过它可以感知到 Pod 是否运转正常，和它类似，Kubernetes 中还有一个就绪探针，通过它来确认 Pod 是否准备就绪，配置文件的写法也和存活探针一样都在 ReplicationController 的 pod template 中。当 pod 准备就绪时，才会将请求路由到该 pod 中。像存活探针一样，就绪探针也有三种类型的：Exec 探针，HTTP GET 探针，TCP Socket 探针。它们的使用和前面介绍的存活探针一样。</p>
+<p>与存活探针不同，如果容器未通过准备检查，不会被终止或重新启动。这是存活探针与就绪探针之间的重要区别。存活探针通过杀死异常的容器并用新的正常容器替代它们来保持 pod 正常工作，而就绪探针确保只有准备好处理请求的 pod 才可以接收它们(请求)。这在容器启动时最为必要，当然容器运行一段时间后也是有用的这个就绪探针依旧会发挥作用，如果任何时刻就绪探针报错，Kubernetes 就会把该 pod 从 server endpoint 中摘除。<br><img src="/images/loading-cat.gif" data-original="https://bbm-hexo.oss-accelerate.aliyuncs.com/images/kubernetes/readness-probe.png" alt="readness-probe"><br>上面的介绍中，都是涉及和单个 service pod 通讯，那如果我们想要和所有 service pod同时建立连接时，怎么做呢？一个可行的办法是将 service 的 clusterIp 属性设为 None，那样这个 service 就会变为一个 headless service，当我们访问 service 的 dns 时，dns 会将所有的 pod ip 返回。</p>
+<p>服务是 Kubernetes 的一个重要概念，也是让许多开发人员感到困扰的根源。出于这个原因，了解一下如何排除服务故障是很有必要的，如果无法通过服务访问 pod, 应该根据下面的列表进行排查:</p>
+<ul>
+<li>首先，确保从集群内连接到服务的集群 IP, 而不是从外部。</li>
+<li>不要通过 ping 服务 IP 来判断服务是否可访问(请记住，服务的集群 IP 是虚拟IP, 是无法 ping 通的)。</li>
+<li>如果已经定义了就绪探针，请确保它返回成功;否则该pod不会成为服务的一部分。</li>
+<li>要确认某个容器是服务的一部分，请使用<code>kubectl get endpoints</code>来检查相应的端点对象。</li>
+<li>如果尝试通过 FQDN 或其中一部分来访问服务(例如，myservice.mynamespace.svc.cluster.local 或 myservice.mynamespace), 但并不起作用，请查看是否可以使用其集群 IP 而不是 FQDN 来访问服务。</li>
+<li>检查是否连接到服务公开的端口，而不是目标 pod 端口。</li>
+<li>尝试直接连接到 pod IP 以确认 pod 正在接收正确端口上的连接。</li>
+<li>如果无法通过 pod 的 IP 访问应用，请确保应用不是仅绑定到本地主机127.0.0.1。</li>
+</ul>
+<h3 id="卷"><a href="#卷" class="headerlink" title="卷"></a>卷</h3><p>我们之前说过，pod 类似逻辑主机，在逻辑主机中运行的进程共享诸如 CPU、RAM、网络接口等资源。但是磁盘并不会共享，需要谨记一点，pod 中的每个容器都有自己独立的文件系统，因为文件系统来自容器镜像。在某些场景下，我们可能希望新的容器可以在之前容器结束的位置继续运行，比如在物理机上重启进程。可能不需要(或者不想要)整个文件系统被持久化，但又希望能保存实际数据的目录。</p>
+<p>Kubernetes 通过定义存储卷来满足这个需求，它们不像 pod 这样的顶级资源，而是被定义为 pod 的一部分，并和 pod 共享相同的生命周期。这意味着在 pod 启动时创建卷，并在删除 pod 时销毁卷。因此，在容器重新启动期间，卷的内容将保持不变，在重新启动容器之后，新容器可以识别前一个容器写入卷的所有文件。另外，如果一个 pod 包含多个容器，那这个卷可以同时被所有的容器使用。</p>
+<p>假设有一个带有三个容器的 pod，一个容器运行了一个 web 服务器，该 web 服务器的 HTML 页面目录位于 /var/htdocs, 并将站点访问日志存储到 /var/logs 目录中。第二个容器运行了一个代理来创建 HTML 文件，并将它们存放在 /var/html 中，第三个容器处理在 /var/logs 目录中找到的日志(转换、压缩、分析它们或者做其他处理)。这里我们使用名为 emptyDir 的卷，卷被绑定到 pod 的 lifecycle(生命周期)中，只有在 pod 存在时才会存在，但是也有一些类型的卷支持 pod 和卷消失之后，卷的文件也可能保持原样，并可以挂载到新的卷中。<br><img src="/images/loading-cat.gif" data-original="https://bbm-hexo.oss-accelerate.aliyuncs.com/images/kubernetes/volume.png" alt="volume"><br>除了前面提到的 emptyDir 之外，卷的类型有很多种，不同卷类型有各种用途。这里我们只介绍一些常用的卷。最简单的卷类型是 emptyDir 卷，它从一个空目录开始，运行在 pod 内的应用程序可以写入它需要的任何文件。因为卷的生存周期与 pod 的生存周期相关联，所以当删除 pod 时，卷的内容就会丢失。下面就是一个 emptyDir 卷的简单例子：</p>
+<figure class="highlight yaml"><table><tbody><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br></pre></td><td class="code"><pre><span class="line"><span class="attr">apiVersion:</span> <span class="string">v1</span></span><br><span class="line"><span class="attr">kind:</span> <span class="string">Pod</span></span><br><span class="line"><span class="attr">metadata:</span></span><br><span class="line">    <span class="attr">name:</span> <span class="string">fortune</span></span><br><span class="line"><span class="attr">spec:</span></span><br><span class="line">    <span class="attr">containers:</span> <span class="comment"># 定义两个容器，挂在同一个卷到不同的目录</span></span><br><span class="line">    <span class="bullet">-</span> <span class="attr">image:</span> <span class="string">luksa/fortune</span></span><br><span class="line">      <span class="attr">name:</span> <span class="string">html-generator</span></span><br><span class="line">      <span class="attr">volumeMounts:</span></span><br><span class="line">      <span class="bullet">-</span> <span class="attr">name:</span> <span class="string">html</span></span><br><span class="line">        <span class="attr">mountPath:</span> <span class="string">/var/htdocs</span> <span class="comment"># 读写模式</span></span><br><span class="line">    <span class="bullet">-</span> <span class="attr">image:</span> <span class="string">nginx:alpine</span></span><br><span class="line">      <span class="attr">name:</span> <span class="string">web-server</span></span><br><span class="line">      <span class="attr">volumeMounts:</span></span><br><span class="line">      <span class="bullet">-</span> <span class="attr">name:</span> <span class="string">html</span></span><br><span class="line">        <span class="attr">mountPath:</span> <span class="string">/usr/share/nginx/html</span></span><br><span class="line">        <span class="attr">readOnly:</span> <span class="literal">true</span> <span class="comment"># 只读模式</span></span><br><span class="line">      <span class="attr">ports:</span></span><br><span class="line">      <span class="bullet">-</span> <span class="attr">containerPort:</span> <span class="number">80</span></span><br><span class="line">        <span class="attr">protocol:</span> <span class="string">TCP</span></span><br><span class="line">    <span class="attr">volumes:</span> <span class="comment"># 创建名为 html 的 emptyDir 卷，并挂在上述 2 个容器中</span></span><br><span class="line">    <span class="bullet">-</span> <span class="attr">name:</span> <span class="string">html</span></span><br><span class="line">      <span class="attr">emptyDir:</span> {}</span><br></pre></td></tr></tbody></table></figure>
+
+<p>我们可以使用端口转发 <code>kubectl port-forward fortune 8080:80</code> 来确认该 pod 的运转情况，通过 <code>curl http://localhost:8080</code> 访问 pod 中的服务。</p>
+<p>我们也可以通过 git 仓库来初始化前面提到的 emptyDir 卷，实际上这是另一种名为 gitRepo 的卷，它通过克隆 Git 仓库并在 pod 启动时(但在创建容器之前)检出特定版本来填充数据。但是要注意 gitRepo 在 pod 启动后并不会自动同步 git 仓库的最新内容。要想在 pod 运行期间同步 git 仓库的内容，我们需要给 pod 加一个负责同步工作的容器。</p>
+<p>大多数 pod 应该忽略它们的主机节点，因此它们不应该访问节点文件系统上的任何文件。但是某些系统级别的 pod(切记，这些通常由 DaemonSet 管理)确实需要读取节点的文件或使用节点文件系统来访问节点设备。Kubernetes 通过 hostPath 卷实现了这一点。</p>
+<p>hostPath 卷指向节点文件系统上的特定文件或目录。在同一个节点上运行并在其 hostPath 卷中使用相同路径的 pod 可以看到相同的文件。<br><img src="/images/loading-cat.gif" data-original="https://bbm-hexo.oss-accelerate.aliyuncs.com/images/kubernetes/hostpath.png" alt="hostpath"><br>hostPath 卷是我们介绍的第一种类型的持久性存储，因为 gitRepo 和 emptyDir 卷的内容都会在 pod 被删除时被删除，而 hostPath 卷的内容则不会被删除。如果删除了一个 pod, 并且下一个 pod 使用了指向主机上相同路径的 hostPath 卷，则新 pod 将会发现上一个 pod 留下的数据，但<strong>前提是必须将其调度到与第一个 pod 相同的节点上</strong>，如果调度到了另一个节点，则会找不到数据。</p>
+<p>当运行在一个 pod 中的应用程序需要将数据保存到磁盘上，并且即使该 pod 重新调度到另一个节点时也要求具有相同的数据可用。这就不能使用到目前为止我们提到的任何卷类型，由于这些数据需要可以从任何集群节点访问，因此必须将其存储在某种类型的网络存储(NAS) 中，例如 nfs。</p>
+<figure class="highlight yaml"><table><tbody><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line"><span class="attr">volumes:</span></span><br><span class="line">    <span class="bullet">-</span> <span class="attr">name:</span> <span class="string">data</span></span><br><span class="line">      <span class="attr">nfs:</span> <span class="comment"># 使用 nfs 卷</span></span><br><span class="line">        <span class="attr">server:</span> <span class="number">1.2</span><span class="number">.3</span><span class="number">.4</span> <span class="comment"># nfs 服务 ip</span></span><br><span class="line">        <span class="attr">path:</span> <span class="string">/some/path</span> <span class="comment"># nfs 服务提供的路径</span></span><br></pre></td></tr></tbody></table></figure>
+
+<p>到目前为止，我们探索过的所有持久卷类型都要求 pod 的开发人员了解集群中可用的真实网络存储的基础结构。例如，要创建支持 NFS 协议的卷，开发人员必须知道 NFS 节点所在的实际服务器。这违背了 Kubernetes 的基本理念：”向应用程序及其开发人员隐藏真实的基础设施，使他们不必担心基础设施的具体状态，并使应用程序可在大量云服务商和数据企业之间进行功能迁移”。</p>
+<p>理想的情况是，在 Kubernetes 上部署应用程序的开发人员不需要知道底层使用的是哪种存储技术，同理他们也不需要了解应该使用哪些类型的物理服务器来运行 pod, 与基础设施相关的交互是集群管理员独有的控制领域。</p>
+<p>当开发人员需要一定数量的持久化存储来进行应用时，可以向 Kubernetes 请求，就像在创建 pod 时可以请求CPU、内存和其他资源一样。系统管理员可以对集群进行配置让其可以为应用程序提供所需的服务。</p>
+<p>在 Kubernetes 集群中为了使应用能够正常请求存储资源，同时避免处理基础设施细节，引入了两个新的资源，分别是持久卷和持久卷声明。</p>
+<p>研发人员无须向他们的 pod 中添加特定技术的卷，而是由集群管理员设置底层存储，然后通过 Kubernetes API 服务器创建PersistentVolume(持久卷，简称 PV)并注册。在创建持久卷时，管理员可以指定其大小和所支持的访问模式。</p>
+<p>当集群用户需要在其 pod 中使用持久化存储时，他们首先创建持久卷声明(PersistentVolumeClaim, 简称 PVC)清单，指定所需要的最低容量要求和访问模式，然后用户将持久卷声明清单提交给 Kubernetes API 服务器，Kubernetes 将找到可匹配的持久卷并将其绑定到持久卷声明。</p>
+<p>持久卷声明可以当作 pod 中的一个卷来使用，其他用户不能使用相同的持久卷，除非先通过删除持久卷声明绑定来释放。<br><img src="/images/loading-cat.gif" data-original="https://bbm-hexo.oss-accelerate.aliyuncs.com/images/kubernetes/pv-pvc.png" alt="pv-pvc"><br>首先，我们假设自己是 Kubernetes 管理员，我们要创建一些持久化卷：</p>
+<figure class="highlight yaml"><table><tbody><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br></pre></td><td class="code"><pre><span class="line"><span class="attr">apiVersion:</span> <span class="string">v1</span></span><br><span class="line"><span class="attr">kind:</span> <span class="string">PersistentVolume</span></span><br><span class="line"><span class="attr">metadata:</span></span><br><span class="line">    <span class="attr">name:</span> <span class="string">pv</span></span><br><span class="line"><span class="attr">spec:</span></span><br><span class="line">    <span class="attr">capacity:</span> <span class="comment"># 定义 PV 大小</span></span><br><span class="line">      <span class="attr">storage:</span> <span class="number">1</span> <span class="string">Gi</span></span><br><span class="line">    <span class="attr">accessModes:</span> <span class="comment"># 可以被单个客户端挂在为读写模式，或者被多个客户端挂载为只读</span></span><br><span class="line">    <span class="bullet">-</span> <span class="string">ReadWriteOnce</span></span><br><span class="line">    <span class="bullet">-</span> <span class="string">ReadWriteMany</span></span><br><span class="line">    <span class="attr">persistentVolumeReclaimPolicy:</span> <span class="string">Retain</span> <span class="comment"># 当 PVC 被删除，PV 将会被保留（不清理和删除），需要管理员手动清理 PV 才能被下一个 PVC 绑定</span></span><br><span class="line">    <span class="attr">nfs:</span> <span class="comment"># PV 指定 nfs 设备</span></span><br><span class="line">      <span class="attr">server:</span> <span class="number">1.2</span><span class="number">.3</span><span class="number">.4</span> <span class="comment"># nfs 服务 ip</span></span><br><span class="line">      <span class="attr">path:</span> <span class="string">/some/path</span> <span class="comment"># nfs 服务提供的路径</span></span><br></pre></td></tr></tbody></table></figure>
+
+<p>持久卷不属于任何命名空间, 它跟节点一样是集群层面的资源。<br><img src="/images/loading-cat.gif" data-original="https://bbm-hexo.oss-accelerate.aliyuncs.com/images/kubernetes/pv-pvc-resource.png" alt="pv-pvc-resource"><br>假设现在需要部署一个需要持久化存储的 pod，将要用到之前创建的持久卷，所以我们需要现在开始创建一个声明：</p>
+<figure class="highlight yaml"><table><tbody><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line"><span class="attr">apiVersion:</span> <span class="string">v1</span></span><br><span class="line"><span class="attr">kind:</span> <span class="string">PersistentVolumeClaim</span></span><br><span class="line"><span class="attr">metadata:</span></span><br><span class="line">    <span class="attr">name:</span> <span class="string">pvc</span> <span class="comment"># 将来会在 pod 中使用该名字来查找 PVC</span></span><br><span class="line"><span class="attr">spec:</span></span><br><span class="line">    <span class="attr">resources:</span></span><br><span class="line">      <span class="attr">requests:</span></span><br><span class="line">        <span class="attr">storage:</span> <span class="string">1Gi</span> <span class="comment"># 申请 1GiB 空间</span></span><br><span class="line">      <span class="attr">accessModes:</span></span><br><span class="line">      <span class="bullet">-</span> <span class="string">ReadWriteOnce</span> <span class="comment"># 允许单个客户端访问（读写）</span></span><br></pre></td></tr></tbody></table></figure>
+
+<p>当创建好声明，Kubernetes 就会找到适当的持久卷并将其绑定到声明，持久卷的容量必须足够大以满足声明的需求，并且卷的访问模式必须包含声明中指定的访问模式。可以通过 <code>kubectl get pv</code> 确认持久卷与 PVC 的绑定情况。</p>
+<blockquote>
+<p>访问模式：</p>
+<ul>
+<li>RWO—ReadWriteOnce—仅允许单个节点挂载读写。</li>
+<li>ROX—ReadOnlyMany—允许多个节点挂载只读。</li>
+<li>RWX—ReadWriteMany—允许多个节点挂载读写这个卷。</li>
+</ul>
+</blockquote>
+<p>创建好 PVC，之后我们就可以在 Pod 中直接使用：</p>
+<figure class="highlight yaml"><table><tbody><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line"><span class="attr">volumes:</span></span><br><span class="line">  <span class="bullet">-</span> <span class="attr">name:</span> <span class="string">data</span></span><br><span class="line">    <span class="attr">persistentVolumeClaim:</span></span><br><span class="line">      <span class="attr">claimName:</span> <span class="string">pvc</span> <span class="comment"># 通过名字引用 PVC</span></span><br></pre></td></tr></tbody></table></figure>
+
+<p>如你所见，使用持久卷和持久卷声明可以轻松获得持久化存储资源，无须研发人员处理下面实际使用的存储技术，但这仍然需要一个集群管理员来支持实际的存储。幸运的是，Kubernetes 还可以通过动态配置持久卷来自动执行此任务，这个资源叫做 StorageClass，管理员可以创建多种 StorageClass，每种 StorageClass 对应了一种卷类型比如 nfs，在用户创建 PVC 时指定使用的 StorageClass，Kubernetes 会根据该 StorageClass 中配置的 PV 申请方式，自动创建新的 PV 并绑定到 PVC 上。<br><img src="/images/loading-cat.gif" data-original="https://bbm-hexo.oss-accelerate.aliyuncs.com/images/kubernetes/storage-class.png" alt="storage-class"></p>
+<h3 id="配置信息和敏感数据"><a href="#配置信息和敏感数据" class="headerlink" title="配置信息和敏感数据"></a>配置信息和敏感数据</h3><p>几乎所有的应用都需要配置信息(不同部署示例间的区分设置、访问外部系统的证书等)，并且这些配置数据不应该被嵌入应用本身。在 Kubernetes 我们可以通过 ConfigMap 和 Secret 传递配置选项给运行在 Kubernetes 上的应用程序。一般来说 ConfigMap 用来传输普通的配置信息，而 Secret 用来传输敏感信息。</p>
+<p>首先，我们要知道在 Pod 的配置文件中，我们可以修改容器的 ENTRYPOINT command 和 arguments。绝大多数情况下，只需要设置自定义参数。命令一般很少被覆盖，除非针对一些未定义 ENTRYPOINT 的通用镜像，例如 busybox。值得注意的是，容器的命令和参数设置在 pod 启动后无法修改。</p>
+<figure class="highlight yaml"><table><tbody><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line"><span class="attr">kind:</span> <span class="string">Pod</span></span><br><span class="line"><span class="attr">spec:</span></span><br><span class="line">  <span class="attr">containers:</span></span><br><span class="line">  <span class="bullet">-</span> <span class="attr">image:</span> <span class="string">some/image</span></span><br><span class="line">    <span class="attr">command:</span> [<span class="string">"/bin/command"</span>]</span><br><span class="line">    <span class="attr">args:</span> [<span class="string">"argl"</span>, <span class="string">"arg2"</span>, <span class="string">"arg3"</span>]</span><br></pre></td></tr></tbody></table></figure>
+
+<p>Kubernetes 允许为 pod 中的每一个容器都指定自定义的环境变量集合，与容器的命令和参数设置相同，环境变量列表无法在 pod 创建后被修改。</p>
+<figure class="highlight yaml"><table><tbody><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line"><span class="attr">kind:</span> <span class="string">Pod</span></span><br><span class="line"><span class="attr">spec:</span></span><br><span class="line">  <span class="attr">containers:</span></span><br><span class="line">  <span class="bullet">-</span> <span class="attr">image:</span> <span class="string">luksa/fortune:env</span></span><br><span class="line">    <span class="attr">env:</span></span><br><span class="line">    <span class="bullet">-</span> <span class="attr">name:</span> <span class="string">INTERVAL</span> <span class="comment"># 定义环境变量</span></span><br><span class="line">      <span class="attr">value:</span> <span class="string">"30"</span></span><br><span class="line">    <span class="bullet">-</span> <span class="attr">name:</span> <span class="string">USE_INTERVAL</span> <span class="comment"># 定义环境变量的同时，引用另一个环境变量</span></span><br><span class="line">      <span class="attr">value:</span> <span class="string">"$(INTERVAL)123"</span></span><br><span class="line">    <span class="attr">name:</span> <span class="string">fortune</span></span><br></pre></td></tr></tbody></table></figure>
+
+<p>pod 定义硬编码意味着需要有效区分生产环境与开发过程中的 pod 定义。为了能在多个环境下复用 pod 的定义，需要将配置从 pod 定义描述中解耦出来。幸运的是，你可以通过一种叫作 ConfigMap 的资源对象完成解耦，用 valueFrom 字段替代 value 字段使 ConfigMap 成为环境变量值的来源。</p>
+<p>Kubernetes 允许将配置选项分离到单独的资源对象 ConfigMap 中，本质上就是一个键/值对映射，值可以是短字面量，也可以是完整的配置文件。应用无须直接读取 ConfigMap，甚至根本不需要知道其是否存在。映射的内容通过环境变量或者卷文件的形式传递给容器，而并非直接传递给容器。对于不同的环境（开发，测试，生产），我们可以创建多个配置清单，通过命名空间的隔离来保证配置清单可以使用相同的名字，这样我们就能完全复用同一份 Pod 配置文件。<br><img src="/images/loading-cat.gif" data-original="https://bbm-hexo.oss-accelerate.aliyuncs.com/images/kubernetes/configmap.png" alt="configmap"><br>我们可以通过命令或者配置文件来创建 ConfigMap：<code>kubectl create configmap fortune-config --from-literal=sleep-interval=25</code>，<code>kubectl create -f fortune-config.yaml</code>。</p>
+<figure class="highlight yaml"><table><tbody><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line"><span class="attr">apiVersion:</span> <span class="string">v1</span></span><br><span class="line"><span class="attr">kind:</span> <span class="string">configMap</span></span><br><span class="line"><span class="attr">data:</span></span><br><span class="line">  <span class="attr">sleeo-interval:</span> <span class="number">25</span></span><br></pre></td></tr></tbody></table></figure>
+
+<p>创建好 ConfigMap 后，我们可以在 Pod 中引用 ConfigMap 中的内容</p>
+<figure class="highlight yaml"><table><tbody><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br></pre></td><td class="code"><pre><span class="line"><span class="attr">kind:</span> <span class="string">Pod</span></span><br><span class="line"><span class="attr">spec:</span></span><br><span class="line">  <span class="attr">containers:</span></span><br><span class="line">  <span class="bullet">-</span> <span class="attr">image:</span> <span class="string">luksa/fortune:env</span></span><br><span class="line">    <span class="attr">env:</span></span><br><span class="line">    <span class="bullet">-</span> <span class="attr">name:</span> <span class="string">INTERVAL</span> <span class="comment"># 定义环境变量</span></span><br><span class="line">      <span class="attr">valueFrom:</span></span><br><span class="line">        <span class="attr">configMapKeyRef:</span> <span class="comment"># 绑定 configmap 和 key</span></span><br><span class="line">          <span class="attr">name:</span> <span class="string">fortune-config</span></span><br><span class="line">          <span class="attr">key:</span> <span class="string">sleeo-interval</span></span><br><span class="line">    <span class="attr">args:</span> [<span class="string">"$(INTERVAL)"</span>] <span class="comment"># 通过环境变量传递 ConfigMap 的内容到容器参数中</span></span><br><span class="line">    <span class="attr">name:</span> <span class="string">fortune</span></span><br></pre></td></tr></tbody></table></figure>
+
+<p>环境变量或者命令行方式一般作为配置较少信息时方案，如果要配置的内容很多时，我们还可以使用 ConfigMap 卷将配置信息暴露为文件，通过这种类型的卷，ConfigMap 中的每个条目都将暴露为一个文件，在容器中可以通过查看文件的内容来获取配置信息。</p>
+<figure class="highlight yaml"><table><tbody><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line"><span class="attr">apiVersion:</span> <span class="string">v1</span></span><br><span class="line"><span class="attr">data:</span></span><br><span class="line">    <span class="attr">my-nginx-config.conf:</span> <span class="string">|</span> <span class="comment"># 所有条目第一行最后的管道符号表示后续的条目值是多行字面量。</span></span><br><span class="line">      <span class="string">server</span> {</span><br><span class="line">        <span class="string">listen</span> <span class="number">80</span><span class="string">;</span></span><br><span class="line">        <span class="string">server_name</span> <span class="string">www.example.com;</span></span><br><span class="line">        <span class="string">...</span></span><br><span class="line">      }</span><br><span class="line">  <span class="attr">sleep-interval:</span> <span class="number">25</span></span><br><span class="line"><span class="attr">kind:</span> <span class="string">ConfigMap</span></span><br></pre></td></tr></tbody></table></figure>
+
+<p>创建好上述 ConfigMap 之后，我们可以在 Pod 中挂在 configMap 类型的卷：</p>
+<figure class="highlight yaml"><table><tbody><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br></pre></td><td class="code"><pre><span class="line"><span class="attr">apiVersion:</span> <span class="string">v1</span></span><br><span class="line"><span class="attr">kind:</span> <span class="string">Pod</span></span><br><span class="line"><span class="attr">metadata:</span></span><br><span class="line">  <span class="attr">name:</span> <span class="string">fortune-configmap-volume</span></span><br><span class="line"><span class="attr">spec:</span></span><br><span class="line">  <span class="attr">containers:</span></span><br><span class="line">  <span class="bullet">-</span> <span class="attr">image:</span> <span class="string">nginx:alpine</span></span><br><span class="line">    <span class="attr">name:</span> <span class="string">web-server</span></span><br><span class="line">    <span class="attr">volumeMounts:</span></span><br><span class="line">    <span class="bullet">-</span> <span class="attr">name:</span> <span class="string">config</span></span><br><span class="line">      <span class="attr">mountPath:</span> <span class="string">/etc/nginx/conf.d</span></span><br><span class="line">      <span class="attr">readOnly:</span> <span class="literal">true</span></span><br><span class="line">  <span class="attr">volumes:</span></span><br><span class="line">  <span class="bullet">-</span> <span class="attr">name:</span> <span class="string">config</span></span><br><span class="line">    <span class="attr">configMap:</span></span><br><span class="line">      <span class="attr">name:</span> <span class="string">fortune-config</span></span><br></pre></td></tr></tbody></table></figure>
+
+<p><img src="/images/loading-cat.gif" data-original="https://bbm-hexo.oss-accelerate.aliyuncs.com/images/kubernetes/volume-config-map.png" alt="volume-config-map"><br>当进行了 configMap 的挂载后，原容器内的 /etc/nginx/conf.d 会被隐藏，只会看到 configMap 的内容，当然我们也可以只挂在 configMap 中的单独几个配置项，这样就只会覆盖同名文件。</p>
+<p>前面已经提到过，使用环境变量传递配置时，当 Pod 运行起来后就无法更改，但是如果使用的是 configMap 卷的话，则不会出现这种问题，一旦配置内容发生变化，容器内的文件也会跟着变化，同时，Kubernetes 有机制能让配置文件的变化事件通知给容器。但是要注意的是，不同容器的相同 ConfigMap 的更新过程并不是同步的，换句话说在进行 ConfigMap 的更新时，会出现多个 Pod 之间配置内容不同步的问题。</p>
+<p>到目前为止传递给容器的所有信息都是比较常规的非敏感数据。然而正如开头提到的，配置通常会包含一些敏感数据，如证书和私钥，需要确保其安全性。为了存储与分发此类信息，Kubernetes 提供了一种称为 Secret 的单独资源对象。Secret 结构与 ConfigMap 类似，均是键/值对的映射。Secret 的使用方法也与 ConfigMap 相同，可以</p>
+<ul>
+<li>将 Secret 条目作为环境变量传递给容器</li>
+<li>将 Secret 条目暴露为卷中的文件</li>
+</ul>
+<p>前面介绍 Ingress 时提到 TLS 一般都是通过 Secret 来传递证书。我们可以通过 <code>kubectl create secret generic fortune-https --from-file=https.key --from-file=https.cert</code> 来创建 Secret 资源。当我们通过 <code>kubect1 get secret fortune-https -o yaml</code> 查看 Secret 资源时，你会发现实际上在显示的时候，它会先通过 BASE64 编码 value 之后显示，这样做的原因是 Secret 不像 ConfigMap 那样只能存储文本，它还能存储二进制文件，所以它会先用 BASE64 编码后，再显示出来。当然并不是说 Secret 只能显示 BASE64 加密后的内容，我们也可以通过 stringData 来设置非二进制数据，这样就不会涉及 BASE64 编码。</p>
+<p>再回到我们前面的 nginx 例子，我们可以再为其挂载一个 secret 卷来植入证书文件，同时修改 nginx 的配置文件，让其使用 secret 中的证书，最后达到的效果如下图所示。<br><img src="/images/loading-cat.gif" data-original="https://bbm-hexo.oss-accelerate.aliyuncs.com/images/kubernetes/secret.png" alt="secret"><br>我们已经通过挂载 secret 卷至文件夹/etc/nginx/certs 将证书与私钥成功传递给容器。但是有一点要提的是，secret 卷采用的是内存文件挂载，存储在 Secret 中的数据不会写入磁盘，这样就无法被窃取。</p>
+<h3 id="Pod-访问-Kubernetes-API"><a href="#Pod-访问-Kubernetes-API" class="headerlink" title="Pod 访问 Kubernetes API"></a>Pod 访问 Kubernetes API</h3><p>前面我们已经说过了 ConfigMap 和 Secret 这些资源可以为 Pod 传递预先设定好的资源，但是对于那些不能预先知道的数据，比如 pod 的 IP、 主机名或者是 pod 自身的名称，则需要通过 Kubernetes API 获取。</p>
+<p>在 Kubernetes 中有两类 API，其中一个是 DownloadAPI，它不像传统 REST 服务那样访问，而是像 ConfigMap 那样在 pod 配置文件中引用：</p>
+<figure class="highlight yaml"><table><tbody><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br></pre></td><td class="code"><pre><span class="line"><span class="attr">apiVersion:</span> <span class="string">v1</span></span><br><span class="line"><span class="attr">kind:</span> <span class="string">Pod</span></span><br><span class="line"><span class="attr">metadata:</span></span><br><span class="line">  <span class="attr">name:</span> <span class="string">downward</span></span><br><span class="line"><span class="attr">spec:</span></span><br><span class="line">  <span class="attr">containers:</span></span><br><span class="line">  <span class="bullet">-</span> <span class="attr">name:</span> <span class="string">main</span></span><br><span class="line">    <span class="attr">image:</span> <span class="string">busybox</span></span><br><span class="line">    <span class="attr">command:</span> [<span class="string">"sleep"</span>, <span class="string">"9999999"</span>]</span><br><span class="line">    <span class="attr">resources:</span></span><br><span class="line">      <span class="attr">requests:</span></span><br><span class="line">        <span class="attr">cpu:</span> <span class="string">15m</span>  <span class="comment"># 指定 pod 的 cpu 需求，如果宿主机的剩余 cpu 资源小于pod需要的量，那么该 pod 就不会被调度到这个节点</span></span><br><span class="line">        <span class="attr">memory:</span> <span class="string">1OOKi</span></span><br><span class="line">    <span class="attr">env:</span></span><br><span class="line">    <span class="bullet">-</span> <span class="attr">name:</span> <span class="string">POD_NAME</span></span><br><span class="line">      <span class="attr">valueFrom:</span></span><br><span class="line">        <span class="attr">fieldRef:</span></span><br><span class="line">          <span class="attr">fieldPath:</span> <span class="string">metadata.name</span> <span class="comment"># 引用 pod manifest 中的元数据字段</span></span><br><span class="line">    <span class="bullet">-</span> <span class="attr">name:</span> <span class="string">CONTAINER</span></span><br><span class="line">      <span class="attr">valueFrom:</span></span><br><span class="line">        <span class="attr">resourceFieldRef:</span> <span class="comment"># 通过 resourceFieldRef 获取容器请求的 CPU 和 内存使用量</span></span><br><span class="line">          <span class="attr">resource:</span> <span class="string">requests.cpu</span></span><br><span class="line">          <span class="attr">divisor:</span> <span class="string">1m</span></span><br></pre></td></tr></tbody></table></figure>
+
+<p>除了环境变量之外，我们也可以通过卷的形式使用 downloadAPI。</p>
+<figure class="highlight yaml"><table><tbody><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line"><span class="attr">volumes:</span></span><br><span class="line">  <span class="bullet">-</span> <span class="attr">name:</span> <span class="string">downward</span></span><br><span class="line">    <span class="attr">downwardAPI:</span></span><br><span class="line">      <span class="attr">items:</span></span><br><span class="line">      <span class="bullet">-</span> <span class="attr">path:</span> <span class="string">"podName"</span></span><br><span class="line">        <span class="attr">fieldRef:</span></span><br><span class="line">          <span class="attr">fieldPath:</span> <span class="string">metadata.name</span></span><br></pre></td></tr></tbody></table></figure>
+
+<p>正如我们看到的，Downward API 方式并不复杂，它使得应用独立于 Kubernetes。不过通过 Downward API 的方式获取的元数据是相当有限的，如果需要获取更多的元数据，需要使用直接访问 Kubernetes API 服务器的方式。</p>
+<p>我们已经了解到了很多 Kubernetes 的资源类型。但如果打算开发一个可以与 Kubernetes API 交互的应用，要首先了解各种 API 的 REST 接口。我们可以通过 <code>kubectl cluster-info</code> 来获取  Kubernetes API 的 EndPoint，并通过 <code>kubectl proxy</code> 来代理这些 API，这样我们就能在本地查看各个 API <code>curl http://localhost:8001</code>：</p>
+<figure class="highlight bash"><table><tbody><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br></pre></td><td class="code"><pre><span class="line">curl 127.0.0.1:8001</span><br><span class="line"><span class="comment">#{</span></span><br><span class="line"><span class="comment">#  "paths": [</span></span><br><span class="line"><span class="comment">#    "/api",</span></span><br><span class="line"><span class="comment">#    "/api/v1",</span></span><br><span class="line"><span class="comment">#    "/apis",</span></span><br><span class="line"><span class="comment">#    "/apis/",</span></span><br><span class="line"><span class="comment">#    "/apis/admissionregistration.k8s.io",</span></span><br><span class="line"><span class="comment">#    "/apis/admissionregistration.k8s.io/v1",</span></span><br><span class="line"><span class="comment">#    "/apis/admissionregistration.k8s.io/v1beta1",</span></span><br><span class="line"><span class="comment">#    ...</span></span><br><span class="line"><span class="comment">#  ]</span></span><br><span class="line"><span class="comment">#}</span></span><br></pre></td></tr></tbody></table></figure>
+
+<p>您可以通过这些 API 来操作整个 Kubernetes 集群，你能做到所有 Kubernetes 能做到，比如查看 Pod，修改 Pod，创建 Pod 等等，你可以操作任意资源。但是如果你要在 Pod 中访问这些 API 可不像我们这里使用的 <code>kubectl proxy</code> 这么简单，你需要找到 API 服务器的地址，确保是和 API服务器交互，而不是一个中间人，同时你还要通过服务器的认证，Kubernetes 通过账号和账号权限来管理 Pod 中能使用的资源范围。</p>
+<p>最简单的访问 Kubernetes API 的方法是在容器中访问 <code>curl https://kubernetes</code>，而在每个 pod 中都存有一个自己的 Kubernetes API 账号信息，它们存储在容器的 <code>/var/run/secrets/kubernetes.io/serviceaccount/</code> 中，该文件夹中有三个文件：</p>
+<ul>
+<li>ca.crt：包含了 CA 的证书，用来对 Kubernetes API 服务器证书进行签名</li>
+<li>token：获得授权，认证的凭证</li>
+<li>namespace： 获取 pod 所在的命名空间</li>
+</ul>
+<p>简要说明 pod 如何与 Kubernetes 交互：</p>
+<ul>
+<li>应用应该验证 API 服务器的证书是否是证书机构所签发，这个证书是在 ca.crt 文件中。</li>
+<li>应用应该将它在 token 文件中持有的凭证通过 Authorization 标头来获得 API服务器的授权。</li>
+<li>当对 pod 所在命名空间的 API 对象进行 CRUD 操作时，应该使用 namespace 文件来传递命名空间信息到 API 服务器。</li>
+</ul>
+<p><img src="/images/loading-cat.gif" data-original="https://bbm-hexo.oss-accelerate.aliyuncs.com/images/kubernetes/Kubernetes-api.png" alt="Kubernetes-api"><br>实际上我们不仅能通过命令行访问 Kubernetes API，在 Go，python，java 等语言中都有相关的库可以用来和 Kubernetes 交互。</p>
+<p>还有一点是，除了每个 pod 中默认的用户之外，我们还可以在 Kubernetes 中创建特定的账号然后将一些资源的权限绑定到该账号上，然后将该账号绑定到特定的 pod 上。</p>
+<h3 id="Deployment"><a href="#Deployment" class="headerlink" title="Deployment"></a>Deployment</h3><p>现在你己经知道如何将应用程序组件打包进容器，将它们分组到 pod 中，使用 ReplicaSet 维持 Pod 的可用性，并为它们提供临时存储或持续化存储，将密钥或配置文件注入，并可以使用 service 来使 pod 之间相互通信。但是，如果我们要升级自己的应用程序时，我们要怎么办，把原来的 Pod 都删了然后手动创建新的么？Kubernetes 当然为你准备的对应的资源，它就是 Deployment，它可以帮助你实现真正的零停机升级过程。</p>
+<p>在 Kubernetes 中，一般使用的应用升级方式是滚动升级，下图就描述了滚动升级的过程，每当启动一个新版的 Pod 后，才会删除一个久的 Pod，最终将所有 Pod 都滚动升级到最新版本。<br><img src="/images/loading-cat.gif" data-original="https://bbm-hexo.oss-accelerate.aliyuncs.com/images/kubernetes/roll-update.png" alt="roll-update"><br>我们可以通过 Deployment 来进行应用的部署和升级。当创建好一个 Deployment 资源后，它会创建一个 ReplicaSet，而 ReplicaSet 再进行 Pod 的维护。当要更新应用时，我们只需要修改 Deployment 资源的目标状态，Kubernetes 会帮我们处理整个中间过程。</p>
+<p>我们可以通过如下配置文件创建一个 Deployment：</p>
+<figure class="highlight yaml"><table><tbody><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br></pre></td><td class="code"><pre><span class="line"><span class="attr">apiVersion:</span> <span class="string">apps/v1beta1</span></span><br><span class="line"><span class="attr">kind:</span> <span class="string">Deployment</span></span><br><span class="line"><span class="attr">metadata:</span></span><br><span class="line">    <span class="attr">name:</span> <span class="string">kubia</span></span><br><span class="line"><span class="attr">spec:</span></span><br><span class="line">    <span class="attr">replicas:</span> <span class="number">3</span></span><br><span class="line">    <span class="attr">template:</span></span><br><span class="line">      <span class="attr">metadata:</span></span><br><span class="line">        <span class="attr">name:</span> <span class="string">kubia</span></span><br><span class="line">        <span class="attr">labels:</span></span><br><span class="line">          <span class="attr">app:</span> <span class="string">kubia</span></span><br><span class="line">      <span class="attr">spec:</span></span><br><span class="line">        <span class="attr">containers:</span></span><br><span class="line">        <span class="bullet">-</span> <span class="attr">image:</span> <span class="string">luksa/kubia:v1</span></span><br><span class="line">          <span class="attr">name:</span> <span class="string">nodejs</span></span><br></pre></td></tr></tbody></table></figure>
+
+<p>创建好配置文件后，可以通过 <code>kubectl create -f kubia-deployment-v1.yaml --record</code> 创建该 Deployment 资源，确保在创建时使用了 –record 选项。这个选项会记录历史版本号，在之后的操作中非常有用。创建好后，您可以通过 <code>kubectl rollout status deployment kubia</code>查看 Deployment 的状态。</p>
+<p>然后，假设我们现在要更新应用，我们只需要执行 <code>kubectl set image deployment kubia nodejs=luksa/kubia:v2</code> 就相当于修改了刚才创建的 Deployment 资源。这时候它会自动创建一个新的 ReplicaSet 资源，并滚动的升级 pod，每当新 ReplicaSet 中创建完成一个 pod 的创建就会删除旧的 ReplicaSet 中的一个 Pod，最终将所有 Pod 都更新。<br><img src="/images/loading-cat.gif" data-original="https://bbm-hexo.oss-accelerate.aliyuncs.com/images/kubernetes/deployment-roll-update.png" alt="deployment-roll-update"><br>你可能会发现 Deployment 并没有在升级成功后直接删除旧的 ReplicaSet，而是保留了它，这是为什么呢？其实，这是为了回滚做准备，假设我们在升级的过程中，发现新版本的应用有 Bug，可以通过 <code>kubectl rollout undo deployment kubia</code> 进行回滚，这时候 Deployment 会停止升级，并且慢慢地将原来的 ReplicaSet 的 pod 都恢复回来。</p>
+<p>为了让我们能够回滚到任意一个版本，Kubernetes 会一直保存之前的 ReplicaSet，我们可以通过 <code>kubectl rollout history deployment kubia</code> 查看所有的升级过程，还记得创建 deployment 时的 –record 参数吗?如果不给定这个参数，版本历史中的 CHANGE-CAUSE 这一栏会为空。这也会使用户很难辨别每次的版本做了哪些修改。</p>
+<figure class="highlight bash"><table><tbody><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">kubectl rollout <span class="built_in">history</span> deployment kubia</span><br><span class="line"><span class="comment">#deployments ”kubia”：</span></span><br><span class="line"><span class="comment">#REVISION CHANGE-CAUSE</span></span><br><span class="line"><span class="comment">#2        kubectl set image deployment kubia nodejs=luksa/kubia:v2</span></span><br><span class="line"><span class="comment">#3        kubectl set image deployment kubia nodejs=luksa/kubia:v3</span></span><br></pre></td></tr></tbody></table></figure>
+
+<p>因为 Kubernetes 会为我们记录所有的更新历史，所以我们才可以通过 undo 指令回滚到任意一个特定版本<code>kubectl rollout undo deployment kubia --to-revision=1</code>，但是如果版本历史保存的过多会让 ReplicaSet 资源很混乱，所以可以通过 revisionHistoryLimit 来控制保存的历史版本数量（默认值是 10）。</p>
+<p>在 Kubernetes 中，我们可以通过 minReadySeconds，maxSurge 和 maxUnavailable 来控制滚动升级的速率，minReadySeconds 的效果是让 Kubernetes 在 pod 就绪之后继续等待10秒，然后继续执行滚动升级，来减缓滚动升级的过程。而其他两个属性的效果如下：<br><img src="/images/loading-cat.gif" data-original="https://bbm-hexo.oss-accelerate.aliyuncs.com/images/kubernetes/roll-update-speed.png" alt="roll-update-speed"><br>除此之外，我们还可以通过 <code>pause</code> 和 <code>resume</code> 命令来暂停并恢复滚动升级的过程。</p>
+<h3 id="有状态的-Pod"><a href="#有状态的-Pod" class="headerlink" title="有状态的 Pod"></a>有状态的 Pod</h3><p>我们已经知道了每个 Pod 中看到的内容，都是独立的镜像，而且是一次性的，当 Pod 销毁时就会消失。为了解决这个问题，我们可以使用 Kubernetes 的卷资源，但是通过它我们只能保证一个 PVC 与 ReplicaSet 绑定，其中的每个 Pod 都绑定到同一个 PVC 上，但是想象一下如果我们要运行的是数据库 Pod(一个 master，多个 slave)，它们每个 pod 都需要独立的持久存储空间，而之前的 ReplicaSet 只能保证所有的 Pod 共用相同的 PVC，而且如果 Pod 重启了，它还需要绑定到原来的 PVC 上这样才会不丢失数据。对于这类应用，Kubernetes 提供了 StatefulSet 来管理。接下来，我们先看看 StatefulSet 的特性。</p>
+<p>一个 StatefulSet 创建的每个 pod 都有一个从零开始的顺序索引，这个会体现在 pod 的名称和主机名上，同样还会体现在 pod 对应的固定存储上。这些 pod 的名称则是可预知的，因为它是由 StatefulSet 的名称加该实例的顺序索引值组成的。<br><img src="/images/loading-cat.gif" data-original="https://bbm-hexo.oss-accelerate.aliyuncs.com/images/kubernetes/replicaset-statefulset.png" alt="replicaset-statefulset"><br>此外，有状态的 pod 有时候需要通过其主机名来定位，而无状态的 pod 则不需要，因为每个无状态的 pod 都是一样的，在需要的时候随便选择一个即可。但对于有状态的 pod 来说，因为它们都是彼此不同的(比如拥有不同的状态)，通常希望操作的是其中特定的一个，比如只想通过数据库的 master 进行写操作，slave 进行读操作。基于这个原因，每个 pod 都会有自己的域名，比如<code>a-0.foo.default.svc.cluster.local</code>，此外也可以通过 DNS 服务查找域名 <code>foo.default.svc.cluster.local</code>，它将返回所有 pod 的 ip。</p>
+<p>最后，就像我们例子所说的那样，当 StatefulSet 的每个 Pod 都应该有一个和自己绑定的 PVC，而且当 pod 被删除后再次启动时，它必须挂载上之前的 PVC。</p>
+<p>清楚了 StatefulSet 的特性后，就让我们来创一个 StatefulSet 资源：</p>
+<figure class="highlight yaml"><table><tbody><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br></pre></td><td class="code"><pre><span class="line"><span class="attr">apiVersion:</span> <span class="string">apps/v1beta1</span></span><br><span class="line"><span class="attr">kind:</span> <span class="string">StatefulSet</span></span><br><span class="line"><span class="attr">metadata:</span></span><br><span class="line">    <span class="attr">name:</span> <span class="string">kubia</span></span><br><span class="line"><span class="attr">spec:</span></span><br><span class="line">    <span class="attr">serviceName:</span> <span class="string">kubia</span></span><br><span class="line">    <span class="attr">replicas:</span> <span class="number">2</span></span><br><span class="line">    <span class="attr">template:</span></span><br><span class="line">      <span class="attr">metadata:</span></span><br><span class="line">        <span class="attr">labels:</span></span><br><span class="line">          <span class="attr">app:</span> <span class="string">kubia</span></span><br><span class="line">      <span class="attr">spec:</span></span><br><span class="line">        <span class="attr">containers:</span></span><br><span class="line">        <span class="bullet">-</span> <span class="attr">name:</span> <span class="string">kubia</span></span><br><span class="line">          <span class="attr">image:</span> <span class="string">luksa/kubia-pet</span></span><br><span class="line">          <span class="attr">ports:</span></span><br><span class="line">          <span class="bullet">-</span> <span class="attr">name:</span> <span class="string">http</span></span><br><span class="line">            <span class="attr">containerPort:</span> <span class="number">8080</span></span><br><span class="line">          <span class="attr">volumeMounts:</span> <span class="comment"># pod 中 PVC 绑定路径</span></span><br><span class="line">          <span class="bullet">-</span> <span class="attr">name:</span> <span class="string">data</span></span><br><span class="line">            <span class="attr">mountPath:</span> <span class="string">/var/data</span></span><br><span class="line">    <span class="attr">volumeClaimTemplates:</span> <span class="comment"># 创建 PVC 的模板，用于为每个 pod 创建 PVC</span></span><br><span class="line">    <span class="bullet">-</span> <span class="attr">metadata:</span></span><br><span class="line">        <span class="attr">name:</span> <span class="string">data</span></span><br><span class="line">      <span class="attr">spec:</span></span><br><span class="line">        <span class="attr">resources:</span></span><br><span class="line">          <span class="attr">requests:</span></span><br><span class="line">            <span class="attr">storage:</span> <span class="string">1Mi</span></span><br><span class="line">        <span class="attr">accessModes:</span></span><br><span class="line">        <span class="bullet">-</span> <span class="string">ReadWriteOnce</span></span><br></pre></td></tr></tbody></table></figure>
+
+<p>创建好上述 StatefulSet 资源后，Kubernetes 会一个接一个的创建相应的 pod，第二个 pod 会在第一 个 pod 运行并且处于就绪状态后创建。StatefulSet 这样的行为是因为:状态明确的集群应用对同时有两个集群成员启动引起的竞争情况是非常敏感的。所以依次启动每个成员是比较安全可靠的。特定的有状态应用集群在两个或多个集群成员同时启动时引起的竞态条件是非常敏感的，所以在每个成员完全启动后再启动剩下的会更加安全。</p>
+<p>当启动成功后，您会看到两个 pod，和两个 pvc，每个 pod 都有自己绑定的 PVC。kubia-0 &lt;-&gt; data-kubia-0，kubia-1 &lt;-&gt; data-kubia-1。这时候，如果我们删除其中一个 pod，新的 pod 可能会被调度到其他节点上去，但是旧 pod 的全部标记（名称，主机名，存储）实际上都会转移到新的 pod 上。<br><img src="/images/loading-cat.gif" data-original="https://bbm-hexo.oss-accelerate.aliyuncs.com/images/kubernetes/StatefulSet-pod.png" alt="StatefulSet-pod"><br>缩容一个 StatefulSet, 然后在完成后再扩容它，与删除一个 pod 后让 StatefulSet 立马重新创建它的表现是没有区别的，删除 pod 会复用原 pod 的 PVC，而缩容后再扩容的话则会创建新的 PVC。需要记住的是，缩容一个 StatefulSet 只会删除对应的 pod, 留下卸载后的持久卷声明。</p>
+<p>当进行 StatefulSet 的扩容后，新 pod 可能第一时间并没有数据，它可以通过 DNS 来获取现存 pod 的 ip，然后从它们那里同步数据，然后再开始对外暴露服务。</p>
+<h2 id="参考内容"><a href="#参考内容" class="headerlink" title="参考内容"></a>参考内容</h2><p>[1] <span class="exturl" data-url="aHR0cHM6Ly9naXRodWIuY29tL2t1YmVybmV0ZXMva3ViZXJuZXRlcw==" title="https://github.com/kubernetes/kubernetes">kubernetes GitHub 仓库<i class="fa fa-external-link"></i></span><br>[2] <span class="exturl" data-url="aHR0cHM6Ly9rdWJlcm5ldGVzLmlv" title="https://kubernetes.io">Kubernetes 官方主页<i class="fa fa-external-link"></i></span><br>[3] <span class="exturl" data-url="aHR0cHM6Ly9naXRodWIuY29tL2t1YmVybmV0ZXMvZXhhbXBsZXM=" title="https://github.com/kubernetes/examples">Kubernetes 官方 Demo<i class="fa fa-external-link"></i></span><br>[4] 《Kubernetes in Action》<br>[5] <span class="exturl" data-url="aHR0cHM6Ly90b255YmFpLmNvbS8yMDE3LzAxLzE3L3VuZGVyc3RhbmRpbmctZmxhbm5lbC1uZXR3b3JrLWZvci1rdWJlcm5ldGVzLw==" title="https://tonybai.com/2017/01/17/understanding-flannel-network-for-kubernetes/">理解Kubernetes网络之Flannel网络<i class="fa fa-external-link"></i></span><br>[6] <span class="exturl" data-url="aHR0cHM6Ly9qaW1teXNvbmcuaW8vcG9zdHMvd2hhdC1pcy1hLXBhdXNlLWNvbnRhaW5lci8=" title="https://jimmysong.io/posts/what-is-a-pause-container/">Kubernetes Handbook<i class="fa fa-external-link"></i></span><br>[7] <span class="exturl" data-url="aHR0cHM6Ly92ZXJubGl1bS5naXRodWIuaW8vMjAxNy8wOS8yMS9pcHRhYmxlc+amguW/teS7i+e7jeWPiuebuOWFs+aTjeS9nC1rOHMtOC8=" title="https://vernlium.github.io/2017/09/21/iptables概念介绍及相关操作-k8s-8/">iptables概念介绍及相关操作<i class="fa fa-external-link"></i></span><br>[8] <span class="exturl" data-url="aHR0cHM6Ly93d3cubGludXhpZGMuY29tL0xpbnV4LzIwMTYtMDkvMTM0ODMyLmh0bQ==" title="https://www.linuxidc.com/Linux/2016-09/134832.htm">iptables超全详解<i class="fa fa-external-link"></i></span><br>[9] <span class="exturl" data-url="aHR0cHM6Ly90b255YmFpLmNvbS8yMDE3LzAxLzExL3VuZGVyc3RhbmRpbmctbGludXgtbmV0d29yay1uYW1lc3BhY2UtZm9yLWRvY2tlci1uZXR3b3JrLw==" title="https://tonybai.com/2017/01/11/understanding-linux-network-namespace-for-docker-network/">理解Docker容器网络之Linux Network Namespace<i class="fa fa-external-link"></i></span><br>[10] <span class="exturl" data-url="aHR0cHM6Ly9zb29rb2NoZWZmLmNvbS9wb3N0L2t1YmVybmV0ZXMvdW5kZXJzdGFuZGluZy1rdWJlcm5ldGVzLW5ldHdvcmtpbmctbW9kZWwv" title="https://sookocheff.com/post/kubernetes/understanding-kubernetes-networking-model/">A Guide to the Kubernetes Networking Model<i class="fa fa-external-link"></i></span><br>[11] <span class="exturl" data-url="aHR0cHM6Ly9tZWRpdW0uY29tL0Bhbmlsa3JlZGR5ci9rdWJlcm5ldGVzLXdpdGgtZmxhbm5lbC11bmRlcnN0YW5kaW5nLXRoZS1uZXR3b3JraW5nLXBhcnQtMi03OGI1M2U1MzY0Yzc=" title="https://medium.com/@anilkreddyr/kubernetes-with-flannel-understanding-the-networking-part-2-78b53e5364c7">Kubernetes with Flannel — Understanding the Networking<i class="fa fa-external-link"></i></span><br>[12] <span class="exturl" data-url="aHR0cHM6Ly9qYW1pbnpoYW5nLmdpdGh1Yi5pby9sYi9MNC1MNy1Mb2FkLUJhbGFuY2VyLURpZmZlcmVuY2Uv" title="https://jaminzhang.github.io/lb/L4-L7-Load-Balancer-Difference/">四层、七层负载均衡的区别<i class="fa fa-external-link"></i></span></p>
+
+    </div>
+
+    
+    
+    
+
+      
+        <div id="wechat_subscriber" style="display: block; padding: 10px 0; margin: 20px auto; width: 100%; text-align: center">
+  <img id="wechat_subscriber_qcode" src="/images/qrcode_for_wechat.jpg" alt="贝克街的流浪猫 wechat" style="width: 400px; max-width: 100%;">
+  <div></div>
+</div>
+
+      
+        <div class="reward-container">
+  <div>您的打赏将鼓励我继续分享!</div>
+  <button disable="enable" onclick="var qr = document.getElementById(&quot;qr&quot;); qr.style.display = (qr.style.display === 'none') ? 'block' : 'none';">
+    打赏
+  </button>
+  <div id="qr" style="display: none;">
+      
+      <div style="display: inline-block;">
+        <img src="/images/wechat.jpg" alt="贝克街的流浪猫 微信支付">
+        <p>微信支付</p>
+      </div>
+      
+      <div style="display: inline-block;">
+        <img src="/images/alipay.jpg" alt="贝克街的流浪猫 支付宝">
+        <p>支付宝</p>
+      </div>
+
+  </div>
+</div>
+
+        
+
+<div>
+<ul class="post-copyright">
+  <li class="post-copyright-author">
+    <strong>本文作者： </strong>贝克街的流浪猫
+  </li>
+  <li class="post-copyright-link">
+    <strong>本文链接：</strong>
+    <a href="https://www.beikejiedeliulangmao.top/container/kubernetes/concept/" title="Kubernetes 常用功能">https://www.beikejiedeliulangmao.top/container/kubernetes/concept/</a>
+  </li>
+  <li class="post-copyright-license">
+    <strong>版权声明： </strong>本博客所有文章除特别声明外，均采用 <span class="exturl" data-url="aHR0cHM6Ly9jcmVhdGl2ZWNvbW1vbnMub3JnL2xpY2Vuc2VzL2J5LW5jLXNhLzQuMC9udWxs"><i class="fa fa-fw fa-creative-commons"></i>BY-NC-SA</span> 许可协议，转载请注明出处！
+  </li>
+  <li class="post-copyright-license">
+    <strong>创作声明： </strong>本文基于上述所有参考内容进行创作，其中可能涉及复制、修改或者转换，图片均来自网络，如有侵权请联系我，我会第一时间进行删除。
+  </li>
+</ul>
+</div>
+
+
+      <footer class="post-footer">
+          <div class="post-tags">
+              <a href="/tags/Distributed/" rel="tag"># Distributed</a>
+              <a href="/tags/MicroService/" rel="tag"># MicroService</a>
+              <a href="/tags/Network/" rel="tag"># Network</a>
+              <a href="/tags/Kubernetes/" rel="tag"># Kubernetes</a>
+              <a href="/tags/Docker/" rel="tag"># Docker</a>
+              <a href="/tags/k8s/" rel="tag"># k8s</a>
+              <a href="/tags/etcd/" rel="tag"># etcd</a>
+              <a href="/tags/Containers/" rel="tag"># Containers</a>
+              <a href="/tags/CNCF/" rel="tag"># CNCF</a>
+          </div>
+
+        
+
+          <div class="post-nav">
+            <div class="post-nav-next post-nav-item">
+                <a href="/container/kubernetes/k8s-impl/" rel="next" title="Kubernetes 实现原理">
+                  <i class="fa fa-chevron-left"></i> Kubernetes 实现原理
+                </a>
+            </div>
+
+            <span class="post-nav-divider"></span>
+
+            <div class="post-nav-prev post-nav-item">
+                <a href="/container/kubernetes/introduction/" rel="prev" title="Kubernetes 简介">
+                  Kubernetes 简介 <i class="fa fa-chevron-right"></i>
+                </a>
+            </div>
+          </div>
+      </footer>
+    
+  </article>
+  
+  
+  
+
+  </div>
+
+
+          </div>
+          
+    <div class="comments" id="gitalk-container"></div>
+
+        </div>
+          
+  
+  <div class="toggle sidebar-toggle">
+    <span class="toggle-line toggle-line-first"></span>
+    <span class="toggle-line toggle-line-middle"></span>
+    <span class="toggle-line toggle-line-last"></span>
+  </div>
+
+  <aside class="sidebar">
+    <div class="sidebar-inner">
+
+      <ul class="sidebar-nav motion-element">
+        <li class="sidebar-nav-toc">
+          文章目录
+        </li>
+        <li class="sidebar-nav-overview">
+          站点概览
+        </li>
+      </ul>
+
+      <!--noindex-->
+      <div class="post-toc-wrap sidebar-panel">
+          <div class="post-toc motion-element"><ol class="nav"><li class="nav-item nav-level-2"><a class="nav-link" href="#%E5%BC%95%E8%A8%80"><span class="nav-number">1.</span> <span class="nav-text">引言</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E5%B8%B8%E7%94%A8%E5%8A%9F%E8%83%BD%E4%BB%8B%E7%BB%8D"><span class="nav-number">2.</span> <span class="nav-text">常用功能介绍</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#Pod"><span class="nav-number">2.1.</span> <span class="nav-text">Pod</span></a><ol class="nav-child"><li class="nav-item nav-level-4"><a class="nav-link" href="#%E5%AE%B9%E5%99%A8%E5%8E%9F%E7%90%86"><span class="nav-number">2.1.1.</span> <span class="nav-text">容器原理</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#%E8%A7%84%E5%88%92-Pod-%E4%B8%AD%E7%9A%84%E5%AE%B9%E5%99%A8"><span class="nav-number">2.1.2.</span> <span class="nav-text">规划 Pod 中的容器</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#%E9%80%9A%E8%BF%87-YAML-%E7%AE%A1%E7%90%86-Pod"><span class="nav-number">2.1.3.</span> <span class="nav-text">通过 YAML 管理 Pod</span></a></li></ol></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E5%89%AF%E6%9C%AC%E6%9C%BA%E5%88%B6"><span class="nav-number">2.2.</span> <span class="nav-text">副本机制</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E6%9C%8D%E5%8A%A1"><span class="nav-number">2.3.</span> <span class="nav-text">服务</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E5%8D%B7"><span class="nav-number">2.4.</span> <span class="nav-text">卷</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E9%85%8D%E7%BD%AE%E4%BF%A1%E6%81%AF%E5%92%8C%E6%95%8F%E6%84%9F%E6%95%B0%E6%8D%AE"><span class="nav-number">2.5.</span> <span class="nav-text">配置信息和敏感数据</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#Pod-%E8%AE%BF%E9%97%AE-Kubernetes-API"><span class="nav-number">2.6.</span> <span class="nav-text">Pod 访问 Kubernetes API</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#Deployment"><span class="nav-number">2.7.</span> <span class="nav-text">Deployment</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E6%9C%89%E7%8A%B6%E6%80%81%E7%9A%84-Pod"><span class="nav-number">2.8.</span> <span class="nav-text">有状态的 Pod</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E5%8F%82%E8%80%83%E5%86%85%E5%AE%B9"><span class="nav-number">3.</span> <span class="nav-text">参考内容</span></a></li></ol></div>
+      </div>
+      <!--/noindex-->
+
+      <div class="site-overview-wrap sidebar-panel">
+        <div class="site-author motion-element" itemprop="author" itemscope="" itemtype="http://schema.org/Person">
+    <img class="site-author-image" itemprop="image" alt="贝克街的流浪猫" src="/images/avatar.jpg">
+  <p class="site-author-name" itemprop="name">贝克街的流浪猫</p>
+  <div class="site-description" itemprop="description">贝贝猫</div>
+</div>
+<div class="site-state-wrap motion-element">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+          <a href="/archives/">
+        
+          <span class="site-state-item-count">120</span>
+          <span class="site-state-item-name">日志</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-categories">
+            <a href="/categories/">
+          
+        <span class="site-state-item-count">24</span>
+        <span class="site-state-item-name">分类</span></a>
+      </div>
+      <div class="site-state-item site-state-tags">
+            <a href="/tags/">
+          
+        <span class="site-state-item-count">158</span>
+        <span class="site-state-item-name">标签</span></a>
+      </div>
+  </nav>
+</div>
+  <div class="feed-link motion-element">
+    <a href="/atom.xml" rel="alternate">
+      <i class="fa fa-rss"></i>RSS
+    </a>
+  </div>
+  <div class="links-of-author motion-element">
+      <span class="links-of-author-item">
+        <span class="exturl" data-url="aHR0cHM6Ly9naXRodWIuY29tL0JlaUtlSmllRGVMaXVMYW5nTWFv" title="GitHub → https://github.com/BeiKeJieDeLiuLangMao"><i class="fa fa-fw fa-github"></i></span>
+      </span>
+      <span class="links-of-author-item">
+        <span class="exturl" data-url="aHR0cHM6Ly96aHVhbmxhbi56aGlodS5jb20vY18xMTY3NDI5NTg4NzExMzM3OTg1" title="知乎 → https://zhuanlan.zhihu.com/c_1167429588711337985"><i class="fa fa-fw fa-book"></i></span>
+      </span>
+      <span class="links-of-author-item">
+        <span class="exturl" data-url="bWFpbHRvOjUxNzM3NTY4NUBxcS5jb20=" title="E-Mail → mailto:517375685@qq.com"><i class="fa fa-fw fa-envelope"></i></span>
+      </span>
+      <span class="links-of-author-item">
+        <span class="exturl" data-url="aHR0cHM6Ly9zdGFja292ZXJmbG93LmNvbS91c2Vycy84NzgyOTY0L3lhbmctY2hlbj90YWI9cHJvZmlsZQ==" title="StackOverflow → https://stackoverflow.com/users/8782964/yang-chen?tab=profile"><i class="fa fa-fw fa-stack-overflow"></i></span>
+      </span>
+  </div>
+
+
+
+      </div>
+        <div class="back-to-top motion-element">
+          <i class="fa fa-arrow-up"></i>
+          <span>0%</span>
+        </div>
+
+    </div>
+  </aside>
+  <div id="sidebar-dimmer"></div>
+
+
+      </div>
+    </main>
+
+    <footer class="footer">
+      <div class="footer-inner">
+        
+  <div class="beian"><span class="exturl" data-url="aHR0cDovL3d3dy5iZWlhbi5taWl0Lmdvdi5jbg==">辽ICP备19017854号 </span>
+  </div>
+
+<div class="copyright">
+  
+  © 2019 – 
+  <span itemprop="copyrightYear">2021</span>
+  <span class="with-love">
+    <i class="fa fa-heart"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">贝克街的流浪猫</span>
+    <span class="post-meta-divider">|</span>
+    <span class="post-meta-item-icon">
+      <i class="fa fa-area-chart"></i>
+    </span>
+      <span class="post-meta-item-text">站点总字数：</span>
+    <span title="站点总字数">1.5m</span>
+    <span class="post-meta-divider">|</span>
+    <span class="post-meta-item-icon">
+      <i class="fa fa-coffee"></i>
+    </span>
+      <span class="post-meta-item-text">站点阅读时长 ≈</span>
+    <span title="站点阅读时长">22:36</span>
+</div>
+
+        
+<div class="busuanzi-count">
+  <script async="" src="https://busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js"></script>
+    <span class="post-meta-item" id="busuanzi_container_site_uv" style="display: none;">
+      <span class="post-meta-item-icon">
+        <i class="fa fa-user"></i>
+      </span>
+      <span class="site-uv" title="总访客量">
+        贝贝猫有
+        <span id="busuanzi_value_site_uv"></span>
+        位同学
+      </span>
+    </span>
+    <span class="post-meta-divider">|</span>
+    <span class="post-meta-item" id="busuanzi_container_site_pv" style="display: none;">
+      <span class="post-meta-item-icon">
+        <i class="fa fa-eye"></i>
+      </span>
+      <span class="site-pv" title="总访问量">
+        笔记被翻阅
+        <span id="busuanzi_value_site_pv"></span>
+        次
+      </span>
+    </span>
+</div>
+
+
+
+
+
+
+  
+
+
+
+
+
+
+        
+      </div>
+    </footer>
+  </div>
+
+  
+  
+  <script src="//cdn.jsdelivr.net/npm/medium-zoom@1/dist/medium-zoom.min.js"></script>
+  <script src="//cdn.jsdelivr.net/npm/pangu@4/dist/browser/pangu.min.js"></script>
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+
+
+
+
+  
+
+<script src="//cdn.jsdelivr.net/npm/instantsearch.js@2/dist/instantsearch.min.js"></script>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+  
+  <script src="//cdn.jsdelivr.net/npm/quicklink@1/dist/quicklink.umd.js"></script>
+  
+
+
+
+
+
+
+
+<script type="text/javascript" src="/bundle.js"></script><script type="text/javascript">function leancloudSelector(url) {
+    return document.getElementById(url).querySelector('.leancloud-visitors-count');
+  }
+  if (CONFIG.page.isPost) {
+    function addCount(Counter) {
+      var visitors = document.querySelector('.leancloud_visitors');
+      var url = visitors.getAttribute('id').trim();
+      var title = visitors.getAttribute('data-flag-title').trim();
+
+      Counter('get', `/classes/Counter?where=${JSON.stringify({ url })}`)
+        .then(response => response.json())
+        .then(({ results }) => {
+          if (results.length > 0) {
+            var counter = results[0];
+              leancloudSelector(url).innerText = counter.time + 1;
+            Counter('put', '/classes/Counter/' + counter.objectId, { time: { '__op': 'Increment', 'amount': 1 } })
+              .then(response => response.json())
+              .catch(error => {
+                console.log('Failed to save visitor count', error);
+              })
+          } else {
+              leancloudSelector(url).innerText = 'Counter not initialized! More info at console err msg.';
+              console.error('ATTENTION! LeanCloud counter has security bug, see how to solve it here: https://github.com/theme-next/hexo-leancloud-counter-security. \n However, you can still use LeanCloud without security, by setting `security` option to `false`.');
+            
+          }
+        })
+        .catch(error => {
+          console.log('LeanCloud Counter Error', error);
+        });
+    }
+  } else {
+    function showTime(Counter) {
+      var visitors = document.querySelectorAll('.leancloud_visitors');
+      var entries = [...visitors].map(element => {
+        return element.getAttribute('id').trim();
+      });
+
+      Counter('get', `/classes/Counter?where=${JSON.stringify({ url: { '$in': entries } })}`)
+        .then(response => response.json())
+        .then(({ results }) => {
+          if (results.length === 0) {
+            document.querySelectorAll('.leancloud_visitors .leancloud-visitors-count').forEach(element => {
+              element.innerText = 0;
+            });
+            return;
+          }
+          for (var i = 0; i < results.length; i++) {
+            var item = results[i];
+            var url = item.url;
+            var time = item.time;
+            leancloudSelector(url).innerText = time;
+          }
+          for (var i = 0; i < entries.length; i++) {
+            var url = entries[i];
+            var element = leancloudSelector(url);
+            if (element.innerText == '') {
+              element.innerText = 0;
+            }
+          }
+        })
+        .catch(error => {
+          console.log('LeanCloud Counter Error', error);
+        });
+    }
+  }
+
+  fetch('https://app-router.leancloud.cn/2/route?appId=gmT3IkYtHVMymcwAjbwHhtiv-gzGzoHsz')
+    .then(response => response.json())
+    .then(({ api_server }) => {
+      var Counter = (method, url, data) => {
+        return fetch(`https://${api_server}/1.1${url}`, {
+          method: method,
+          headers: {
+            'X-LC-Id': 'gmT3IkYtHVMymcwAjbwHhtiv-gzGzoHsz',
+            'X-LC-Key': 'co6tpmcyS9za2D1uqQyMFtnN',
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(data)
+        });
+      };
+      if (CONFIG.page.isPost) {
+        const localhost = /http:\/\/(localhost|127.0.0.1|0.0.0.0)/;
+        if (localhost.test(document.URL)) return;
+        addCount(Counter);
+      } else if (document.querySelectorAll('.post-title-link').length >= 1) {
+        showTime(Counter);
+      }
+    });;(function(){
+      var bp = document.createElement('script');
+      var curProtocol = window.location.protocol.split(':')[0];
+      bp.src = (curProtocol === 'https') ? 'https://zz.bdstatic.com/linksubmit/push.js' : 'http://push.zhanzhang.baidu.com/push.js';
+      var s = document.getElementsByTagName("script")[0];
+      s.parentNode.insertBefore(bp, s);
+    })();;if (document.querySelectorAll('pre.mermaid').length) {
+  NexT.utils.getScript('//cdn.jsdelivr.net/npm/mermaid@8/dist/mermaid.min.js', () => {
+    mermaid.initialize({
+      theme: 'forest',
+      logLevel: 3,
+      flowchart: { curve: 'linear' },
+      gantt: { axisFormat: '%m/%d/%Y' },
+      sequence: { actorMargin: 50 }
+    });
+  }, window.mermaid);
+};window.addEventListener('load', () => {
+      quicklink({
+        timeout: 3000,
+        priority: true,
+        ignores: [uri => uri.includes('#'),uri => uri == 'https://www.beikejiedeliulangmao.top/container/kubernetes/concept/',]
+      });
+      });;NexT.utils.getScript('//cdn.jsdelivr.net/npm/gitalk@1/dist/gitalk.min.js', () => {
+    var gitalk = new Gitalk({
+      clientID: '6201d1cc2825a93aa161',
+      clientSecret: '71c60f650595a3eedba64b844f811b90acac3798',
+      repo: 'HexoBlogComment',
+      owner: 'BeiKeJieDeLiuLangMao',
+      admin: ['BeiKeJieDeLiuLangMao'],
+      id: '9577602ba03050c36fcb24b4d5ea54a3',
+        language: 'zh-CN',
+      distractionFreeMode: 'true'
+    });
+    gitalk.render('gitalk-container');
+  }, window.Gitalk);;window.imageLazyLoadSetting = {
+                isSPA: false,
+                processImages: null,
+            };;window.addEventListener("load",function(){var t=/\.(gif|jpg|jpeg|tiff|png)$/i,r=/^data:image\/[a-z]+;base64,/;Array.prototype.slice.call(document.querySelectorAll("img[data-original]")).forEach(function(a){var e=a.parentNode;"A"===e.tagName&&(e.href.match(t)||e.href.match(r))&&(e.href=a.dataset.original)})});;!function(n){n.imageLazyLoadSetting.processImages=o;var i=n.imageLazyLoadSetting.isSPA,l=Array.prototype.slice.call(document.querySelectorAll("img[data-original]"));function o(){i&&(l=Array.prototype.slice.call(document.querySelectorAll("img[data-original]")));for(var r=0;r<l.length;r++)t=l[r],void 0,0<=(e=t.getBoundingClientRect()).bottom&&0<=e.left&&e.top<=(n.innerHeight||document.documentElement.clientHeight)&&function(t){var e,n,i,o,a=l[r];e=a,n=function(){l=l.filter(function(t){return a!==t})},i=new Image,o=e.getAttribute("data-original"),i.onload=function(){e.src=o,n&&n()},i.src=o}();var t,e}o(),n.addEventListener("scroll",function(){var t,e;t=o,e=n,clearTimeout(t.tId),t.tId=setTimeout(function(){t.call(e)},500)})}(this);</script></body></html>

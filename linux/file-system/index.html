@@ -1,0 +1,3824 @@
+<!DOCTYPE html><html lang="zh-CN"><head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 5.1.1">
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/avatar.jpg">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/avatar.jpg">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/avatar.jpg">
+  <link rel="mask-icon" href="/images/avatar.jpg" color="#222">
+  <link rel="alternate" href="/atom.xml" title="贝克街的流浪猫" type="application/atom+xml">
+  <meta http-equiv="Cache-Control" content="no-transform">
+  <meta http-equiv="Cache-Control" content="no-siteapp">
+  <meta name="google-site-verification" content="PB8pKbwvyCztAdFAxM1AdLMfqXY7wDk6xWZIy3BYn0M">
+  <meta name="baidu-site-verification" content="lHxDkbImj8">
+
+
+
+
+
+  
+  
+
+
+<script id="hexo-configurations">
+  var NexT = window.NexT || {};
+  var CONFIG = {
+    root: '/',
+    scheme: 'Gemini',
+    version: '7.5.0',
+    exturl: true,
+    sidebar: {"position":"left","display":"post","offset":12,"onmobile":false},
+    copycode: {"enable":true,"show_result":true,"style":null},
+    back2top: {"enable":true,"sidebar":true,"scrollpercent":true},
+    bookmark: {"enable":false,"color":"#222","save":"auto"},
+    fancybox: false,
+    mediumzoom: true,
+    lazyload: false,
+    pangu: true,
+    algolia: {
+      appID: 'XKULKGLQCN',
+      apiKey: '59d463bff59108a7719f93aa31f249f3',
+      indexName: 'Hexo Blog',
+      hits: {"per_page":10},
+      labels: {"input_placeholder":"文章查询","hits_empty":"很抱歉，贝贝猫没有发表关于 \"${query}\" 的文章","hits_stats":"找到了 ${hits} 篇文章，耗时 ${time} 毫秒"}
+    },
+    localsearch: {"enable":false,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false},
+    path: '',
+    motion: {"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},
+    sidebarPadding: 40
+  };
+</script>
+
+  <meta name="description" content="引言本文整理了 Linux 内核中 Ext 文件系统的相关知识，其他 Linux 相关文章均收录于 <Linux系列文章>。">
+<meta property="og:type" content="article">
+<meta property="og:title" content="Linux Ext 文件系统">
+<meta property="og:url" content="https://www.beikejiedeliulangmao.top/linux/file-system/index.html">
+<meta property="og:site_name" content="贝克街的流浪猫">
+<meta property="og:description" content="引言本文整理了 Linux 内核中 Ext 文件系统的相关知识，其他 Linux 相关文章均收录于 <Linux系列文章>。">
+<meta property="og:locale" content="zh_CN">
+<meta property="og:image" content="https://www.beikejiedeliulangmao.top/images/loading-cat.gif">
+<meta property="og:image" content="https://www.beikejiedeliulangmao.top/images/loading-cat.gif">
+<meta property="og:image" content="https://www.beikejiedeliulangmao.top/images/loading-cat.gif">
+<meta property="og:image" content="https://www.beikejiedeliulangmao.top/images/loading-cat.gif">
+<meta property="og:image" content="https://www.beikejiedeliulangmao.top/images/loading-cat.gif">
+<meta property="og:image" content="https://www.beikejiedeliulangmao.top/images/loading-cat.gif">
+<meta property="og:image" content="https://www.beikejiedeliulangmao.top/images/loading-cat.gif">
+<meta property="og:image" content="https://www.beikejiedeliulangmao.top/images/loading-cat.gif">
+<meta property="og:image" content="https://www.beikejiedeliulangmao.top/images/loading-cat.gif">
+<meta property="article:published_time" content="2019-10-29T01:39:39.000Z">
+<meta property="article:modified_time" content="2021-01-17T04:25:40.567Z">
+<meta property="article:author" content="贝克街的流浪猫">
+<meta property="article:tag" content="OperatingSystem">
+<meta property="article:tag" content="Unix">
+<meta property="article:tag" content="Linux">
+<meta property="article:tag" content="Kernel">
+<meta property="article:tag" content="Ext2">
+<meta property="article:tag" content="Ext3">
+<meta property="article:tag" content="FileSystem">
+<meta property="article:tag" content="MemoryFileSystem">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="https://www.beikejiedeliulangmao.top/images/loading-cat.gif">
+
+<link rel="canonical" href="https://www.beikejiedeliulangmao.top/linux/file-system/">
+
+
+<script id="page-configurations">
+  // https://hexo.io/docs/variables.html
+  CONFIG.page = {
+    sidebar: "",
+    isHome: false,
+    isPost: true,
+    isPage: false,
+    isArchive: false
+  };
+</script>
+
+  <title>Linux Ext 文件系统 | 贝克街的流浪猫</title>
+  
+    <script>
+      function sendPageView() {
+        var host = window.location.hostname;
+        if (host == "localhost" && true) return;
+        var uid = localStorage.getItem('uid') || (Math.random() + '.' + Math.random());
+        localStorage.setItem('uid', uid);
+        navigator.sendBeacon('https://www.google-analytics.com/collect', new URLSearchParams({
+          v  : 1,
+          tid: 'UA-146830566-1',
+          cid: uid,
+          t  : 'pageview',
+          dp : encodeURIComponent(location.pathname)
+        }));
+      }
+      document.addEventListener('pjax:complete', sendPageView);
+      sendPageView();
+    </script>
+
+
+  <script>
+    var _hmt = _hmt || [];
+    (function() {
+      var hm = document.createElement("script");
+      hm.src = "https://hm.baidu.com/hm.js?818a8e6061ff2bd0b5531a739f216601";
+      var s = document.getElementsByTagName("script")[0];
+      s.parentNode.insertBefore(hm, s);
+    })();
+  </script>
+
+
+
+
+  <style>body {
+  background-image: url("https://www.beikejiedeliulangmao.top/images/background.jpeg") !important;
+  background-attachment: fixed !important;
+  background-repeat: no-repeat !important;
+  background-size: 100% 100% !important;
+}
+.bg_content {
+  position: fixed;
+  top: 0;
+  z-index: -1;
+  width: 100%;
+  height: 100%;
+}
+.copyright {
+  color: #000;
+}
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+  background-color: #fff;
+}
+::-webkit-scrollbar-button {
+  width: 0;
+  height: 0;
+}
+::-webkit-scrollbar-button:start:increment,
+::-webkit-scrollbar-button:end:decrement {
+  display: none;
+}
+::-webkit-scrollbar-corner {
+  display: block;
+}
+::-webkit-scrollbar-thumb {
+  border-radius: 6px;
+  background-color: rgba(0,0,0,0.4);
+}
+::-webkit-scrollbar-thumb:hover {
+  border-radius: 6px;
+  background-color: rgba(0,0,0,0.6);
+}
+::-webkit-scrollbar-track,
+::-webkit-scrollbar-thumb {
+  border-right: 1px solid transparent;
+  border-left: 1px solid transparent;
+}
+::-webkit-scrollbar-button:start {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-button:end {
+  width: 6px;
+  height: 6px;
+}
+html {
+  line-height: 1.15; 
+  -webkit-text-size-adjust: 100%; 
+}
+body {
+  margin: 0;
+}
+main {
+  display: block;
+}
+h1 {
+  font-size: 2em;
+  margin: 0.67em 0;
+}
+hr {
+  box-sizing: content-box; 
+  height: 0; 
+  overflow: visible; 
+}
+pre {
+  font-family: monospace, monospace; 
+  font-size: 1em; 
+}
+a {
+  background: transparent;
+}
+abbr[title] {
+  border-bottom: none; 
+  text-decoration: underline; 
+  text-decoration: underline dotted; 
+}
+b,
+strong {
+  font-weight: bolder;
+}
+code,
+kbd,
+samp {
+  font-family: monospace, monospace; 
+  font-size: 1em; 
+}
+small {
+  font-size: 80%;
+}
+sub,
+sup {
+  font-size: 75%;
+  line-height: 0;
+  position: relative;
+  vertical-align: baseline;
+}
+sub {
+  bottom: -0.25em;
+}
+sup {
+  top: -0.5em;
+}
+img {
+  border-style: none;
+}
+button,
+input,
+optgroup,
+select,
+textarea {
+  font-family: inherit; 
+  font-size: 100%; 
+  line-height: 1.15; 
+  margin: 0; 
+}
+button,
+input {
+
+  overflow: visible;
+}
+button,
+select {
+
+  text-transform: none;
+}
+button,
+[type='button'],
+[type='reset'],
+[type='submit'] {
+  -webkit-appearance: button;
+}
+button::-moz-focus-inner,
+[type='button']::-moz-focus-inner,
+[type='reset']::-moz-focus-inner,
+[type='submit']::-moz-focus-inner {
+  border-style: none;
+  padding: 0;
+}
+button:-moz-focusring,
+[type='button']:-moz-focusring,
+[type='reset']:-moz-focusring,
+[type='submit']:-moz-focusring {
+  outline: 1px dotted ButtonText;
+}
+fieldset {
+  padding: 0.35em 0.75em 0.625em;
+}
+legend {
+  box-sizing: border-box; 
+  color: inherit; 
+  display: table; 
+  max-width: 100%; 
+  padding: 0; 
+  white-space: normal; 
+}
+progress {
+  vertical-align: baseline;
+}
+textarea {
+  overflow: auto;
+}
+[type='checkbox'],
+[type='radio'] {
+  box-sizing: border-box; 
+  padding: 0; 
+}
+[type='number']::-webkit-inner-spin-button,
+[type='number']::-webkit-outer-spin-button {
+  height: auto;
+}
+[type='search'] {
+  outline-offset: -2px; 
+  -webkit-appearance: textfield; 
+}
+[type='search']::-webkit-search-decoration {
+  -webkit-appearance: none;
+}
+::-webkit-file-upload-button {
+  font: inherit; 
+  -webkit-appearance: button; 
+}
+details {
+  display: block;
+}
+summary {
+  display: list-item;
+}
+template {
+  display: none;
+}
+[hidden] {
+  display: none;
+}
+::selection {
+  background: #262a30;
+  color: #fff;
+}
+html,
+body {
+  height: 100%;
+}
+body {
+  background: #eee;
+  color: #555;
+  font-family: 'Monda', "PingFang SC", "Microsoft YaHei", sans-serif;
+  font-size: 1em;
+  line-height: 2;
+}
+@media (max-width: 991px) {
+  body {
+    padding-left: 0 !important;
+    padding-right: 0 !important;
+  }
+}
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+  font-family: 'Roboto Slab', 'Monda', "PingFang SC", "Microsoft YaHei", sans-serif;
+  font-weight: bold;
+  line-height: 1.5;
+  margin: 20px 0 15px;
+  padding: 0;
+}
+h1 {
+  font-size: 1.5em;
+}
+h2 {
+  font-size: 1.375em;
+}
+h3 {
+  font-size: 1.25em;
+}
+h4 {
+  font-size: 1.125em;
+}
+h5 {
+  font-size: 1em;
+}
+h6 {
+  font-size: 0.875em;
+}
+p {
+  margin: 0 0 20px 0;
+}
+a,
+span.exturl {
+  border-bottom: 1px solid #999;
+  color: #555;
+  outline: 0;
+  text-decoration: none;
+  overflow-wrap: break-word;
+  word-wrap: break-word;
+  cursor: pointer;
+}
+a:hover,
+span.exturl:hover {
+  border-bottom-color: #222;
+  color: #222;
+}
+iframe,
+img,
+video {
+  display: block;
+  margin-left: auto;
+  margin-right: auto;
+  max-width: 100%;
+}
+hr {
+  background-color: #ddd;
+  background-image: repeating-linear-gradient(-45deg, #fff, #fff 4px, transparent 4px, transparent 8px);
+  border: 0;
+  height: 3px;
+  margin: 40px 0;
+}
+blockquote {
+  border-left: 4px solid #ddd;
+  color: #666;
+  margin: 0;
+  padding: 0 15px;
+}
+blockquote cite::before {
+  content: '-';
+  padding: 0 5px;
+}
+dt {
+  font-weight: 700;
+}
+dd {
+  margin: 0;
+  padding: 0;
+}
+kbd {
+  background-color: #f5f5f5;
+  background-image: linear-gradient(#eee, #fff, #eee);
+  border: 1px solid #ccc;
+  border-radius: 0.2em;
+  box-shadow: 0.1em 0.1em 0.2em rgba(0,0,0,0.1);
+  font-family: inherit;
+  padding: 0.1em 0.3em;
+  white-space: nowrap;
+}
+.table-container {
+  -webkit-overflow-scrolling: touch;
+  overflow: auto;
+}
+table {
+  border-collapse: collapse;
+  border-spacing: 0;
+  font-size: 0.875em;
+  margin: 0 0 20px 0;
+  width: 100%;
+}
+tbody tr:nth-of-type(odd) {
+  background: #f9f9f9;
+}
+tbody tr:hover {
+  background: #f5f5f5;
+}
+caption,
+th,
+td {
+  font-weight: normal;
+  padding: 8px;
+  text-align: left;
+  vertical-align: middle;
+}
+th,
+td {
+  border: 1px solid #ddd;
+  border-bottom: 3px solid #ddd;
+}
+th {
+  font-weight: 700;
+  padding-bottom: 10px;
+}
+td {
+  border-bottom-width: 1px;
+}
+.btn {
+  background: #fff;
+  border: 2px solid #555;
+  border-radius: 2px;
+  color: #555;
+  display: inline-block;
+  font-size: 0.875em;
+  line-height: 2;
+  padding: 0 20px;
+  text-decoration: none;
+  transition-property: background-color;
+  transition-delay: 0s;
+  transition-duration: 0.2s;
+  transition-timing-function: ease-in-out;
+}
+.btn:hover {
+  background: #222;
+  border-color: #222;
+  color: #fff;
+}
+.btn + .btn {
+  margin: 0 0 8px 8px;
+}
+.btn .fa-fw {
+  text-align: left;
+  width: 1.285714285714286em;
+}
+.toggle {
+  line-height: 0;
+}
+.toggle .toggle-line {
+  background: #fff;
+  display: inline-block;
+  height: 2px;
+  left: 0;
+  position: relative;
+  top: 0;
+  transition: all 0.4s;
+  vertical-align: top;
+  width: 100%;
+}
+.toggle .toggle-line:not(:first-child) {
+  margin-top: 3px;
+}
+.toggle.toggle-arrow .toggle-line-first {
+  left: 50%;
+  top: 2px;
+  transform: rotate(45deg);
+  width: 50%;
+}
+.toggle.toggle-arrow .toggle-line-middle {
+  left: 2px;
+  width: 90%;
+}
+.toggle.toggle-arrow .toggle-line-last {
+  left: 50%;
+  top: -2px;
+  transform: rotate(-45deg);
+  width: 50%;
+}
+.toggle.toggle-close .toggle-line-first {
+  transform: rotate(-45deg);
+  top: 5px;
+}
+.toggle.toggle-close .toggle-line-middle {
+  opacity: 0;
+}
+.toggle.toggle-close .toggle-line-last {
+  transform: rotate(45deg);
+  top: -5px;
+}
+.highlight-container {
+  position: relative;
+}
+.highlight-container:hover .copy-btn,
+.highlight-container .copy-btn:focus {
+  opacity: 1;
+}
+.copy-btn {
+  color: #333;
+  cursor: pointer;
+  display: inline-block;
+  font-weight: 700;
+  line-height: 1.6;
+  opacity: 0;
+  outline: 0;
+  padding: 2px 6px;
+  position: absolute;
+  transition: opacity 0.3s ease-in-out;
+  vertical-align: middle;
+  white-space: nowrap;
+  -moz-user-select: none;
+  -ms-user-select: none;
+  -webkit-user-select: none;
+  user-select: none;
+  background-color: #eee;
+  background-image: linear-gradient(#fcfcfc, #eee);
+  border: 1px solid #d5d5d5;
+  border-radius: 3px;
+  font-size: 0.8125em;
+  right: 4px;
+  top: 8px;
+}
+.highlight,
+pre {
+  background: #f7f7f7;
+  color: #4d4d4c;
+  line-height: 1.6;
+  margin: 0 auto 20px;
+}
+pre,
+code {
+  font-family: 'PT Mono', consolas, Menlo, monospace, "PingFang SC", "Microsoft YaHei";
+}
+code {
+  background: #eee;
+  border-radius: 3px;
+  color: #555;
+  padding: 2px 4px;
+  overflow-wrap: break-word;
+  word-wrap: break-word;
+}
+.highlight *::selection {
+  background: #d6d6d6;
+}
+.highlight pre {
+  border: 0;
+  margin: 0;
+  padding: 0;
+}
+.highlight table {
+  border: 0;
+  margin: 0;
+  width: auto;
+}
+.highlight tr:first-child pre {
+  padding-top: 10px;
+}
+.highlight tr:last-child pre {
+  padding-bottom: 10px;
+}
+.highlight td {
+  border: 0;
+  padding: 0;
+}
+.highlight figcaption {
+  background: #eee;
+  color: #4d4d4c;
+  font-size: 0.875em;
+  line-height: 1.2;
+  padding: 0.5em;
+}
+.highlight figcaption::before,
+.highlight figcaption::after {
+  content: ' ';
+  display: table;
+}
+.highlight figcaption::after {
+  clear: both;
+}
+.highlight figcaption a {
+  color: #4d4d4c;
+  float: right;
+}
+.highlight figcaption a:hover {
+  border-bottom-color: #4d4d4c;
+}
+.highlight .gutter pre {
+  background: #eff2f3;
+  color: #869194;
+  padding-left: 10px;
+  padding-right: 10px;
+  text-align: right;
+  -moz-user-select: none;
+  -ms-user-select: none;
+  -webkit-user-select: none;
+  user-select: none;
+}
+.highlight .code pre {
+  background: #f7f7f7;
+  padding-left: 10px;
+  width: 100%;
+}
+.gist table {
+  width: auto;
+}
+.gist table td {
+  border: 0;
+}
+pre {
+  overflow: auto;
+  padding: 10px;
+}
+pre code {
+  background: none;
+  color: #4d4d4c;
+  font-size: 0.875em;
+  padding: 0;
+  text-shadow: none;
+}
+pre .deletion {
+  background: #fdd;
+}
+pre .addition {
+  background: #dfd;
+}
+pre .meta {
+  color: #eab700;
+  -moz-user-select: none;
+  -ms-user-select: none;
+  -webkit-user-select: none;
+  user-select: none;
+}
+pre .comment {
+  color: #8e908c;
+}
+pre .variable,
+pre .attribute,
+pre .tag,
+pre .name,
+pre .regexp,
+pre .ruby .constant,
+pre .xml .tag .title,
+pre .xml .pi,
+pre .xml .doctype,
+pre .html .doctype,
+pre .css .id,
+pre .css .class,
+pre .css .pseudo {
+  color: #c82829;
+}
+pre .number,
+pre .preprocessor,
+pre .built_in,
+pre .builtin-name,
+pre .literal,
+pre .params,
+pre .constant,
+pre .command {
+  color: #f5871f;
+}
+pre .ruby .class .title,
+pre .css .rules .attribute,
+pre .string,
+pre .symbol,
+pre .value,
+pre .inheritance,
+pre .header,
+pre .ruby .symbol,
+pre .xml .cdata,
+pre .special,
+pre .formula {
+  color: #718c00;
+}
+pre .title,
+pre .css .hexcolor {
+  color: #3e999f;
+}
+pre .function,
+pre .python .decorator,
+pre .python .title,
+pre .ruby .function .title,
+pre .ruby .title .keyword,
+pre .perl .sub,
+pre .javascript .title,
+pre .coffeescript .title {
+  color: #4271ae;
+}
+pre .keyword,
+pre .javascript .function {
+  color: #8959a8;
+}
+.blockquote-center {
+  border-left: none;
+  margin: 40px 0;
+  padding: 0;
+  position: relative;
+  text-align: center;
+}
+.blockquote-center::before,
+.blockquote-center::after {
+  background-repeat: no-repeat;
+  background-size: 22px 22px;
+  content: ' ';
+  display: block;
+  height: 24px;
+  opacity: 0.2;
+  position: absolute;
+  width: 100%;
+}
+.blockquote-center::before {
+  background-image: url("../images/quote-l.svg");
+  background-position: 0 -6px;
+  border-top: 1px solid #ccc;
+  top: -20px;
+}
+.blockquote-center::after {
+  background-image: url("../images/quote-r.svg");
+  background-position: 100% 8px;
+  border-bottom: 1px solid #ccc;
+  bottom: -20px;
+}
+.blockquote-center p,
+.blockquote-center div {
+  text-align: center;
+}
+.post-body .group-picture img {
+  border: 0;
+  margin: 0 auto;
+  padding: 0 3px;
+}
+.group-picture-row {
+  margin-bottom: 6px;
+  overflow: hidden;
+}
+.group-picture-column {
+  float: left;
+  margin-bottom: 10px;
+}
+.post-body .label {
+  display: inline;
+  padding: 0 2px;
+}
+.post-body .label.default {
+  background: #f0f0f0;
+}
+.post-body .label.primary {
+  background: #efe6f7;
+}
+.post-body .label.info {
+  background: #e5f2f8;
+}
+.post-body .label.success {
+  background: #e7f4e9;
+}
+.post-body .label.warning {
+  background: #fcf6e1;
+}
+.post-body .label.danger {
+  background: #fae8eb;
+}
+.post-body .tabs {
+  margin-bottom: 20px;
+}
+.post-body .tabs,
+.tabs-comment {
+  display: block;
+  padding-top: 10px;
+  position: relative;
+}
+.post-body .tabs ul.nav-tabs,
+.tabs-comment ul.nav-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  margin: 0;
+  margin-bottom: -1px;
+  padding: 0;
+}
+@media (max-width: 413px) {
+  .post-body .tabs ul.nav-tabs,
+  .tabs-comment ul.nav-tabs {
+    display: block;
+    margin-bottom: 5px;
+  }
+}
+.post-body .tabs ul.nav-tabs li.tab,
+.tabs-comment ul.nav-tabs li.tab {
+  background: #fff;
+  border-bottom: 1px solid #ddd;
+  border-left: 1px solid transparent;
+  border-right: 1px solid transparent;
+  border-top: 3px solid transparent;
+  flex-grow: 1;
+  list-style-type: none;
+}
+@media (max-width: 413px) {
+  .post-body .tabs ul.nav-tabs li.tab,
+  .tabs-comment ul.nav-tabs li.tab {
+    border-bottom: 1px solid transparent;
+    border-left: 3px solid transparent;
+    border-right: 1px solid transparent;
+    border-top: 1px solid transparent;
+  }
+}
+.post-body .tabs ul.nav-tabs li.tab a,
+.tabs-comment ul.nav-tabs li.tab a {
+  border-bottom: initial;
+  display: block;
+  line-height: 1.8;
+  outline: 0;
+  padding: 0.25em 0.75em;
+  text-align: center;
+  transition-delay: 0s;
+  transition-duration: 0.2s;
+  transition-timing-function: ease-out;
+}
+.post-body .tabs ul.nav-tabs li.tab a i,
+.tabs-comment ul.nav-tabs li.tab a i {
+  width: 1.285714285714286em;
+}
+.post-body .tabs ul.nav-tabs li.tab.active,
+.tabs-comment ul.nav-tabs li.tab.active {
+  border-bottom: 1px solid transparent;
+  border-left: 1px solid #ddd;
+  border-right: 1px solid #ddd;
+  border-top: 3px solid #fc6423;
+}
+@media (max-width: 413px) {
+  .post-body .tabs ul.nav-tabs li.tab.active,
+  .tabs-comment ul.nav-tabs li.tab.active {
+    border-bottom: 1px solid #ddd;
+    border-left: 3px solid #fc6423;
+    border-right: 1px solid #ddd;
+    border-top: 1px solid #ddd;
+  }
+}
+.post-body .tabs ul.nav-tabs li.tab.active a,
+.tabs-comment ul.nav-tabs li.tab.active a {
+  color: #555;
+  cursor: default;
+}
+.post-body .tabs .tab-content .tab-pane,
+.tabs-comment .tab-content .tab-pane {
+  border: 1px solid #ddd;
+  padding: 20px 20px 0 20px;
+}
+.post-body .tabs .tab-content .tab-pane:not(.active),
+.tabs-comment .tab-content .tab-pane:not(.active) {
+  display: none;
+}
+.post-body .tabs .tab-content .tab-pane.active,
+.tabs-comment .tab-content .tab-pane.active {
+  display: block;
+}
+.post-body .note {
+  margin-bottom: 20px;
+  padding: 15px;
+  position: relative;
+  border: 1px solid #eee;
+  border-left-width: 5px;
+  border-radius: 3px;
+}
+.post-body .note h2,
+.post-body .note h3,
+.post-body .note h4,
+.post-body .note h5,
+.post-body .note h6 {
+  margin-top: 0;
+  border-bottom: initial;
+  margin-bottom: 0;
+  padding-top: 0;
+}
+.post-body .note p:first-child,
+.post-body .note ul:first-child,
+.post-body .note ol:first-child,
+.post-body .note table:first-child,
+.post-body .note pre:first-child,
+.post-body .note blockquote:first-child,
+.post-body .note img:first-child {
+  margin-top: 0;
+}
+.post-body .note p:last-child,
+.post-body .note ul:last-child,
+.post-body .note ol:last-child,
+.post-body .note table:last-child,
+.post-body .note pre:last-child,
+.post-body .note blockquote:last-child,
+.post-body .note img:last-child {
+  margin-bottom: 0;
+}
+.post-body .note.default {
+  border-left-color: #777;
+}
+.post-body .note.default h2,
+.post-body .note.default h3,
+.post-body .note.default h4,
+.post-body .note.default h5,
+.post-body .note.default h6 {
+  color: #777;
+}
+.post-body .note.primary {
+  border-left-color: #6f42c1;
+}
+.post-body .note.primary h2,
+.post-body .note.primary h3,
+.post-body .note.primary h4,
+.post-body .note.primary h5,
+.post-body .note.primary h6 {
+  color: #6f42c1;
+}
+.post-body .note.info {
+  border-left-color: #428bca;
+}
+.post-body .note.info h2,
+.post-body .note.info h3,
+.post-body .note.info h4,
+.post-body .note.info h5,
+.post-body .note.info h6 {
+  color: #428bca;
+}
+.post-body .note.success {
+  border-left-color: #5cb85c;
+}
+.post-body .note.success h2,
+.post-body .note.success h3,
+.post-body .note.success h4,
+.post-body .note.success h5,
+.post-body .note.success h6 {
+  color: #5cb85c;
+}
+.post-body .note.warning {
+  border-left-color: #f0ad4e;
+}
+.post-body .note.warning h2,
+.post-body .note.warning h3,
+.post-body .note.warning h4,
+.post-body .note.warning h5,
+.post-body .note.warning h6 {
+  color: #f0ad4e;
+}
+.post-body .note.danger {
+  border-left-color: #d9534f;
+}
+.post-body .note.danger h2,
+.post-body .note.danger h3,
+.post-body .note.danger h4,
+.post-body .note.danger h5,
+.post-body .note.danger h6 {
+  color: #d9534f;
+}
+.pagination .prev,
+.pagination .next,
+.pagination .page-number,
+.pagination .space {
+  display: inline-block;
+  margin: 0 10px;
+  padding: 0 11px;
+  position: relative;
+  top: -1px;
+}
+@media (max-width: 767px) {
+  .pagination .prev,
+  .pagination .next,
+  .pagination .page-number,
+  .pagination .space {
+    margin: 0 5px;
+  }
+}
+.pagination {
+  border-top: 1px solid #eee;
+  margin: 120px 0 0;
+  text-align: center;
+}
+.pagination .prev,
+.pagination .next,
+.pagination .page-number {
+  border-bottom: 0;
+  border-top: 1px solid #eee;
+  transition-property: border-color;
+  transition-delay: 0s;
+  transition-duration: 0.2s;
+  transition-timing-function: ease-in-out;
+}
+.pagination .prev:hover,
+.pagination .next:hover,
+.pagination .page-number:hover {
+  border-top-color: #222;
+}
+.pagination .space {
+  margin: 0;
+  padding: 0;
+}
+.pagination .prev {
+  margin-left: 0;
+}
+.pagination .next {
+  margin-right: 0;
+}
+.pagination .page-number.current,
+.algolia-pagination .current .page-number {
+  background: #ccc;
+  border-top-color: #ccc;
+  color: #fff;
+}
+@media (max-width: 767px) {
+  .pagination {
+    border-top: none;
+  }
+  .pagination .prev,
+  .pagination .next,
+  .pagination .page-number {
+    border-bottom: 1px solid #eee;
+    border-top: 0;
+    margin-bottom: 10px;
+    padding: 0 10px;
+  }
+  .pagination .prev:hover,
+  .pagination .next:hover,
+  .pagination .page-number:hover {
+    border-bottom-color: #222;
+  }
+}
+.comments {
+  margin: 60px 20px 0;
+  overflow: hidden;
+}
+.comment-button-group {
+  display: flex;
+  flex-wrap: wrap-reverse;
+  justify-content: center;
+  margin: 1em 0;
+}
+.comment-button-group .comment-button {
+  margin: 0.1em 0.2em;
+}
+.comment-button-group .comment-button.active {
+  background: #222;
+  border-color: #222;
+  color: #fff;
+}
+.comment-position {
+  display: none;
+}
+.comment-position.active {
+  display: block;
+}
+.tabs-comment {
+  background: #fff;
+  margin-top: 4em;
+  padding-top: 0;
+}
+.tabs-comment .comments {
+  border: 0;
+  box-shadow: none;
+  margin-top: 0;
+  padding-top: 0;
+}
+.container {
+  min-height: 100%;
+  position: relative;
+}
+.main-inner {
+  margin: 0 auto;
+  width: calc(100% - 20px);
+}
+@media (min-width: 1200px) {
+  .main-inner {
+    width: 1160px;
+  }
+}
+@media (min-width: 1600px) {
+  .main-inner {
+    width: 73%;
+  }
+}
+.header {
+  background: transparent;
+}
+.header-inner {
+  margin: 0 auto;
+  position: relative;
+  width: calc(100% - 20px);
+}
+@media (min-width: 1200px) {
+  .header-inner {
+    width: 1160px;
+  }
+}
+@media (min-width: 1600px) {
+  .header-inner {
+    width: 73%;
+  }
+}
+.headband {
+  background: #222;
+  height: 3px;
+}
+.site-meta {
+  margin: 0;
+  text-align: center;
+}
+@media (max-width: 767px) {
+  .site-meta {
+    text-align: center;
+  }
+}
+.brand {
+  background: #222;
+  border-bottom: none;
+  color: #fff;
+  display: inline-block;
+  line-height: 1.375em;
+  padding: 0 40px;
+  position: relative;
+}
+.brand:hover {
+  color: #fff;
+}
+.site-title {
+  display: inline-block;
+  font-family: 'Monda', "PingFang SC", "Microsoft YaHei", sans-serif;
+  font-size: 1.375em;
+  font-weight: normal;
+  line-height: 1.5;
+  vertical-align: top;
+}
+.site-subtitle {
+  color: #ddd;
+  font-size: 0.8125em;
+  margin-top: 10px;
+}
+.use-motion .brand {
+  opacity: 0;
+}
+.use-motion .site-title,
+.use-motion .site-subtitle,
+.use-motion .custom-logo-image {
+  opacity: 0;
+  position: relative;
+  top: -10px;
+}
+.site-nav-toggle {
+  display: none;
+  left: 10px;
+  position: absolute;
+}
+@media (max-width: 767px) {
+  .site-nav-toggle {
+    display: block;
+  }
+}
+.site-nav-toggle .toggle {
+  background: transparent;
+  border: 0;
+  margin-top: 2px;
+  padding: 10px;
+  width: 22px;
+}
+.site-nav-toggle .toggle .toggle-line {
+  background: #555;
+  border-radius: 1px;
+}
+.site-nav {
+  display: block;
+}
+@media (max-width: 767px) {
+  .site-nav {
+    border-top: 1px solid #ddd;
+    clear: both;
+    display: none;
+    margin: 0 -10px;
+    padding: 0 10px;
+  }
+}
+.site-nav.site-nav-on {
+  display: block;
+}
+.menu {
+  margin-top: 20px;
+  padding-left: 0;
+  text-align: center;
+}
+.menu-item {
+  display: inline-block;
+  list-style: none;
+  margin: 0 10px;
+}
+@media (max-width: 767px) {
+  .menu-item {
+    margin-top: 10px;
+  }
+}
+.menu-item a,
+.menu-item span.exturl {
+  border-bottom: 0;
+  display: block;
+  font-size: 0.8125em;
+  transition-property: border-color;
+  transition-delay: 0s;
+  transition-duration: 0.2s;
+  transition-timing-function: ease-in-out;
+}
+@media (hover: none) {
+  .menu-item a:hover,
+  .menu-item span.exturl:hover {
+    border-bottom-color: transparent !important;
+  }
+}
+.menu-item .fa {
+  margin-right: 8px;
+}
+.menu-item .badge {
+  display: inline-block;
+  font-weight: 700;
+  line-height: 1;
+  margin-left: 0.35em;
+  margin-top: 0.35em;
+  text-align: center;
+  white-space: nowrap;
+}
+@media (max-width: 767px) {
+  .menu-item .badge {
+    float: right;
+    margin-left: 0;
+  }
+}
+.use-motion .menu-item {
+  opacity: 0;
+}
+.github-corner :hover .octo-arm {
+  animation: octocat-wave 560ms ease-in-out;
+}
+.github-corner svg {
+  border: 0;
+  color: #fff;
+  fill: #222;
+  position: absolute;
+  right: 0;
+  top: 0;
+  z-index: 1000;
+}
+@media (max-width: 991px) {
+  .github-corner svg {
+    color: #222;
+    fill: #fff;
+  }
+  .github-corner .github-corner:hover .octo-arm {
+    animation: none;
+  }
+  .github-corner .github-corner .octo-arm {
+    animation: octocat-wave 560ms ease-in-out;
+  }
+}
+@-moz-keyframes octocat-wave {
+  0%, 100% {
+    transform: rotate(0);
+  }
+  20%, 60% {
+    transform: rotate(-25deg);
+  }
+  40%, 80% {
+    transform: rotate(10deg);
+  }
+}
+@-webkit-keyframes octocat-wave {
+  0%, 100% {
+    transform: rotate(0);
+  }
+  20%, 60% {
+    transform: rotate(-25deg);
+  }
+  40%, 80% {
+    transform: rotate(10deg);
+  }
+}
+@-o-keyframes octocat-wave {
+  0%, 100% {
+    transform: rotate(0);
+  }
+  20%, 60% {
+    transform: rotate(-25deg);
+  }
+  40%, 80% {
+    transform: rotate(10deg);
+  }
+}
+@keyframes octocat-wave {
+  0%, 100% {
+    transform: rotate(0);
+  }
+  20%, 60% {
+    transform: rotate(-25deg);
+  }
+  40%, 80% {
+    transform: rotate(10deg);
+  }
+}
+.sidebar {
+  background: #222;
+  bottom: 0;
+  box-shadow: inset 0 2px 6px #000;
+  position: fixed;
+  top: 0;
+  z-index: 1200;
+}
+.sidebar a,
+.sidebar span.exturl {
+  border-bottom-color: #555;
+  color: #999;
+}
+.sidebar a:hover,
+.sidebar span.exturl:hover {
+  border-bottom-color: #eee;
+  color: #eee;
+}
+@media (max-width: 991px) {
+  .sidebar {
+    display: none;
+  }
+}
+.sidebar-inner {
+  color: #999;
+  padding: 20px 10px;
+  text-align: center;
+}
+.site-overview-wrap {
+  overflow-x: hidden;
+  overflow-y: auto;
+}
+.cc-license {
+  margin-top: 10px;
+  text-align: center;
+}
+.cc-license .cc-opacity {
+  border-bottom: none;
+  opacity: 0.7;
+}
+.cc-license .cc-opacity:hover {
+  opacity: 0.9;
+}
+.cc-license img {
+  display: inline-block;
+}
+.site-author-image {
+  border: 1px solid #eee;
+  display: block;
+  height: auto;
+  margin: 0 auto;
+  max-width: 120px;
+  padding: 2px;
+  border-radius: 50%;
+}
+.site-author-name {
+  color: #222;
+  font-weight: 600;
+  margin: 0;
+  text-align: center;
+}
+.site-description {
+  color: #999;
+  font-size: 0.8125em;
+  margin-top: 0;
+  text-align: center;
+}
+.links-of-author {
+  margin-top: 15px;
+}
+.links-of-author a,
+.links-of-author span.exturl {
+  border-bottom-color: #555;
+  display: inline-block;
+  font-size: 0.8125em;
+  margin-bottom: 10px;
+  margin-right: 10px;
+  vertical-align: middle;
+  transition-delay: 0s;
+  transition-duration: 0.2s;
+  transition-timing-function: ease-in-out;
+}
+.links-of-author a::before,
+.links-of-author span.exturl::before {
+  background: #0ab5cd;
+  border-radius: 50%;
+  content: ' ';
+  display: inline-block;
+  height: 4px;
+  margin-right: 3px;
+  vertical-align: middle;
+  width: 4px;
+}
+.feed-link,
+.chat {
+  margin-top: 15px;
+}
+.feed-link a,
+.chat a {
+  border: 1px solid #fc6423;
+  border-radius: 4px;
+  color: #fc6423;
+  display: inline-block;
+  padding: 0 15px;
+}
+.feed-link a .fa,
+.chat a .fa {
+  margin-right: 5px;
+}
+.feed-link a:hover,
+.chat a:hover {
+  background: #fc6423;
+  border: 1px solid #fc6423;
+  color: #fff;
+}
+.feed-link a:hover .fa,
+.chat a:hover .fa {
+  color: #fff;
+}
+.links-of-blogroll {
+  font-size: 0.8125em;
+  margin-top: 10px;
+}
+.links-of-blogroll-title {
+  font-size: 0.875em;
+  font-weight: 600;
+  margin-top: 0;
+}
+.links-of-blogroll-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.links-of-blogroll-item {
+  padding: 2px 10px;
+}
+.links-of-blogroll-item a,
+.links-of-blogroll-item span.exturl {
+  box-sizing: border-box;
+  display: inline-block;
+  max-width: 280px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+#sidebar-dimmer {
+  display: none;
+}
+@media (max-width: 767px) {
+  #sidebar-dimmer {
+    background: #000;
+    display: block;
+    height: 100%;
+    left: 100%;
+    opacity: 0;
+    position: fixed;
+    top: 0;
+    width: 100%;
+    z-index: 1100;
+  }
+  .sidebar-active + #sidebar-dimmer {
+    opacity: 0.7;
+    transform: translateX(-100%);
+    transition: opacity 0.5s;
+  }
+}
+.sidebar-nav {
+  margin: 0;
+  padding-bottom: 20px;
+  padding-left: 0;
+}
+.sidebar-nav li {
+  border-bottom: 1px solid transparent;
+  color: #555;
+  cursor: pointer;
+  display: inline-block;
+  font-size: 0.875em;
+}
+.sidebar-nav li.sidebar-nav-overview {
+  margin-left: 10px;
+}
+.sidebar-nav li:hover {
+  color: #fc6423;
+}
+.sidebar-nav .sidebar-nav-active {
+  border-bottom-color: #fc6423;
+  color: #fc6423;
+}
+.sidebar-nav .sidebar-nav-active:hover {
+  color: #fc6423;
+}
+.sidebar-panel {
+  display: none;
+}
+.sidebar-panel-active {
+  display: block;
+}
+.sidebar-toggle {
+  background: #222;
+  bottom: 45px;
+  cursor: pointer;
+  height: 14px;
+  left: 30px;
+  padding: 5px;
+  position: fixed;
+  width: 14px;
+  z-index: 1300;
+}
+@media (max-width: 991px) {
+  .sidebar-toggle {
+    left: 20px;
+    opacity: 0.8;
+    display: none;
+  }
+}
+.sidebar-toggle:hover .toggle-line {
+  background: #fc6423;
+}
+.post-toc-wrap {
+  overflow-x: hidden;
+  overflow-y: auto;
+}
+.post-toc {
+  font-size: 0.875em;
+}
+.post-toc ol {
+  list-style: none;
+  margin: 0;
+  padding: 0 2px 5px 10px;
+  text-align: left;
+}
+.post-toc ol > ol {
+  padding-left: 0;
+}
+.post-toc ol a {
+  border-bottom-color: #ccc;
+  color: #666;
+  transition-property: all;
+  transition-delay: 0s;
+  transition-duration: 0.2s;
+  transition-timing-function: ease-in-out;
+}
+.post-toc ol a:hover {
+  border-bottom-color: #000;
+  color: #000;
+}
+.post-toc .nav-item {
+  line-height: 1.8;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.post-toc .nav .nav-child {
+  display: none;
+}
+.post-toc .nav .active > .nav-child {
+  display: block;
+}
+.post-toc .nav .active-current > .nav-child {
+  display: block;
+}
+.post-toc .nav .active-current > .nav-child > .nav-item {
+  display: block;
+}
+.post-toc .nav .active > a {
+  border-bottom-color: #fc6423;
+  color: #fc6423;
+}
+.post-toc .nav .active-current > a {
+  color: #fc6423;
+}
+.post-toc .nav .active-current > a:hover {
+  color: #fc6423;
+}
+.site-state {
+  display: flex;
+  justify-content: center;
+  line-height: 1.4;
+  margin-top: 10px;
+  overflow: hidden;
+  text-align: center;
+  white-space: nowrap;
+}
+.site-state-item {
+  padding: 0 15px;
+}
+.site-state-item:not(:first-child) {
+  border-left: 1px solid #eee;
+}
+.site-state-item a {
+  border-bottom: none;
+}
+.site-state-item-count {
+  color: inherit;
+  display: block;
+  font-size: 1em;
+  font-weight: 600;
+  text-align: center;
+}
+.site-state-item-name {
+  color: #999;
+  font-size: 0.8125em;
+}
+.footer {
+  color: #999;
+  font-size: 0.875em;
+  padding: 20px 0;
+}
+.footer.footer-fixed {
+  bottom: 0;
+  left: 0;
+  position: absolute;
+  right: 0;
+}
+.footer img {
+  border: 0;
+}
+.footer-inner {
+  box-sizing: border-box;
+  margin: 0 auto;
+  text-align: center;
+  width: calc(100% - 20px);
+}
+@media (min-width: 1200px) {
+  .footer-inner {
+    width: 1160px;
+  }
+}
+@media (min-width: 1600px) {
+  .footer-inner {
+    width: 73%;
+  }
+}
+.with-love {
+  color: red;
+  display: inline-block;
+  margin: 0 5px;
+  animation: iconAnimate 1.33s ease-in-out infinite;
+}
+.powered-by,
+.theme-info {
+  display: inline-block;
+}
+@-moz-keyframes iconAnimate {
+  0%, 100% {
+    transform: scale(1);
+  }
+  10%, 30% {
+    transform: scale(0.9);
+  }
+  20%, 40%, 60%, 80% {
+    transform: scale(1.1);
+  }
+  50%, 70% {
+    transform: scale(1.1);
+  }
+}
+@-webkit-keyframes iconAnimate {
+  0%, 100% {
+    transform: scale(1);
+  }
+  10%, 30% {
+    transform: scale(0.9);
+  }
+  20%, 40%, 60%, 80% {
+    transform: scale(1.1);
+  }
+  50%, 70% {
+    transform: scale(1.1);
+  }
+}
+@-o-keyframes iconAnimate {
+  0%, 100% {
+    transform: scale(1);
+  }
+  10%, 30% {
+    transform: scale(0.9);
+  }
+  20%, 40%, 60%, 80% {
+    transform: scale(1.1);
+  }
+  50%, 70% {
+    transform: scale(1.1);
+  }
+}
+@keyframes iconAnimate {
+  0%, 100% {
+    transform: scale(1);
+  }
+  10%, 30% {
+    transform: scale(0.9);
+  }
+  20%, 40%, 60%, 80% {
+    transform: scale(1.1);
+  }
+  50%, 70% {
+    transform: scale(1.1);
+  }
+}
+.back-to-top {
+  background: #eee;
+  font-size: 12px;
+  margin: 8px -10px -20px;
+  opacity: 0;
+  text-align: center;
+  transition-delay: 0s;
+  transition-duration: 0.2s;
+  transition-timing-function: ease-in-out;
+}
+.back-to-top.back-to-top-on {
+  cursor: pointer;
+  opacity: 0.6;
+}
+.back-to-top.back-to-top-on:hover {
+  opacity: 0.8;
+}
+.post-body {
+  font-family: 'Monda', "PingFang SC", "Microsoft YaHei", sans-serif;
+  overflow-wrap: break-word;
+  word-wrap: break-word;
+}
+@media (min-width: 1200px) {
+  .post-body {
+    font-size: 1.125em;
+  }
+}
+.post-body span.exturl .fa {
+  font-size: 0.875em;
+  margin-left: 4px;
+}
+.post-body .image-caption,
+.post-body .figure .caption {
+  color: #999;
+  font-size: 0.875em;
+  font-weight: bold;
+  line-height: 1;
+  margin: -20px auto 15px;
+  text-align: center;
+}
+.post-sticky-flag {
+  display: inline-block;
+  transform: rotate(30deg);
+}
+.post-button {
+  margin-top: 40px;
+  text-align: center;
+}
+.use-motion .post-block,
+.use-motion .pagination,
+.use-motion .comments {
+  opacity: 0;
+}
+.use-motion .post-header {
+  opacity: 0;
+}
+.use-motion .post-body {
+  opacity: 0;
+}
+.use-motion .collection-header {
+  opacity: 0;
+}
+.posts-collapse {
+  margin-left: 55px;
+  position: relative;
+}
+@media (max-width: 767px) {
+  .posts-collapse {
+    margin-left: 20px;
+    margin-right: 20px;
+  }
+}
+.posts-collapse .collection-title {
+  font-size: 1.125em;
+  position: relative;
+}
+.posts-collapse .collection-title::before {
+  background: #999;
+  border: 1px solid #fff;
+  border-radius: 50%;
+  content: ' ';
+  height: 10px;
+  left: 0;
+  margin-left: -6px;
+  margin-top: -4px;
+  position: absolute;
+  top: 50%;
+  width: 10px;
+}
+.posts-collapse .collection-year {
+  margin: 60px 0;
+  position: relative;
+}
+.posts-collapse .collection-year::before {
+  background: #bbb;
+  border-radius: 50%;
+  content: ' ';
+  height: 8px;
+  left: 0;
+  margin-left: -4px;
+  margin-top: -4px;
+  position: absolute;
+  top: 50%;
+  width: 8px;
+}
+.posts-collapse .collection-header {
+  display: inline-block;
+  margin: 0 0 0 20px;
+}
+.posts-collapse .collection-header small {
+  color: #bbb;
+  margin-left: 5px;
+}
+.posts-collapse .post-header {
+  border-bottom: 1px dashed #ccc;
+  margin: 30px 0;
+  padding-left: 15px;
+  position: relative;
+  transition-property: border;
+  transition-delay: 0s;
+  transition-duration: 0.2s;
+  transition-timing-function: ease-in-out;
+}
+.posts-collapse .post-header::before {
+  background: #bbb;
+  border: 1px solid #fff;
+  border-radius: 50%;
+  content: ' ';
+  height: 6px;
+  left: 0;
+  margin-left: -4px;
+  position: absolute;
+  top: 0.75em;
+  transition-property: background;
+  width: 6px;
+  transition-delay: 0s;
+  transition-duration: 0.2s;
+  transition-timing-function: ease-in-out;
+}
+.posts-collapse .post-header:hover {
+  border-bottom-color: #666;
+}
+.posts-collapse .post-header:hover::before {
+  background: #222;
+}
+.posts-collapse .post-meta {
+  display: inline;
+  font-size: 0.75em;
+  margin-right: 10px;
+}
+.posts-collapse .post-title {
+  display: inline;
+  font-size: 1em;
+  font-weight: normal;
+  margin-bottom: 0;
+  margin-top: 0;
+}
+.posts-collapse .post-title a,
+.posts-collapse .post-title span.exturl {
+  border-bottom: none;
+  color: #666;
+}
+.posts-collapse::before {
+  background: #f5f5f5;
+  content: ' ';
+  height: 100%;
+  left: 0;
+  margin-left: -2px;
+  position: absolute;
+  top: 1.25em;
+  width: 4px;
+}
+.posts-collapse .fa-external-link {
+  font-size: 0.875em;
+  margin-left: 5px;
+}
+.post-eof {
+  background: #ccc;
+  height: 1px;
+  margin: 80px auto 60px;
+  text-align: center;
+  width: 8%;
+}
+.post-block:last-child .post-eof {
+  display: none;
+}
+.posts-expand {
+  padding-top: 40px;
+}
+@media (max-width: 767px) {
+  .posts-expand {
+    margin: 0 20px;
+  }
+}
+@media (min-width: 992px) {
+  .post-body {
+    text-align: left;
+  }
+}
+@media (max-width: 991px) {
+  .post-body {
+    text-align: left;
+  }
+}
+.post-body h2,
+.post-body h3,
+.post-body h4,
+.post-body h5,
+.post-body h6 {
+  padding-top: 10px;
+}
+.post-body h2 .header-anchor,
+.post-body h3 .header-anchor,
+.post-body h4 .header-anchor,
+.post-body h5 .header-anchor,
+.post-body h6 .header-anchor {
+  border-bottom-style: none;
+  color: #ccc;
+  float: right;
+  margin-left: 10px;
+  visibility: hidden;
+}
+.post-body h2 .header-anchor:hover,
+.post-body h3 .header-anchor:hover,
+.post-body h4 .header-anchor:hover,
+.post-body h5 .header-anchor:hover,
+.post-body h6 .header-anchor:hover {
+  color: inherit;
+}
+.post-body h2:hover .header-anchor,
+.post-body h3:hover .header-anchor,
+.post-body h4:hover .header-anchor,
+.post-body h5:hover .header-anchor,
+.post-body h6:hover .header-anchor {
+  visibility: visible;
+}
+.post-body img {
+  border: 1px solid #ddd;
+  box-sizing: border-box;
+  padding: 3px;
+}
+@media (max-width: 767px) {
+  .post-body img {
+    padding: initial;
+  }
+}
+.post-body iframe,
+.post-body img,
+.post-body video {
+  margin-bottom: 20px;
+}
+.post-body .video-container {
+  height: 0;
+  margin-bottom: 20px;
+  overflow: hidden;
+  padding-top: 75%;
+  position: relative;
+  width: 100%;
+}
+.post-body .video-container iframe,
+.post-body .video-container object,
+.post-body .video-container embed {
+  height: 100%;
+  left: 0;
+  margin: 0;
+  position: absolute;
+  top: 0;
+  width: 100%;
+}
+.post-gallery {
+  border-collapse: separate;
+  display: table;
+  table-layout: fixed;
+  width: 100%;
+}
+.post-gallery .post-gallery-img {
+  border: 0;
+  display: table-cell;
+  text-align: center;
+  vertical-align: middle;
+}
+.post-gallery .post-gallery-img img {
+  border: 0;
+  max-height: 100%;
+  max-width: 100%;
+}
+.post-gallery-row {
+  display: table-row;
+}
+.posts-expand .post-header {
+  font-size: 1.125em;
+}
+.posts-expand .post-title {
+  font-weight: 400;
+  margin: initial;
+  text-align: center;
+  overflow-wrap: break-word;
+  word-wrap: break-word;
+}
+.posts-expand .post-title-link {
+  border-bottom: none;
+  color: #555;
+  display: inline-block;
+  position: relative;
+  vertical-align: top;
+}
+.posts-expand .post-title-link::before {
+  background: #000;
+  bottom: 0;
+  content: '';
+  height: 2px;
+  left: 0;
+  position: absolute;
+  transform: scaleX(0);
+  visibility: hidden;
+  width: 100%;
+  transition-delay: 0s;
+  transition-duration: 0.2s;
+  transition-timing-function: ease-in-out;
+}
+.posts-expand .post-title-link:hover::before {
+  transform: scaleX(1);
+  visibility: visible;
+}
+.posts-expand .post-title-link .fa {
+  font-size: 0.875em;
+  margin-left: 5px;
+}
+.posts-expand .post-meta {
+  color: #999;
+  font-family: 'Monda', "PingFang SC", "Microsoft YaHei", sans-serif;
+  font-size: 0.75em;
+  margin: 3px 0 60px 0;
+  text-align: center;
+}
+.posts-expand .post-meta .post-description {
+  font-size: 0.875em;
+  margin-top: 2px;
+}
+.posts-expand .post-meta time {
+  border-bottom: 1px dashed #999;
+  cursor: pointer;
+}
+.post-meta .post-meta-item + .post-meta-item::before {
+  content: '|';
+  margin: 0 0.5em;
+}
+.post-meta-divider {
+  margin: 0 0.5em;
+}
+.post-meta-item-icon {
+  margin-right: 3px;
+}
+@media (max-width: 991px) {
+  .post-meta-item-icon {
+    display: inline-block;
+  }
+}
+@media (max-width: 991px) {
+  .post-meta-item-text {
+    display: none;
+  }
+}
+.post-nav {
+  border-top: 1px solid #eee;
+  display: table;
+  margin-top: 15px;
+  width: 100%;
+}
+.post-nav-divider {
+  display: table-cell;
+  width: 10%;
+}
+.post-nav-item {
+  display: table-cell;
+  padding: 10px 0 0 0;
+  vertical-align: top;
+  width: 45%;
+}
+.post-nav-item a {
+  border-bottom: none;
+  color: #555;
+  display: block;
+  font-size: 0.875em;
+  line-height: 1.6;
+  position: relative;
+}
+.post-nav-item a:hover {
+  border-bottom: none;
+  color: #222;
+}
+.post-nav-item a:active {
+  top: 2px;
+}
+.post-nav-item .fa {
+  font-size: 0.75em;
+  margin-right: 5px;
+}
+.post-nav-next a {
+  padding-left: 5px;
+}
+.post-nav-prev {
+  text-align: right;
+}
+.post-nav-prev a {
+  padding-right: 5px;
+}
+.post-nav-prev .fa {
+  margin-left: 5px;
+}
+.rtl.post-body p,
+.rtl.post-body a,
+.rtl.post-body h1,
+.rtl.post-body h2,
+.rtl.post-body h3,
+.rtl.post-body h4,
+.rtl.post-body h5,
+.rtl.post-body h6,
+.rtl.post-body li,
+.rtl.post-body ul,
+.rtl.post-body ol {
+  direction: rtl;
+  font-family: UKIJ Ekran;
+}
+.rtl.post-title {
+  font-family: UKIJ Ekran;
+}
+.post-tags {
+  margin-top: 40px;
+  text-align: center;
+}
+.post-tags a {
+  display: inline-block;
+  font-size: 0.8125em;
+}
+.post-tags a:not(:last-child) {
+  margin-right: 10px;
+}
+.post-widgets {
+  border-top: 1px solid #eee;
+  margin-top: 15px;
+  text-align: center;
+}
+.wp_rating {
+  height: 20px;
+  line-height: 20px;
+  margin-top: 10px;
+  padding-top: 6px;
+  text-align: center;
+}
+.social-like {
+  display: flex;
+  font-size: 0.875em;
+  justify-content: center;
+  text-align: center;
+}
+.reward-container {
+  margin: 20px auto;
+  padding: 10px 0;
+  text-align: center;
+  width: 90%;
+}
+.reward-container button {
+  background: #ff2a2a;
+  border: 0;
+  border-radius: 5px;
+  color: #fff;
+  cursor: pointer;
+  line-height: 2;
+  outline: 0;
+  padding: 0 15px;
+  vertical-align: text-top;
+}
+.reward-container button:hover {
+  background: #f55;
+}
+#qr {
+  padding-top: 20px;
+}
+#qr a {
+  border: 0;
+}
+#qr img {
+  display: inline-block;
+  margin: 0.8em 2em 0 2em;
+  max-width: 100%;
+  width: 180px;
+}
+#qr p {
+  text-align: center;
+}
+.post-copyright {
+  background: #f5f5f5;
+  border-left: 3px solid #ff2a2a;
+  list-style: none;
+  margin: 2em 0 0;
+  padding: 0.5em 1em;
+}
+.category-all-page .category-all-title {
+  text-align: center;
+}
+.category-all-page .category-all {
+  margin-top: 20px;
+}
+.category-all-page .category-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.category-all-page .category-list-item {
+  margin: 5px 10px;
+}
+.category-all-page .category-list-count {
+  color: #bbb;
+}
+.category-all-page .category-list-count::before {
+  content: ' (';
+  display: inline;
+}
+.category-all-page .category-list-count::after {
+  content: ') ';
+  display: inline;
+}
+.category-all-page .category-list-child {
+  padding-left: 10px;
+}
+.event-list {
+  padding: 0;
+}
+.event-list hr {
+  background: #222;
+  margin: 20px 0 45px 0;
+}
+.event-list hr::after {
+  background: #222;
+  color: #fff;
+  content: 'NOW';
+  display: inline-block;
+  font-weight: bold;
+  padding: 0 5px;
+  text-align: right;
+}
+.event-list .event {
+  background: #222;
+  margin: 20px 0;
+  min-height: 40px;
+  padding: 15px 0 15px 10px;
+}
+.event-list .event .event-summary {
+  color: #fff;
+  margin: 0;
+  padding-bottom: 3px;
+}
+.event-list .event .event-summary::before {
+  animation: dot-flash 1s alternate infinite ease-in-out;
+  color: #fff;
+  content: '\f111';
+  display: inline-block;
+  font-family: 'FontAwesome';
+  font-size: 10px;
+  margin-right: 25px;
+  vertical-align: middle;
+}
+.event-list .event .event-relative-time {
+  color: #bbb;
+  display: inline-block;
+  font-size: 12px;
+  font-weight: 400;
+  padding-left: 12px;
+}
+.event-list .event .event-details {
+  color: #fff;
+  display: block;
+  line-height: 18px;
+  margin-left: 56px;
+  padding-bottom: 6px;
+  padding-top: 3px;
+  text-indent: -24px;
+}
+.event-list .event .event-details::before {
+  color: #fff;
+  display: inline-block;
+  font-family: 'FontAwesome';
+  margin-right: 9px;
+  text-align: center;
+  text-indent: 0;
+  width: 14px;
+}
+.event-list .event .event-details.event-location::before {
+  content: '\f041';
+}
+.event-list .event .event-details.event-duration::before {
+  content: '\f017';
+}
+.event-list .event-past {
+  background: #f5f5f5;
+}
+.event-list .event-past .event-summary,
+.event-list .event-past .event-details {
+  color: #bbb;
+  opacity: 0.9;
+}
+.event-list .event-past .event-summary::before,
+.event-list .event-past .event-details::before {
+  animation: none;
+  color: #bbb;
+}
+@-moz-keyframes dot-flash {
+  from {
+    opacity: 1;
+    transform: scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: scale(0.8);
+  }
+}
+@-webkit-keyframes dot-flash {
+  from {
+    opacity: 1;
+    transform: scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: scale(0.8);
+  }
+}
+@-o-keyframes dot-flash {
+  from {
+    opacity: 1;
+    transform: scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: scale(0.8);
+  }
+}
+@keyframes dot-flash {
+  from {
+    opacity: 1;
+    transform: scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: scale(0.8);
+  }
+}
+ul.breadcrumb {
+  font-size: 0.75em;
+  list-style: none;
+  margin: 1em 0;
+  padding: 0 2em;
+  text-align: center;
+}
+ul.breadcrumb li {
+  display: inline;
+}
+ul.breadcrumb li + li::before {
+  content: '/\00a0';
+  font-weight: normal;
+  padding: 0.5em;
+}
+ul.breadcrumb li + li:last-child {
+  font-weight: bold;
+}
+.tag-cloud {
+  text-align: center;
+}
+.tag-cloud a {
+  display: inline-block;
+  margin: 10px;
+}
+.tag-cloud a:hover {
+  color: #222 !important;
+}
+.gt-header a,
+.gt-comments a,
+.gt-popup a {
+  border-bottom: none;
+}
+.gt-container .gt-popup .gt-action.is--active::before {
+  top: 0.7em;
+}
+.search-pop-overlay {
+  background: rgba(0,0,0,0.3);
+  display: none;
+  height: 100%;
+  left: 0;
+  overflow: hidden;
+  position: fixed;
+  top: 0;
+  width: 100%;
+  z-index: 1400;
+}
+.search-popup {
+  background: #fff;
+  border-radius: 5px;
+  color: #333;
+  display: none;
+  height: 80%;
+  left: 50%;
+  margin-left: -350px;
+  padding: 0;
+  position: fixed;
+  top: 10%;
+  width: 700px;
+  z-index: 1500;
+}
+@media (max-width: 767px) {
+  .search-popup {
+    border-radius: 0;
+    height: 100%;
+    left: 0;
+    margin: 0;
+    padding: 0;
+    top: 0;
+    width: 100%;
+  }
+}
+.search-popup .search-icon,
+.search-popup .popup-btn-close {
+  color: #999;
+  display: inline-block;
+  font-size: 18px;
+  height: 36px;
+  padding-left: 10px;
+  padding-right: 10px;
+  width: 18px;
+}
+.search-popup .popup-btn-close {
+  border-left: 1px solid #eee;
+  cursor: pointer;
+  float: right;
+}
+.search-popup .popup-btn-close:hover .fa {
+  color: #222;
+}
+.search-popup .search-header {
+  background: #f5f5f5;
+  border-top-left-radius: 5px;
+  border-top-right-radius: 5px;
+  padding: 5px;
+}
+.search-input {
+  display: inline-block;
+  width: calc(90% - 30px);
+}
+.search-input input {
+  background: transparent;
+  border: 0;
+  outline: 0;
+  padding: 5px 0;
+  width: 100%;
+}
+.search-input .ais-search-box--magnifier svg,
+.search-input .ais-search-box--reset svg {
+  display: none;
+}
+.algolia-powered {
+  float: right;
+}
+.algolia-powered img {
+  display: inline-block;
+  height: 18px;
+  vertical-align: middle;
+}
+.algolia-results {
+  height: calc(100% - 55px);
+  overflow: auto;
+  padding: 5px 30px;
+  position: relative;
+}
+.algolia-results hr {
+  margin: 10px 0;
+}
+.algolia-results .highlight {
+  color: #f00;
+  font-size: inherit;
+  font-style: normal;
+  margin: 0;
+  padding: 0 2px;
+}
+.algolia-hits {
+  margin-top: 20px;
+}
+.algolia-hit-item {
+  margin: 15px 0;
+}
+.algolia-hit-item-link {
+  border-bottom: 1px dashed #ccc;
+  display: block;
+  transition-delay: 0s;
+  transition-duration: 0.2s;
+  transition-timing-function: ease-in-out;
+}
+.algolia-pagination .pagination {
+  border-top: none;
+  margin: 40px 0;
+  opacity: 1;
+  padding: 0;
+}
+.algolia-pagination .pagination-item {
+  display: inline-block;
+}
+.algolia-pagination .page-number {
+  border-top: none;
+}
+.algolia-pagination .page-number:hover {
+  border-bottom: 1px solid #222;
+}
+.algolia-pagination .disabled-item {
+  visibility: hidden;
+}
+.header {
+  margin: 0 auto;
+  position: relative;
+  width: calc(100% - 20px);
+}
+@media (min-width: 1200px) {
+  .header {
+    width: 1160px;
+  }
+}
+@media (min-width: 1600px) {
+  .header {
+    width: 73%;
+  }
+}
+@media (max-width: 991px) {
+  .header {
+    width: auto;
+  }
+}
+.header-inner {
+  background: #fff;
+  border-radius: initial;
+  box-shadow: 0 2px 2px 0 rgba(0,0,0,0.12), 0 3px 1px -2px rgba(0,0,0,0.06), 0 1px 5px 0 rgba(0,0,0,0.12);
+  overflow: hidden;
+  padding: 0;
+  position: absolute;
+  top: 0;
+  width: 240px;
+}
+@media (min-width: 1200px) {
+  .header-inner {
+    width: 240px;
+  }
+}
+@media (max-width: 991px) {
+  .header-inner {
+    border-radius: initial;
+    position: relative;
+    width: auto;
+  }
+}
+.main::before,
+.main::after {
+  content: ' ';
+  display: table;
+}
+.main::after {
+  clear: both;
+}
+@media (max-width: 991px) {
+  .main-inner {
+    width: auto;
+  }
+}
+.content-wrap {
+  background: #fff;
+  border-radius: initial;
+  box-shadow: 0 2px 2px 0 rgba(0,0,0,0.12), 0 3px 1px -2px rgba(0,0,0,0.06), 0 1px 5px 0 rgba(0,0,0,0.12);
+  box-sizing: border-box;
+  float: right;
+  padding: 40px;
+  width: calc(100% - 252px);
+}
+@media (max-width: 991px) {
+  .content-wrap {
+    border-radius: initial;
+    padding: 20px;
+    width: 100%;
+  }
+}
+.sidebar {
+  background: #eee;
+  box-shadow: none;
+  float: left;
+  position: static;
+  width: 240px;
+}
+@media (max-width: 991px) {
+  .sidebar {
+    display: none;
+  }
+}
+.sidebar-toggle {
+  display: none;
+}
+.footer-inner {
+  padding-left: 260px;
+}
+.back-to-top {
+  left: auto;
+  right: 30px;
+}
+@media (max-width: 991px) {
+  .back-to-top {
+    right: 20px;
+  }
+}
+@media (max-width: 991px) {
+  .footer-inner {
+    padding-left: 0;
+    padding-right: 0;
+    width: auto;
+  }
+}
+.site-brand-container {
+  position: relative;
+}
+.site-meta {
+  background: #222;
+  color: #fff;
+  padding: 20px 0;
+}
+@media (max-width: 991px) {
+  .site-meta {
+    box-shadow: 0 0 16px rgba(0,0,0,0.5);
+  }
+}
+.brand {
+  background: none;
+  padding: 0;
+}
+.brand:hover {
+  color: #fff;
+}
+.site-subtitle {
+  font-weight: initial;
+  margin: 10px 10px 0;
+}
+.custom-logo-image {
+  margin-top: 20px;
+}
+@media (max-width: 991px) {
+  .custom-logo-image {
+    display: none;
+  }
+}
+.site-nav-toggle {
+  left: 20px;
+  top: 50%;
+  transform: translateY(-50%);
+}
+@media (min-width: 768px) and (max-width: 991px) {
+  .site-nav-toggle {
+    display: block;
+  }
+}
+.site-nav-toggle .toggle .toggle-line {
+  background: #fff;
+}
+.site-nav {
+  border-top: none;
+}
+@media (min-width: 768px) and (max-width: 991px) {
+  .site-nav {
+    display: none;
+  }
+}
+.menu-item-active a,
+.menu .menu-item a:hover,
+.menu .menu-item span.exturl:hover {
+  background: #f5f5f5;
+}
+.menu-item-active a::after,
+.menu .menu-item a:hover::after,
+.menu .menu-item span.exturl:hover::after {
+  background: #bbb;
+  border-radius: 50%;
+  content: ' ';
+  height: 6px;
+  margin-top: -3px;
+  position: absolute;
+  right: 15px;
+  top: 50%;
+  width: 6px;
+}
+.menu .menu-item {
+  display: block;
+  margin: 0;
+}
+.menu .menu-item a,
+.menu .menu-item span.exturl {
+  padding: 5px 20px;
+  position: relative;
+  text-align: left;
+  transition-property: background-color;
+}
+.menu .menu-item .badge {
+  background: #ccc;
+  border-radius: 10px;
+  color: #fff;
+  float: right;
+  padding: 2px 5px;
+  text-shadow: 1px 1px 0 rgba(0,0,0,0.1);
+  vertical-align: middle;
+}
+.sub-menu {
+  background: #fff;
+  border-bottom: 1px solid #ddd;
+  margin: 0;
+  padding: 6px 0;
+}
+.sub-menu .menu-item {
+  display: inline-block;
+}
+.sub-menu .menu-item a,
+.sub-menu .menu-item span.exturl {
+  margin: 5px 10px;
+  padding: initial;
+}
+.sub-menu .menu-item a:hover,
+.sub-menu .menu-item span.exturl:hover {
+  background: initial;
+  color: #fc6423;
+}
+.sub-menu .menu-item a::after,
+.sub-menu .menu-item span.exturl::after {
+  content: initial !important;
+}
+.sub-menu .menu-item-active a {
+  background: #fff;
+  border-bottom-color: #fc6423;
+  color: #fc6423;
+}
+.sub-menu .menu-item-active a:hover {
+  background: #fff;
+  border-bottom-color: #fc6423;
+}
+.sidebar {
+  bottom: auto;
+  right: auto;
+}
+.sidebar a,
+.sidebar span.exturl {
+  color: #555;
+}
+.sidebar a:hover,
+.sidebar span.exturl:hover {
+  border-bottom-color: #222;
+  color: #222;
+}
+.sidebar-inner {
+  background: #fff;
+  border-radius: initial;
+  box-shadow: 0 2px 2px 0 rgba(0,0,0,0.12), 0 3px 1px -2px rgba(0,0,0,0.06), 0 1px 5px 0 rgba(0,0,0,0.12), 0 -1px 0.5px 0 rgba(0,0,0,0.09);
+  box-sizing: border-box;
+  color: #555;
+  width: 240px;
+  opacity: 0;
+}
+.sidebar-inner.affix {
+  position: fixed;
+  top: 12px;
+}
+.sidebar-inner.affix-bottom {
+  position: absolute;
+}
+.site-state-item {
+  padding: 0 10px;
+}
+.feed-link,
+.chat {
+  border-bottom: 1px dotted #ccc;
+  border-top: 1px dotted #ccc;
+  margin-top: 10px;
+  text-align: center;
+}
+.feed-link a,
+.chat a {
+  border: 0;
+  color: #fc6423;
+  display: block;
+}
+.feed-link a:hover,
+.chat a:hover {
+  background: none;
+  border: 0;
+  color: #e34603;
+}
+.feed-link a:hover .fa,
+.chat a:hover .fa {
+  color: #e34603;
+}
+.links-of-author {
+  display: flex;
+  flex-wrap: wrap;
+  margin-top: 10px;
+  justify-content: center;
+}
+.links-of-author-item {
+  margin: 5px 0 0;
+}
+.links-of-author-item a,
+.links-of-author-item span.exturl {
+  box-sizing: border-box;
+  display: inline-block;
+  margin-bottom: 0;
+  margin-right: 0;
+  max-width: 216px;
+  overflow: hidden;
+  padding: 0 5px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.links-of-author-item a,
+.links-of-author-item span.exturl {
+  border-bottom: none;
+  display: block;
+  text-decoration: none;
+}
+.links-of-author-item a::before,
+.links-of-author-item span.exturl::before {
+  display: none;
+}
+.links-of-author-item a:hover,
+.links-of-author-item span.exturl:hover {
+  background: #eee;
+  border-radius: 4px;
+}
+.links-of-author-item .fa {
+  margin-right: 2px;
+}
+.links-of-blogroll-item {
+  padding: 0;
+}
+.content-wrap {
+  background: initial;
+  box-shadow: initial;
+  padding: initial;
+}
+.post-block {
+  background: #fff;
+  border-radius: initial;
+  box-shadow: 0 2px 2px 0 rgba(0,0,0,0.12), 0 3px 1px -2px rgba(0,0,0,0.06), 0 1px 5px 0 rgba(0,0,0,0.12);
+  padding: 40px;
+}
+.post-block + .post-block {
+  border-radius: initial;
+  box-shadow: 0 2px 2px 0 rgba(0,0,0,0.12), 0 3px 1px -2px rgba(0,0,0,0.06), 0 1px 5px 0 rgba(0,0,0,0.12), 0 -1px 0.5px 0 rgba(0,0,0,0.09);
+  margin-top: 12px;
+}
+.comments {
+  background: #fff;
+  border-radius: initial;
+  box-shadow: 0 2px 2px 0 rgba(0,0,0,0.12), 0 3px 1px -2px rgba(0,0,0,0.06), 0 1px 5px 0 rgba(0,0,0,0.12), 0 -1px 0.5px 0 rgba(0,0,0,0.09);
+  margin: auto;
+  margin-top: 12px;
+  padding: 40px;
+}
+.tabs-comment {
+  margin-top: 1em;
+}
+.posts-expand {
+  padding-top: initial;
+}
+.post-nav-divider {
+  width: 4%;
+}
+.post-nav-item {
+  width: 48%;
+}
+.post-eof {
+  display: none;
+}
+.pagination {
+  background: #fff;
+  border-radius: initial;
+  border-top: initial;
+  box-shadow: 0 2px 2px 0 rgba(0,0,0,0.12), 0 3px 1px -2px rgba(0,0,0,0.06), 0 1px 5px 0 rgba(0,0,0,0.12), 0 -1px 0.5px 0 rgba(0,0,0,0.09);
+  margin: 12px 0 0;
+  padding: 10px 0 10px;
+}
+.pagination .prev,
+.pagination .next,
+.pagination .page-number {
+  margin-bottom: initial;
+  top: initial;
+}
+.main {
+  padding-bottom: initial;
+}
+.footer {
+  bottom: auto;
+}
+.sub-menu {
+  border-bottom: initial;
+  box-shadow: 0 2px 2px 0 rgba(0,0,0,0.12), 0 3px 1px -2px rgba(0,0,0,0.06), 0 1px 5px 0 rgba(0,0,0,0.12);
+}
+.sub-menu + .content .post-block {
+  box-shadow: 0 2px 2px 0 rgba(0,0,0,0.12), 0 3px 1px -2px rgba(0,0,0,0.06), 0 1px 5px 0 rgba(0,0,0,0.12), 0 -1px 0.5px 0 rgba(0,0,0,0.09);
+  margin-top: 12px;
+}
+@media (min-width: 768px) and (max-width: 991px) {
+  .sub-menu + .content .post-block {
+    margin-top: 10px;
+  }
+}
+@media (max-width: 767px) {
+  .sub-menu + .content .post-block {
+    margin-top: 8px;
+  }
+}
+.post-body h1,
+.post-body h2 {
+  border-bottom: 1px solid #eee;
+}
+.post-body h3 {
+  border-bottom: 1px solid #eee;
+}
+.post-body h4 {
+  border-bottom: 1px dotted #eee;
+}
+@media (min-width: 768px) and (max-width: 991px) {
+  .content-wrap {
+    padding: 10px;
+  }
+  .posts-expand {
+    margin: initial;
+  }
+  .posts-expand .post-button {
+    margin-top: 20px;
+  }
+  .post-block {
+    border-radius: initial;
+    box-shadow: 0 2px 2px 0 rgba(0,0,0,0.12), 0 3px 1px -2px rgba(0,0,0,0.06), 0 1px 5px 0 rgba(0,0,0,0.12), 0 -1px 0.5px 0 rgba(0,0,0,0.09);
+    padding: 20px;
+  }
+  .post-block + .post-block {
+    margin-top: 10px;
+  }
+  .comments {
+    margin-top: 10px;
+    padding: 10px 20px;
+  }
+  .pagination {
+    margin: 10px 0 0;
+  }
+}
+@media (max-width: 767px) {
+  .content-wrap {
+    padding: 8px;
+  }
+  .posts-expand {
+    margin: initial;
+  }
+  .posts-expand .post-button {
+    margin: 12px 0;
+  }
+  .post-block {
+    border-radius: initial;
+    box-shadow: 0 2px 2px 0 rgba(0,0,0,0.12), 0 3px 1px -2px rgba(0,0,0,0.06), 0 1px 5px 0 rgba(0,0,0,0.12), 0 -1px 0.5px 0 rgba(0,0,0,0.09);
+    min-height: auto;
+    padding: 12px;
+  }
+  .post-block + .post-block {
+    margin-top: 8px;
+  }
+  .comments {
+    margin-top: 8px;
+    padding: 10px 12px;
+  }
+  .pagination {
+    margin: 8px 0 0;
+  }
+}</style><noscript>
+  <style>
+  .use-motion .brand,
+  .use-motion .menu-item,
+  .sidebar-inner,
+  .use-motion .post-block,
+  .use-motion .pagination,
+  .use-motion .comments,
+  .use-motion .post-header,
+  .use-motion .post-body,
+  .use-motion .collection-header { opacity: initial; }
+
+  .use-motion .site-title,
+  .use-motion .site-subtitle {
+    opacity: initial;
+    top: initial;
+  }
+
+  .use-motion .logo-line-before i { left: initial; }
+  .use-motion .logo-line-after i { right: initial; }
+  </style>
+</noscript>
+
+<script>function loadCss(l){var d=document,h=d.head,s=d.createElement('link');s.rel='stylesheet';s.href=l;!function e(f){if (d.body)return f();setTimeout(function(){e(f)})}(function(){h.appendChild(s);});}loadCss('/style.css');loadCss('//fonts.googleapis.com/css?family=Monda:300,300italic,400,400italic,700,700italic|Roboto Slab:300,300italic,400,400italic,700,700italic|PT Mono:300,300italic,400,400italic,700,700italic&display=swap&subset=latin,latin-ext');loadCss('//cdn.jsdelivr.net/npm/instantsearch.js@2/dist/instantsearch.min.css');loadCss('//cdn.jsdelivr.net/npm/gitalk@1/dist/gitalk.min.css');</script><noscript><link rel="stylesheet" href="/style.css"><link rel="stylesheet" href="//fonts.googleapis.com/css?family=Monda:300,300italic,400,400italic,700,700italic|Roboto Slab:300,300italic,400,400italic,700,700italic|PT Mono:300,300italic,400,400italic,700,700italic&amp;display=swap&amp;subset=latin,latin-ext"><link rel="stylesheet" href="//cdn.jsdelivr.net/npm/instantsearch.js@2/dist/instantsearch.min.css"><link rel="stylesheet" href="//cdn.jsdelivr.net/npm/gitalk@1/dist/gitalk.min.css"></noscript></head>
+
+<body itemscope="" itemtype="http://schema.org/WebPage">
+  <div class="container use-motion">
+    <div class="headband"></div>
+
+    <header class="header" itemscope="" itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-container">
+  <div class="site-meta">
+
+    <div>
+      <a href="/" class="brand" rel="start">
+        <span class="logo-line-before"><i></i></span>
+        <span class="site-title">贝克街的流浪猫</span>
+        <span class="logo-line-after"><i></i></span>
+      </a>
+    </div>
+        <h1 class="site-subtitle" itemprop="description">技术博客</h1>
+      
+  </div>
+
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="切换导航栏">
+      <span class="toggle-line toggle-line-first"></span>
+      <span class="toggle-line toggle-line-middle"></span>
+      <span class="toggle-line toggle-line-last"></span>
+    </div>
+  </div>
+</div>
+
+
+<nav class="site-nav">
+  
+  <ul id="menu" class="menu">
+        <li class="menu-item menu-item-home">
+
+    <a href="/" rel="section"><i class="fa fa-fw fa-home"></i>首页</a>
+
+  </li>
+        <li class="menu-item menu-item-tags">
+
+    <a href="/tags/" rel="section"><i class="fa fa-fw fa-tags"></i>标签</a>
+
+  </li>
+        <li class="menu-item menu-item-categories">
+
+    <a href="/categories/" rel="section"><i class="fa fa-fw fa-th"></i>分类</a>
+
+  </li>
+        <li class="menu-item menu-item-archives">
+
+    <a href="/archives/" rel="section"><i class="fa fa-fw fa-archive"></i>归档</a>
+
+  </li>
+        <li class="menu-item menu-item-about">
+
+    <a href="/about/" rel="section"><i class="fa fa-fw fa-user"></i>关于</a>
+
+  </li>
+      <li class="menu-item menu-item-search">
+        <a role="button" class="popup-trigger"><i class="fa fa-search fa-fw"></i>搜索
+        </a>
+      </li>
+  </ul>
+
+</nav>
+  <div class="site-search">
+    <div class="popup search-popup">
+    <div class="search-header">
+  <span class="search-icon">
+    <i class="fa fa-search"></i>
+  </span>
+  <div class="search-input" id="search-input"></div>
+  <span class="popup-btn-close">
+    <i class="fa fa-times-circle"></i>
+  </span>
+</div>
+<div class="algolia-results">
+  <div id="algolia-stats"></div>
+  <div id="algolia-hits"></div>
+  <div id="algolia-pagination" class="algolia-pagination"></div>
+</div>
+
+  
+</div>
+<div class="search-pop-overlay"></div>
+
+  </div>
+</div>
+    </header>
+
+    
+
+  <span class="exturl github-corner" data-url="aHR0cHM6Ly9naXRodWIuY29tL0JlaUtlSmllRGVMaXVMYW5nTWFv" title="欢迎关注我的 GitHub" aria-label="欢迎关注我的 GitHub"><svg width="80" height="80" viewBox="0 0 250 250" aria-hidden="true"><path d="M0,0 L115,115 L130,115 L142,142 L250,250 L250,0 Z"></path><path d="M128.3,109.0 C113.8,99.7 119.0,89.6 119.0,89.6 C122.0,82.7 120.5,78.6 120.5,78.6 C119.2,72.0 123.4,76.3 123.4,76.3 C127.3,80.9 125.5,87.3 125.5,87.3 C122.9,97.6 130.6,101.9 134.4,103.2" fill="currentColor" style="transform-origin: 130px 106px;" class="octo-arm"></path><path d="M115.0,115.0 C114.9,115.1 118.7,116.5 119.8,115.4 L133.7,101.6 C136.9,99.2 139.9,98.4 142.2,98.6 C133.8,88.0 127.5,74.4 143.8,58.0 C148.5,53.4 154.0,51.2 159.7,51.0 C160.3,49.4 163.2,43.6 171.4,40.1 C171.4,40.1 176.1,42.5 178.8,56.2 C183.1,58.6 187.2,61.8 190.9,65.4 C194.5,69.0 197.7,73.2 200.1,77.6 C213.8,80.2 216.3,84.9 216.3,84.9 C212.7,93.1 206.9,96.0 205.4,96.6 C205.1,102.4 203.0,107.8 198.3,112.5 C181.9,128.9 168.3,122.5 157.7,114.1 C157.9,116.9 156.7,120.9 152.7,124.9 L141.0,136.5 C139.8,137.7 141.6,141.9 141.8,141.8 Z" fill="currentColor" class="octo-body"></path></svg></span>
+
+
+    <main class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          
+
+          <div class="content">
+            
+
+  <div class="posts-expand">
+      
+  
+  
+  <article itemscope="" itemtype="http://schema.org/Article" class="post-block " lang="zh-CN">
+    <link itemprop="mainEntityOfPage" href="https://www.beikejiedeliulangmao.top/linux/file-system/">
+
+    <span hidden="" itemprop="author" itemscope="" itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.jpg">
+      <meta itemprop="name" content="贝克街的流浪猫">
+      <meta itemprop="description" content="贝贝猫">
+    </span>
+
+    <span hidden="" itemprop="publisher" itemscope="" itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="贝克街的流浪猫">
+    </span>
+      <header class="post-header">
+        <h2 class="post-title" itemprop="name headline">
+          Linux Ext 文件系统
+        </h2>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="fa fa-calendar-o"></i>
+              </span>
+              <span class="post-meta-item-text">发表于</span>
+
+              <time title="创建时间：2019-10-29 09:39:39" itemprop="dateCreated datePublished" datetime="2019-10-29T09:39:39+08:00">2019-10-29</time>
+            </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="fa fa-folder-o"></i>
+              </span>
+              <span class="post-meta-item-text">分类于</span>
+                <span itemprop="about" itemscope="" itemtype="http://schema.org/Thing">
+                  <a href="/categories/Linux/" itemprop="url" rel="index">
+                    <span itemprop="name">Linux</span>
+                  </a>
+                </span>
+            </span>
+
+          
+            <span id="/linux/file-system/" class="post-meta-item leancloud_visitors" data-flag-title="Linux Ext 文件系统" title="阅读次数">
+              <span class="post-meta-item-icon">
+                <i class="fa fa-eye"></i>
+              </span>
+              <span class="post-meta-item-text">阅读次数：</span>
+              <span class="leancloud-visitors-count"></span>
+            </span><br>
+            <span class="post-meta-item" title="本文字数">
+              <span class="post-meta-item-icon">
+                <i class="fa fa-file-word-o"></i>
+              </span>
+                <span class="post-meta-item-text">本文字数：</span>
+              <span>22k</span>
+            </span>
+            <span class="post-meta-item" title="阅读时长">
+              <span class="post-meta-item-icon">
+                <i class="fa fa-clock-o"></i>
+              </span>
+                <span class="post-meta-item-text">阅读时长 ≈</span>
+              <span>20 分钟</span>
+            </span>
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+        <h2 id="引言"><a href="#引言" class="headerlink" title="引言"></a>引言</h2><p>本文整理了 Linux 内核中 Ext 文件系统的相关知识，其他 Linux 相关文章均收录于 <a href="https://www.beikejiedeliulangmao.top/categories/Linux">&lt;Linux系列文章&gt;</a>。</p>
+<a id="more"></a>
+
+<h2 id="文件系统种类"><a href="#文件系统种类" class="headerlink" title="文件系统种类"></a>文件系统种类</h2><p>前面我们讨论了虚拟文件系统，它对所有下层文件系统进行了封装，统一了上层接口并粘合了下层文件系统，这时候应用开发者就接触不到硬盘的数据组织，但是大家一定很好奇，在文件系统这一层是如何组织并有效的利用硬盘的。接下来，我们将介绍 Ext 文件系统的实现方案，同时会顺带着介绍一下无持久存储的文件系统（/proc）。</p>
+<h3 id="Ext-文件系统"><a href="#Ext-文件系统" class="headerlink" title="Ext 文件系统"></a>Ext 文件系统</h3><p>Ext 文件系统这里主要介绍 Ext2 和 Ext3，它们的特性如下：</p>
+<ul>
+<li>Ext2 文件系统: 该文件系统一直伴随着 Linux，它已经成为许多服务器和桌面系统的支柱，工作极其出色。Ext2 文件系统的设计利用了与虚拟文件系统非常类似的结构，因为开发 Ext2 时，目标就是要优化与 Linux 的互操作，但它也可以用于其他的操作系统。</li>
+<li>Ext3 文件系统: 这是 Ext2 的演化和发展。它仍然与 Ext2 兼容，但提供了扩展日志功能，这对系统崩溃的恢复特别有用。除此之外，Ext3 和 Ext2 基本相同。</li>
+</ul>
+<p>在管理基于磁盘文件系统的存储空间时，会遇到一个特殊的问题：碎片。随着文件的移动和新文件的增加，可用空间变得越来越支离破碎，特别是在文件很小的情况下。由于这对访问速度有负面影响，所以文件系统必须尽可能减少碎片发生。</p>
+<p>另一个重要的需求是有效利用存储空间，文件系统要想做到这一点必须存储大量的管理数据，这就需要进行一定的折中，来保证管理数据不会过分的侵占文件内容的存储空间。</p>
+<p>维护文件一致性也是一个关键，需要在规划和实现文件系统时充分考量。内核可能猝然停工，可能是软件错误，也可能由于断电、硬件故障等其他原因。即使此类事故将造成不可恢复的错误(例如，如果修改被缓存在物理内存中，没有写回磁盘，那么修改会丢失)，文件系统的实现必须尽可能快速、全面地纠正可能出现的损坏。它必须能够将文件系统还原到一个可用状态。</p>
+<h4 id="Ext2"><a href="#Ext2" class="headerlink" title="Ext2"></a>Ext2</h4><p>这里我们先介绍一下文件系统的数据，包括文件内容，目录层次的表示，相关管理数据（权限，用户，组），以及文件系统的内部信息，这些数据都会保存在硬盘上来持久保存，一般来说内核为了高速访问都会将这些数据复制到内存中，并在合适的时机将内存中的副本刷回硬盘。</p>
+<p>块的含义：</p>
+<ul>
+<li>有些文件系统存储在面向块的设备上，与设备之间的数据传输都以块为单位进行，不会传输单个字符。</li>
+<li>另一方面，Ext2 文件系统是一种基于块的文件系统，它将硬盘划分为若干块，每个块的长度都相同，按块管理元数据和文件内容。这意味着底层存储介质的结构影响到了文件系统的结构，这很自然也会影响到所用的算法和数据结构的设计。</li>
+</ul>
+<p>在将硬盘划分为固定长度的块时，特别重要的一个方面是文件占用的存储空间只能是块长度的整数倍。这会对存储空间的利用造成一定的影响，我们以下例来介绍这种影响，假定块长为5个单位。我们需要存储 3 个文件，它们的长度分别是 11，4，2 个单位。<br><img src="/images/loading-cat.gif" data-original="https://bbm-hexo.oss-accelerate.aliyuncs.com/images/linux/block-file-system-example.png" alt="block-file-system-example"><br>很明显，上面的方案空间利用率更高，但是它有个缺点，就是需要保存不同文件的边界，这部分管理数据实际上也会很大，这就抵消了这种方案节省的空间。所以，Ext 文件系统采用的是下面的方案，每个文件占用的存储空间不仅包括数据的实际长度，还要根据块长度向上取整到块长的整数倍。Ext2 的块长是可指定的，活用块长配置可以在不同的场景（许多大文件或许多小文件）提高文件系统的效率。</p>
+<p>理解了块的概念后，我们看一看块组，它是 Ext2 的基本成分，容纳了文件系统的其他结构。<br><img src="/images/loading-cat.gif" data-original="https://bbm-hexo.oss-accelerate.aliyuncs.com/images/linux/block-group.png" alt="block-group"><br>块组中各个结构的介绍：</p>
+<ul>
+<li>超级块是用于存储文件系统自身元数据的核心结构。其中的信息包括空闲与已使用块的数目、块长度、当前文件系统状态(在启动时用于检测前一次崩溃)、各种时间戳(例如，上一次装载文件系统的时间以及上一次写入操作的时间)，它还包括一个表示文件系统类型的魔数，这样 mount 能够确认文件系统的类型是否正确。内核只使用第一个块组的超级块读取文件系统的元信息，即使在多个超级块中都有数据时，也是如此，这是一种数据冗余。</li>
+<li>组描述符包含的信息反映了文件系统中各个块组的状态，例如，块组中空闲块和 inode 的数目。每个块组都包含了文件系统中所有块组的组描述符信息。</li>
+<li>数据块位图和 inode 位图用于保存长的比特位串，这些结构中的每个比特位都对应了一个数据块或 inode，用于表示对应的数据块或 inode 是空闲的，还是被使用中。</li>
+<li>inode 表包含了块组中所有的 inode，inode 用于保存文件系统中与各个文件和目录相关的所有元数据。</li>
+<li>顾名思义，数据块部分包含了文件系统中的文件的有用数据。</li>
+</ul>
+<p>每个文件系统都由大量的块组组成，在硬盘上相继排布，就如下图所示。<br><img src="/images/loading-cat.gif" data-original="https://bbm-hexo.oss-accelerate.aliyuncs.com/images/linux/lots-of-block-group.png" alt="lots-of-block-group"><br>启动扇区是硬盘上的一个区域，在系统加电启动时，其内容由 BIOS 自动装载并执行。它包含一个启动装载程序，用于从计算机安装的操作系统中选择一个启动，还负责继续启动过程。显然，该区域不可能填充文件系统的数据。启动装载程序并非在所有系统上都是必须的。在需要启动装载程序的系统上，它们通常位于硬盘的起始处，以避免影响其后的分区。</p>
+<p>磁盘上剩余的空间由连续的许多块组占用，存储了文件系统元数据和各个文件的有用数据。从前面的块组内部构造中，你会看到每个块组都包含超级块数据，这实际上冗余的。它存在的价值主要有如下两点：</p>
+<ul>
+<li>如果系统崩溃破坏了超级块，有关文件系统结构和内容的所有信息都会丢失。如果有冗余的副本，该信息是可能恢复的(难度极高，大多数用户可能一点也恢复不了)。</li>
+<li>通过使文件和管理数据尽可能接近，减少了磁头寻道和旋转，这可以提高文件系统的性能。</li>
+</ul>
+<p>实际上，超级块数据并非在每个块组中都复制，内核也只用超级块的第一个副本工作，通常这就足够了。在进行文件系统检查时，会将第一个超级块的数据传播到剩余的超级块，供紧急情况下读取。因为该方法也会消耗大量的存储空间，Ext2 的后续版本采用了稀疏超级块(sparse super block)技术。该做法中，超级块不再存储到文件系统的每个块组中，而是只存入到块组0、块组 1 和其他可以表示为3、5、7 的幂的块组中。</p>
+<p>在系统内存中，从内核的角度来看，内存划分为长度相同的页，按唯一的页号或指针寻址。硬盘与内存类似，块也通过编号唯一标识。这使得存储在 inode 结构中的文件元数据，能够关联到位于硬盘数据块部分的文件内容。二者之间的关联，是通过将数据块的地址存储在 inode 中建立的。</p>
+<p>文件占用的数据块不见得是连续的(虽然出于性能考虑，连续数据块是我们想要的一种情况)，也可能散布到整个硬盘上。如果我们将文件涉及的所有块的块号都存在 inode 中，那么一个 inode 中能够存放的块数量肯定是有最大限制的，否则 inode 就会过大。所以，inode 通过一种间接的方式来组织一个文件散布在整个硬盘上的所以数据块。</p>
+<p>在 inode 中有少量字节存储直接块号，它们用来表示长度较小的文件。对较大的文件，指向文件内容的各个数据块的指针(块号)是间接存储的，如下图所示。这种方法容许对大小文件的灵活存储，因为用于存储块号的区域的长度，将随文件实际长度的变化而动态变化。inode 本身长度是固定的，用于间接引用的其他数据块是动态分配的。<br><img src="/images/loading-cat.gif" data-original="https://bbm-hexo.oss-accelerate.aliyuncs.com/images/linux/inode-store-block.png" alt="inode-store-block"><br>因为 inode 中最多包含 15 个块号（12 个直接块号，3 个间接寻址块），所以 inode 的长度是固定的，而且占用的硬盘空间比较小。当文件较小时，这些 inode 中的直接块号指向的就是文件全部数据块，当文件较大时，通过间接寻址块，就能拓展 inode 管理的文件最大容量。这里每个块号是 4 个字节，当一个块的大小是 b 时，一级寻址块内就能存放 <code>b/4</code> 个块号，同理二级间接寻址能够存放 <code>(b / 4) * (b / 4)</code>，三级间接寻址能够存放 <code>(b / 4) * (b / 4) * (b / 4)</code> 个块号。总结一下就是 Ext2 文件系统中一个文件的最大大小等于 <code>(b/4)3+(b/4)2+b/4+12</code> 块，b 为块的大小，下表展示了对于不同的块大小，Ext2 所能管理的最大单个文件的尺寸。<br><img src="/images/loading-cat.gif" data-original="https://bbm-hexo.oss-accelerate.aliyuncs.com/images/linux/ext2-max-file-size.png" alt="ext2-max-file-size"><br>仔细回想一下，内核在管理内存页时用到的页表也是采用的相同的思路，通过这种间接存储块号的方式，可以有效地减少 inode 的大小，但是因为必须通过间接寻址才能得到最终的数据块，所以势必会造成性能上的损失（越大的文件，访问速度越慢），不过这也是一种折中。</p>
+<p>此外，磁盘存储的块管理和内存的管理上类似，也存在碎片问题。随着时间的推移，文件系统中许多文件从磁盘随机位置删除，又添加了新的文件，这使得空闲磁盘空间变成长度不同的存储区，因此碎片不可避免地出现了。<br><img src="/images/loading-cat.gif" data-original="https://bbm-hexo.oss-accelerate.aliyuncs.com/images/linux/file-system-segment.png" alt="file-system-segment"><br>尽管数据在磁盘上是散布在随机位置的，但是这些对用户来说是透明的，用户总能通过直接块号，一级二级三级间接块号，顺序的访问文件的所有数据，而不会考虑到磁盘上数据碎片的程度。但是，如果碎片严重的话，访问速度是会受到严重影响的，如果文件的所有块在磁盘上是连续的话，磁头读取数据时移动将降到最低，因此提高了数据传输速度。相反的，如果文件散布在磁盘的各个角落，那么磁头读取时，就需要不停地寻道，这就降低访问速度。因此 Ext2 会尽量防止碎片，在无法避免碎片时，它会尽可能将同一文件的块维持在一个块组中，此外像 defrag.ext2 这样的系统工具还可以用来重新整理磁盘块，将磁盘碎片重组成连续数据。</p>
+<p>然后，我们来讨论一下在 Ext2 中如何描述目录，它定义了文件系统的拓扑结构。在经典的 Unix 文件系统中，目录不过是一种特殊的文件，其 inode 指向的块中描述了该目录下所包含的所有文件和子目录的名称，以及它们对应的 inode 编号。下图展示的就是一个目录 inode 的块内容，前段存储了 inode 编号，后端存储了文件类型和文件名的内容。<br><img src="/images/loading-cat.gif" data-original="https://bbm-hexo.oss-accelerate.aliyuncs.com/images/linux/inode-store-directory.png" alt="inode-store-directory"><br>前两项总是 . 和 .. 它们分别指向了当前目录和父目录。rec_len 是文件名的长度，因为文件名必须为 4 的整数倍，所以空白的部分会用 <code>\0</code> 填充。文件类型并未定义在 inode 自身，而是定义在目录数据块的 file_type 字段中。值得一提的是，只有目录和普通文件才会占用磁盘的数据块，而其他类型的文件都可以通过 inode 中的信息完全描述。</p>
+<ul>
+<li>目标路径长度小于 60 字节的符号链接，保存在原来用来保存目录块号的那 15 * 4 字节中。</li>
+<li>设备文件，命名管道，持久套接字。</li>
+</ul>
+<p>为提高块分配的性能，Ext2 文件系统采用了一种称之为预分配的机制。每当对一个文件请求许多新块时，不会只分配所需要的块数。能够用于连续分配的块，会另外被秘密标记出来，供后续使用。内核确保各个保留的区域是不重叠的。这在进行新的分配时可以节省时间以及防止碎片，特别是在有多个文件并发增长时。应该强调的是: 预分配并不会降低可用空间的利用率。由一个 inode 预分配的空间，如果有需要，那么随时可能被另一个 inode 覆盖。但内核会尽力避免这种做法，只有当迫不得已时才会分配保留区。文件系统使用红黑树来维护预留块的数据，根据预留窗口的边界，对节点进行排序，这样在需要确认某一块是否被预留时，能够快速地找到目标块所在的预分配区域。同时，在 inode 信息中也存储了预留空间的信息，这样在要为该 inode 代表的文件中分配新的块时可以检查是否有预留块，如果有的话则优先从预留块中分配。<br><img src="/images/loading-cat.gif" data-original="https://bbm-hexo.oss-accelerate.aliyuncs.com/images/linux/ext2-reserve-block.png" alt="ext2-reserve-block"><br>最后我们针对，Ext2 文件系统中的主要操作行为进行总结，概述每种操作处理过程：</p>
+<ul>
+<li>创建文件系统：通过 mke2fs 用户空间工具创建，它初始化超级块，超级块中的魔数表明了该文件系统是 Ext2，并分配一个 inode 和数据块，初始化根目录，数据块中包括 . 和 .. 它们都指向根目录本身，此外还有一个 lost+found 的目录，它用来保存发现的坏块。</li>
+<li>装载文件系统：通过 mount 命令可以将文件系统过载在 VFS 的一个路径上，该路径上原内容会被隐藏，只显示新文件系统的根目录内容。将超级块的元数据保存在内存中，方便快速使用，同时在适当的时候刷回硬盘持久保存。</li>
+<li>创建 inode：创建文件或者创建目录时，会创建新的 inode，分配 inode 时会尽可能在同一个块组中分配，如果同一块组不能分配，则会尽可能靠近的分配，如果没有满足条件的空 inode，则会选择一个 inode 使用较少的块组，这样后续的分配过程会更加容易。如果创建的是目录，则需要在目录数据块中加入. 和 ..。</li>
+<li>找到文件数据块：用户通过文件路径访问文件，会先经过 VFS 层，该层将调用底层文件系统的函数，它会通过缓存的目录项查找该文件的 inode，如果缓存不存在，它需要逐级解析硬盘上的 inode 目录的内容，最终找到目标文件的 inode 继而查出数据块位置，如果文件较小，通过直接块号就能访问文件数据，反之则需要间接块号寻址，才能找到目标文件的数据块。</li>
+<li>写入数据：在检测到有必要添加新块时，需要判断是否需要间接块寻址，以及间接层次是怎样的，然后在存储介质上分配合适的空闲块（尽可能分配临近的块），并将新分配的块记录在块列表中（直接块号，间接块号），在这个过程中，为了获得更好的性能，内核会进行块预留，如果一个文件有预留块，那么分配过程会优先选择预留块。处理完所有这些后，才会将文件内容写入其对应的数据块中。</li>
+<li>删除 inode：删除前先确认硬连接减一后数目是否为 0，如果没有硬链接了就可以删除 inode。从父目录的 inode 数据区中删除当前 inode 对应的项，接下来释放硬盘上已经分配的数据块（不会对数据块置零，而只会对块位图置零）。</li>
+</ul>
+<h4 id="Ext3"><a href="#Ext3" class="headerlink" title="Ext3"></a>Ext3</h4><p>Ext3 相较于 Ext2 增加了一个日志特性，记录了对文件系统数据所进行的操作。在发生系统崩溃之后，该机制有助于缩短恢复时间。由于在 Ext3 文件系统中，与新的日志机制无关的底层文件系统概念没有改变，我在这里只讨论 Ext3 的新功能。</p>
+<p>事务(transaction)概念起源于数据库领域，它有助于在操作未能完成的情况下保证数据的一致性。一致性问题同样也会发生在文件系统中(不是 Ext 特有的)。如果文件系统操作被无意中断(例如，停电或用户直接切断电源)，这种情况下元数据的正确性和一致性如何保证？</p>
+<p>Ext3 的基本思想在于，将对文件系统元数据的每个操作都视为事务，在执行之前要先行记录到日志中。在事务结束后(即，对元数据的预期修改已经完成)，相关的信息从日志删除。如果事务数据已经写入到日志之后，而实际操作执行之前(或期间)，发生了系统错误，那么在下一次装载文件系统时，将会完全执行待决的操作。接下来，文件系统自动恢复到一致状态。如果在事务数据尚未写到日志之前发生错误，那么在系统重启时，由于关于该操作的数据已经丢失，因而不会执行该操作，但至少保证了文件系统的一致性。</p>
+<p>但 Ext3 不能创造奇迹。系统崩溃仍然可能造成数据丢失。但在此后，文件系统总是可以非常快速地恢复到一致状态。</p>
+<p>事务日志当然是需要额外开销的，因而 Ext3 的性能与 Ext2 相比，是有所降低的。为了在所有情况下，在性能和数据完整性之间维持适当的均衡，内核能够以 3 种不同的方式访问 Ext3 文件系统。</p>
+<ol>
+<li>回写(write back)模式，日志只记录对元数据的修改。对实际数据的操作不记入日志，这种模式提供了最高的性能，但数据保护是最低的。</li>
+<li>顺序(ordered)模式，日志只记录对元数据的修改。但对实际数据的操作会群集起来，总是在对元数据的操作之前执行，因而该模式比回写模式稍慢.</li>
+<li>日志模式，对元数据和实际数据的修改，都写入日志。这提供了最高等级的数据保护，但速度是最慢的。丢失数据的可能性降到最低。</li>
+</ol>
+<p>日志不仅可以存储在一个专门的文件中，也可以放置在一个独立的分区中。事务并不是一个整块的结构，由于文件系统的结构，必须将事务分解为更小的单位。<br><img src="/images/loading-cat.gif" data-original="https://bbm-hexo.oss-accelerate.aliyuncs.com/images/linux/ext3-transaction.png" alt="ext3-transaction.png"></p>
+<ul>
+<li>日志记录是可以记入日志的最小单位。每个记录表示对某个块的一个更新。</li>
+<li>(原子)句柄在系统级收集了几个日志记录。例如，如果使用 write 系统调用发出一个写请求，那么所有与该操作相关的日志记录都会群集到个句柄中。</li>
+<li>事务是几个句柄的集合，用于保证提供更好的性能。</li>
+</ul>
+<h3 id="无持久存储文件系统"><a href="#无持久存储文件系统" class="headerlink" title="无持久存储文件系统"></a>无持久存储文件系统</h3><p>一般来说，文件系统用于管理在块设备上的持久存储数据，但是也可以用通过文件系统来组织不存储在块设备上的信息，这些信息可以由内核动态生成。这里我们着重介绍这三类：</p>
+<ul>
+<li>proc 文件系统(proc filesystem)，它使得内核可以生成与系统的状态和配置有关的信息。该信息可以由用户和系统程序从普通文件读取，而无需专门的工具与内核通信。在某些情况下，个简单的 cat 命令就足够了。数据不仅可以从内核读取，还可以通过向 proc 文件系统的文件写入字符中，来向内核发送数据。<code>echo "value" &gt; /proc/file:</code> 不会有比这更容易的从用户空间向内核传输信息的方式了。该虚拟文件系统会即时产生文件信息，只有发出读操作请求时，才会生成信息。对于此类文件系统，不需要专用的硬盘分区或其他块存储设备。除了 proc 文件系统之外，内核还提供了许多其他的虚拟文件系统，用于不同的目的。例如，以目录层次结构的形式，对所有设备和系统资源进行编目。即使设备驱动程序也可以在虚拟文件系统中提供状态信息，USB 子系统就是一个例子。</li>
+<li>sysfs 按照惯例一般是装载在 /sys 目录。它设计为从内核向用户层导出非常结构化的信息，对于想要收集系统中的硬件和设备间拓扑关联方面详细信息的工具而言，该文件系统是非常有用的。</li>
+<li>用于专门目的的小文件系统，可以由内核提供的标准函数构建。在内核内部，libfs 库提供了这个功能。此外，内核提供了易于实现顺序文件的方法。在调试文件系统 debugfs 中同时使用了这两种技术，该文件系统使得内核开发者能够快速地向用户空间导出值或从用户空间导入值，而无需创建定制的接口或专门的文件系统。</li>
+</ul>
+<h4 id="proc"><a href="#proc" class="headerlink" title="proc"></a>proc</h4><p>proc 文件系统（Process data filesystem，进程数据文件系统）是种虚拟文件系统，通常装载在 /proc，其信息不能从块设备读取。只有在读取文件内容时，才动态生成相应的信息。使用 proc 文件系统，可以获得有关内核各子系统的信息(例如，内存利用率、附接的外设，等等)，也可以在不重新编译内核源代码的情况下修改内核的行为，或重启系统。与该文件系统密切相关的是系统控制机制(system control mechanism，简称 sysctl)。proc 文件系统提供了种接口，可用于该机制导出的所有选项，使得可以不费力气地修改参数。无需开发专门的通信程序，只需要个 shell 和标准的 cat、echo 程序。</p>
+<p>/proc 的信息可以分为以下几大类:</p>
+<ul>
+<li>内存管理</li>
+<li>系统进程的特征数据</li>
+<li>文件系统</li>
+<li>设备驱动程序</li>
+<li>系统总线</li>
+<li>电源管理</li>
+<li>终端</li>
+<li>系统控制参数</li>
+</ul>
+<p>每个系统进程，无论当前状态如何，都有一个对应的子目录(与其 PID 同名)，包含了该进程的有关信息。顾名思义，进程数据系统(process data system，简称 proc)的初衷就是传递进程数据。特定于进程的目录保存了哪些信息？简单的一个 <code>ls -l</code> 命令，就能看到一些信息:</p>
+<figure class="highlight bash"><table><tbody><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br></pre></td><td class="code"><pre><span class="line"><span class="built_in">cd</span> /proc/1</span><br><span class="line">ls -l</span><br><span class="line">total 0</span><br><span class="line">dr-xr-xr-x 2 root root 0 Nov 18 16:45 attr</span><br><span class="line">-rw-r--r-- 1 root root 0 Nov 18 16:45 autogroup</span><br><span class="line">-r-------- 1 root root 0 Nov 18 16:45 auxv</span><br><span class="line">-r--r--r-- 1 root root 0 Nov 18 16:40 cgroup</span><br><span class="line">--w------- 1 root root 0 Nov 18 16:45 clear_refs</span><br><span class="line">-r--r--r-- 1 root root 0 Nov 18 16:40 cmdline</span><br><span class="line">-rw-r--r-- 1 root root 0 Nov 18 16:40 comm</span><br><span class="line">-rw-r--r-- 1 root root 0 Nov 18 16:45 coredump_filter</span><br><span class="line">-r--r--r-- 1 root root 0 Nov 18 16:45 cpuset</span><br><span class="line">lrwxrwxrwx 1 root root 0 Nov 18 16:45 cwd -&gt; /</span><br><span class="line">-r-------- 1 root root 0 Nov 18 16:40 environ</span><br><span class="line">lrwxrwxrwx 1 root root 0 Nov 18 16:40 exe -&gt; /usr/lib/systemd/systemd</span><br><span class="line">dr-x------ 2 root root 0 Nov 18 16:45 fd</span><br><span class="line">dr-x------ 2 root root 0 Nov 18 16:45 fdinfo</span><br><span class="line">-rw-r--r-- 1 root root 0 Nov 18 16:45 gid_map</span><br><span class="line">-r-------- 1 root root 0 Nov 18 16:45 io</span><br><span class="line">-r--r--r-- 1 root root 0 Nov 18 16:45 limits</span><br><span class="line">-rw-r--r-- 1 root root 0 Nov 18 16:40 loginuid</span><br><span class="line">dr-x------ 2 root root 0 Nov 18 16:45 map_files</span><br><span class="line">-r--r--r-- 1 root root 0 Nov 18 16:45 maps</span><br><span class="line">-rw------- 1 root root 0 Nov 18 16:45 mem</span><br><span class="line">-r--r--r-- 1 root root 0 Oct 25 08:17 mountinfo</span><br><span class="line">-r--r--r-- 1 root root 0 Nov 18 16:45 mounts</span><br><span class="line">-r-------- 1 root root 0 Nov 18 16:45 mountstats</span><br><span class="line">dr-xr-xr-x 7 root root 0 Nov 18 16:39 net</span><br><span class="line">dr-x--x--x 2 root root 0 Nov 18 16:40 ns</span><br><span class="line">-r--r--r-- 1 root root 0 Nov 18 16:45 numa_maps</span><br><span class="line">-rw-r--r-- 1 root root 0 Nov 18 16:45 oom_adj</span><br><span class="line">-r--r--r-- 1 root root 0 Nov 18 16:45 oom_score</span><br><span class="line">-rw-r--r-- 1 root root 0 Nov 18 16:45 oom_score_adj</span><br><span class="line">-r-------- 1 root root 0 Nov 18 16:45 pagemap</span><br><span class="line">-r-------- 1 root root 0 Nov 18 16:45 personality</span><br><span class="line">-rw-r--r-- 1 root root 0 Nov 18 16:45 projid_map</span><br><span class="line">lrwxrwxrwx 1 root root 0 Nov 18 16:45 root -&gt; /</span><br><span class="line">-rw-r--r-- 1 root root 0 Nov 18 16:45 <span class="built_in">sched</span></span><br><span class="line">-r--r--r-- 1 root root 0 Nov 18 16:45 schedstat</span><br><span class="line">-r--r--r-- 1 root root 0 Nov 18 16:40 sessionid</span><br><span class="line">-rw-r--r-- 1 root root 0 Nov 18 16:45 setgroups</span><br><span class="line">-r--r--r-- 1 root root 0 Nov 18 16:45 smaps</span><br><span class="line">-r--r--r-- 1 root root 0 Nov 18 16:45 smaps_rollup</span><br><span class="line">-r-------- 1 root root 0 Nov 18 16:45 stack</span><br><span class="line">-r--r--r-- 1 root root 0 Nov 18 16:40 <span class="built_in">stat</span></span><br><span class="line">-r--r--r-- 1 root root 0 Nov 18 16:45 statm</span><br><span class="line">-r--r--r-- 1 root root 0 Nov 18 16:40 status</span><br><span class="line">-r-------- 1 root root 0 Nov 18 16:45 syscall</span><br><span class="line">dr-xr-xr-x 3 root root 0 Nov 18 16:45 task</span><br><span class="line">-r--r--r-- 1 root root 0 Nov 18 16:45 timers</span><br><span class="line">-rw-rw-rw- 1 root root 0 Nov 18 16:45 timerslack_ns</span><br><span class="line">-rw-r--r-- 1 root root 0 Nov 18 16:45 uid_map</span><br><span class="line">-r--r--r-- 1 root root 0 Nov 18 16:45 wchan</span><br></pre></td></tr></tbody></table></figure>
+
+<p>上例是 PID 为 1 的 systemd，我们可以通过 <code>cmdline</code> 文件查看其起始命令行。</p>
+<figure class="highlight bash"><table><tbody><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line">cat cmdline</span><br><span class="line">/usr/lib/systemd/systemd--switched-root--system--deserialize22</span><br><span class="line"><span class="comment"># od 命令可以显示分隔符 nul</span></span><br><span class="line">od -t a cmdline</span><br><span class="line">0000000   /   u   s   r   /   l   i   b   /   s   y   s   t   e   m   d</span><br><span class="line">0000020   /   s   y   s   t   e   m   d nul   -   -   s   w   i   t   c</span><br><span class="line">0000040   h   e   d   -   r   o   o   t nul   -   -   s   y   s   t   e</span><br><span class="line">0000060   m nul   -   -   d   e   s   e   r   i   a   l   i   z   e nul</span><br><span class="line">0000100   2   2 nul</span><br><span class="line">0000103</span><br></pre></td></tr></tbody></table></figure>
+
+<p>environ 表示进程的所有环境变量，maps 以文本形式列出了进程的所有库的内存映射。</p>
+<figure class="highlight bash"><table><tbody><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br></pre></td><td class="code"><pre><span class="line">cat maps</span><br><span class="line">55e5a4004000-55e5a4165000 r-xp 00000000 fd:00 391970                     /usr/lib/systemd/systemd</span><br><span class="line">55e5a4365000-55e5a4388000 r--p 00161000 fd:00 391970                     /usr/lib/systemd/systemd</span><br><span class="line">55e5a4388000-55e5a4389000 rw-p 00184000 fd:00 391970                     /usr/lib/systemd/systemd</span><br><span class="line">55e5a5a2f000-55e5a5c3a000 rw-p 00000000 00:00 0                          [heap]</span><br><span class="line">7fb0b4000000-7fb0b4029000 rw-p 00000000 00:00 0</span><br><span class="line">7fb0b4029000-7fb0b8000000 ---p 00000000 00:00 0</span><br><span class="line">7fb0bc000000-7fb0bc029000 rw-p 00000000 00:00 0</span><br><span class="line">7fb0bc029000-7fb0c0000000 ---p 00000000 00:00 0</span><br><span class="line">7fb0c2d10000-7fb0c2d11000 ---p 00000000 00:00 0</span><br><span class="line">7fb0c2d11000-7fb0c3511000 rw-p 00000000 00:00 0</span><br><span class="line">7fb0c3511000-7fb0c3512000 ---p 00000000 00:00 0</span><br><span class="line">7fb0c3512000-7fb0c3d12000 rw-p 00000000 00:00 0</span><br><span class="line">7fb0c3d12000-7fb0c3d16000 r-xp 00000000 fd:00 33622816                   /usr/lib64/libuuid.so.1.3.0</span><br><span class="line">7fb0c3d16000-7fb0c3f15000 ---p 00004000 fd:00 33622816                   /usr/lib64/libuuid.so.1.3.0</span><br><span class="line">7fb0c3f15000-7fb0c3f16000 r--p 00003000 fd:00 33622816                   /usr/lib64/libuuid.so.1.3.0</span><br><span class="line">7fb0c3f16000-7fb0c3f17000 rw-p 00004000 fd:00 33622816                   /usr/lib64/libuuid.so.1.3.0</span><br><span class="line">7fb0c3f17000-7fb0c3f53000 r-xp 00000000 fd:00 33622914                   /usr/lib64/libblkid.so.1.1.0</span><br><span class="line">7fb0c3f53000-7fb0c4152000 ---p 0003c000 fd:00 33622914                   /usr/lib64/libblkid.so.1.1.0</span><br><span class="line">7fb0c4152000-7fb0c4155000 r--p 0003b000 fd:00 33622914                   /usr/lib64/libblkid.so.1.1.0</span><br><span class="line">7fb0c4155000-7fb0c4156000 rw-p 0003e000 fd:00 33622914                   /usr/lib64/libblkid.so.1.1.0</span><br><span class="line">7fb0c4156000-7fb0c4157000 rw-p 00000000 00:00 0</span><br><span class="line">7fb0c4157000-7fb0c416c000 r-xp 00000000 fd:00 33622807                   /usr/lib64/libz.so.1.2.7</span><br><span class="line">7fb0c416c000-7fb0c436b000 ---p 00015000 fd:00 33622807                   /usr/lib64/libz.so.1.2.7</span><br><span class="line">7fb0c436b000-7fb0c436c000 r--p 00014000 fd:00 33622807                   /usr/lib64/libz.so.1.2.7</span><br><span class="line">7fb0c436c000-7fb0c436d000 rw-p 00015000 fd:00 33622807                   /usr/lib64/libz.so.1.2.7</span><br><span class="line">...</span><br></pre></td></tr></tbody></table></figure>
+
+<p>status 包含了有关进程的一般信息：</p>
+<figure class="highlight bash"><table><tbody><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br></pre></td><td class="code"><pre><span class="line">cat status</span><br><span class="line">Name:systemd</span><br><span class="line">Umask:0000</span><br><span class="line">Tgid:1</span><br><span class="line">Ngid:0</span><br><span class="line">Pid:1</span><br><span class="line">PPid:0</span><br><span class="line">TracerPid:0</span><br><span class="line">Uid:0 0 0 0</span><br><span class="line">Gid: 0 0 0 0</span><br><span class="line">FDSize:128</span><br><span class="line">Groups:</span><br><span class="line">NStgid:1</span><br><span class="line">NSpid:1</span><br><span class="line">NSpgid:1</span><br><span class="line">NSsid:1</span><br><span class="line">VmPeak:257688 kB</span><br><span class="line">VmSize:192120 kB</span><br><span class="line">VmLck:0 kB</span><br><span class="line">VmPin:0 kB</span><br><span class="line">VmHWM:6400 kB</span><br><span class="line">VmRSS:4808 kB</span><br><span class="line">RssAnon:1584 kB</span><br><span class="line">RssFile:3224 kB</span><br><span class="line">RssShmem:0 kB</span><br><span class="line">VmData:19032 kB</span><br><span class="line">VmStk:132 kB</span><br><span class="line">VmExe:1412 kB</span><br><span class="line">VmLib:3728 kB</span><br><span class="line">VmPTE:136 kB</span><br><span class="line">VmSwap:952 kB</span><br><span class="line">HugeTLBPages:0 kB</span><br><span class="line">CoreDumping:0</span><br><span class="line">THP_enabled:1</span><br><span class="line">Threads:1</span><br><span class="line">SigQ:0/128117</span><br><span class="line">SigPnd:0000000000000000</span><br><span class="line">ShdPnd:0000000000000000</span><br><span class="line">SigBlk:7be3c0fe28014a03</span><br><span class="line">SigIgn:0000000000001000</span><br><span class="line">SigCgt:00000001800004ec</span><br><span class="line">CapInh:0000000000000000</span><br><span class="line">CapPrm:0000003fffffffff</span><br><span class="line">CapEff:0000003fffffffff</span><br><span class="line">CapBnd:0000003fffffffff</span><br><span class="line">CapAmb:0000000000000000</span><br><span class="line">NoNewPrivs:0</span><br><span class="line">Seccomp:0</span><br><span class="line">Speculation_Store_Bypass:vulnerable</span><br><span class="line">Cpus_allowed:ffff</span><br><span class="line">Cpus_allowed_list:0-15</span><br><span class="line">Mems_allowed:00000000，00000000，00000000，00000000，00000000，00000000，00000000，00000000，00000000，00000000，00000000，00000000，00000000，00000000，00000000，00000000，00000000，00000000，00000000，00000000，00000000，00000000，00000000，00000000，00000000，00000000，00000000，00000000，00000000，00000000，00000000，00000001</span><br><span class="line">Mems_allowed_list:0</span><br><span class="line">voluntary_ctxt_switches:685576</span><br><span class="line">nonvoluntary_ctxt_switches:1178</span><br></pre></td></tr></tbody></table></figure>
+
+<p>其中不仅包括了 UID/GID 以及进程其他数值信息，还包含内存分配，进程能力，各个信号掩码的状态（待决，阻塞，等）。</p>
+<p>stat 和 statm 以连串数字的形式，提供了进程及其内存消耗的更多状态信息。fd 子目录包含了一些文件，文件名都是数字。这些文件名表示进程的各个文件描述符。这里的每个文件都是一个符号链接，指向文件名对应的文件描述符在文件系统中的位置，当然得假定该描述符确实是文件。其他的文件类型，如果也能够通过文件描述符访问(如管道)，那么将给出个链接目标，如 <code>pipe:[1434]</code>。此外，还有其他指向与进程相关的文件和命令的符号链接:</p>
+<ul>
+<li>cwd 指向进程当前工作目录。如果用户有适当的权限，则可以使用 <code>cd cwd</code> 切换到该目录，而无需知道 cwd 到底指向哪个目录。</li>
+<li>exe 指向包含了应用程序代码的二进制文件。</li>
+<li>root 指向进程的根目录。</li>
+</ul>
+<p>/proc 不仅包含进程的信息，还包含了一些一般性的内容，如 iomem 和 ioports 提供了用于设备通信的内存地址和端口的有关信息。</p>
+<figure class="highlight bash"><table><tbody><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br></pre></td><td class="code"><pre><span class="line">cat iomem</span><br><span class="line">00000000-00000fff : Reserved</span><br><span class="line">00001000-0009ffff : System RAM</span><br><span class="line">000a0000-000bffff : PCI Bus 0000:00</span><br><span class="line">000c0000-000ce7ff : Video ROM</span><br><span class="line">000f0000-000fffff : System ROM</span><br><span class="line">00100000-2f7ae017 : System RAM</span><br><span class="line">  01000000-01c00dc0 : Kernel code</span><br><span class="line">  01c00dc1-024177ff : Kernel data</span><br><span class="line">  0267f000-029fffff : Kernel bss</span><br><span class="line">2f7ae018-2f7bf057 : System RAM</span><br><span class="line">2f7bf058-2f7c0017 : System RAM</span><br><span class="line">2f7c0018-2f7dfa57 : System RAM</span><br><span class="line">2f7dfa58-39005fff : System RAM</span><br><span class="line">39006000-39d63fff : Reserved</span><br><span class="line">39d64000-3a01cfff : System RAM</span><br><span class="line">3a01d000-3abc9fff : ACPI Non-volatile Storage</span><br><span class="line">3abca000-3b5befff : Reserved</span><br><span class="line">3b5bf000-3b5bffff : System RAM</span><br><span class="line">3b5c0000-3b645fff : Reserved</span><br><span class="line">3b646000-3bffffff : System RAM</span><br><span class="line">3c000000-3dffffff : Reserved</span><br><span class="line">40000000-4fffffff : PCI MMCONFIG 0000 [bus 00-ff]</span><br><span class="line">  40000000-4fffffff : Reserved</span><br><span class="line">50000000-fbffbfff : PCI Bus 0000:00</span><br><span class="line">  e0000000-f1ffffff : PCI Bus 0000:08</span><br><span class="line">    e0000000-efffffff : 0000:08:00.0</span><br><span class="line">    f0000000-f1ffffff : 0000:08:00.0</span><br><span class="line">      f1000000-f11d4fff : efifb</span><br><span class="line">...</span><br><span class="line">cat ioports</span><br><span class="line">0000-0cf7 : PCI Bus 0000:00</span><br><span class="line">  0000-001f : dma1</span><br><span class="line">  0020-0021 : pic1</span><br><span class="line">  0040-0043 : timer0</span><br><span class="line">  0050-0053 : timer1</span><br><span class="line">  0060-0060 : keyboard</span><br><span class="line">  0061-0061 : PNP0800:00</span><br><span class="line">  0064-0064 : keyboard</span><br><span class="line">  0070-0071 : rtc0</span><br><span class="line">  0080-008f : dma page reg</span><br><span class="line">  00a0-00a1 : pic2</span><br><span class="line">  00c0-00df : dma2</span><br><span class="line">  00f0-00ff : fpu</span><br><span class="line">    00f0-00f0 : PNP0C04:00</span><br><span class="line">  02f8-02ff : serial</span><br><span class="line">  03f8-03ff : serial</span><br><span class="line">  0400-0403 : ACPI PM1a_EVT_BLK</span><br><span class="line">  0404-0405 : ACPI PM1a_CNT_BLK</span><br><span class="line">  0408-040b : ACPI PM_TMR</span><br><span class="line">  0420-042f : ACPI GPE0_BLK</span><br><span class="line">  0430-0433 : iTCO_wdt.0.auto</span><br><span class="line">  0450-0450 : ACPI PM2_CNT_BLK</span><br><span class="line">  0454-0457 : pnp 00:00</span><br><span class="line">  0460-047f : iTCO_wdt.0.auto</span><br><span class="line">  0500-057f : pnp 00:02</span><br><span class="line">  0580-059f : 0000:00:1f.3</span><br><span class="line">    0580-059f : pnp 00:02</span><br><span class="line">      0580-059f : i801_smbus</span><br><span class="line">...</span><br></pre></td></tr></tbody></table></figure>
+
+<p>类似的，一些文件提供了当前内存管理状况的粗略概览。buddyinfo 和 slabinfo 提供了伙伴系统和 slab 分配器的当前使用状况，而 meminfo 给出了一般性的内存使用情况，总内存，空闲内存，已分配内存，交换内存，共享区域，回写内存等。vmstat 给出了内存管理的其他特征，包括当前内存管理各个子系统中内存页的数目。</p>
+<p>interrupts 保存了当前操作期间引发的中断的说明。其中不仅给出中断数目，还对每个中断号，给出了相关设备的名称或者中断处理程序。</p>
+<figure class="highlight bash"><table><tbody><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br></pre></td><td class="code"><pre><span class="line">cat interrupts</span><br><span class="line">           CPU0       CPU1       CPU2       CPU3       CPU4       CPU5       CPU6       CPU7       CPU8       CPU9       CPU10      CPU11      CPU12      CPU13      CPU14      CPU15</span><br><span class="line">  0:        120          0          0          0          0          0          0          0          0          0          0          0          0          0          0          0  IR-IO-APIC   2-edge      timer</span><br><span class="line">  8:          0          0          0          0          0          0          0          0          0          0          0          0          0          1          0          0  IR-IO-APIC   8-edge      rtc0</span><br><span class="line">  9:          0          0          0          0          0          0          0          0          0          0          0          0          0          0          0          0  IR-IO-APIC   9-fasteoi   acpi</span><br><span class="line"> 18:          0          0         64          0          0          0          0          0          0          0          0          0          0          0          0          0  IR-IO-APIC  18-fasteoi   ehci_hcd:usb1，ehci_hcd:usb2，i801_smbus</span><br><span class="line"> 26:          0          0          0         88          0          0          0          0          0          0          0          0          0          0          0          0  IR-IO-APIC  21-fasteoi   snd_hda_intel:card1</span><br><span class="line"> 27:          0          0          0   47874329          0          0          0          0          0          0          0          0          0          0          0          0  IR-PCI-MSI 327680-edge      xhci_hcd</span><br><span class="line"> 28:          0          0          0          0          0          0          0          0          0          0          0          0          0          0          0          0  IR-PCI-MSI 5242880-edge      xhci_hcd</span><br><span class="line"> 29:          0          0          0          0          0          0          0          0          0          0          0          0          0          0          0          0  IR-PCI-MSI 5242881-edge      xhci_hcd</span><br><span class="line"> 30:          0          0          0          0          0          0          0          0          0          0          0          0          0          0          0          0  IR-PCI-MSI 5242882-edge      xhci_hcd</span><br><span class="line"> 31:          0          0          0          0          0          0          0          0          0          0          0          0          0          0          0          0  IR-PCI-MSI 5242883-edge      xhci_hcd</span><br><span class="line"> 32:          0          0          0          0          0          0          0          0          0          0          0          0          0          0          0          0  IR-PCI-MSI 5242884-edge      xhci_hcd</span><br><span class="line"> 33:          0          0          0          0          0          0          0          0          0          0          0          0          0          0          0          0  IR-PCI-MSI 5242885-edge      xhci_hcd</span><br><span class="line"> 34:          0          0          0          0          0          0          0          0          0          0          0          0          0          0          0          0  IR-PCI-MSI 5242886-edge      xhci_hcd</span><br><span class="line"> 35:          0          0          0          0          0          0          0          0          0          0          0          0          0          0          0          0  IR-PCI-MSI 5242887-edge      xhci_hcd</span><br><span class="line"> 36:          0          0          0          0          0          0          0          0          0          0          0          0   42607110          0          0          0  IR-PCI-MSI 5767168-edge      xhci_hcd</span><br><span class="line"> 37:          0          0          0          0          0          0          0          0          0          0          0        598          0          0         55  276072274  IR-PCI-MSI 409600-edge      eth-mange</span><br><span class="line"> 39:          0         11          0          0          0          0          0          0          0          0          0          0          0          0          0          0  IR-PCI-MSI 360448-edge      mei_me</span><br><span class="line"> 40:          0          0          0          0          0          0          0          0          0          0          0          0          0          0          0          0  IR-PCI-MSI 2097152-edge      enp4s0</span><br><span class="line"> 41:          0          0         34          0          0          1          0          0          0          0          0          0          0    2103625          0          0  IR-PCI-MSI 2621440-edge      eth-heart</span><br><span class="line"> 42:          0          0   57018749          0          0          0         19          0          0          0          0          0          0          0          0        469  IR-PCI-MSI 3145728-edge      eth-service</span><br><span class="line"> 43:         17          0          0          0    1519201          0          0          1          0          0          0          0          0          0          0          0  IR-PCI-MSI 3670016-edge      eth-wifigw</span><br><span class="line"> 44:          0          0        717          0          0          0          0          0          0          0          0          0          0          0          0          0  IR-PCI-MSI 442368-edge      snd_hda_intel:card0</span><br><span class="line"> 46:          0          0          0          0          0          0    6131938          0          0          0          0          0          0          0         78          0  IR-PCI-MSI 4194304-edge      nvidia</span><br><span class="line"> 48:          0          0          0          0          0          0          0          0          0          0          0          0          0          0          0          0  DMAR-MSI   0-edge      dmar0</span><br><span class="line"> 49:          0          0          0          0          0          0          0          0          0          0          0          0          0          0          0          0  DMAR-MSI   1-edge      dmar1</span><br><span class="line">NMI:       2780       2224       2245       2157       2137       2121       2104       2217       1857       1816       1825       1791       1832       1831       1788       2336   Non-maskable interrupts</span><br><span class="line">LOC:  433300356  429345247  457302412  437722924  441344798  434002656  432015345  434776052  423329985  424677384  422606229  417769274  421891248  435559863  413607939  481916427   Local timer interrupts</span><br><span class="line">SPU:          0          0          0          0          0          0          0          0          0          0          0          0          0          0          0          0   Spurious interrupts</span><br><span class="line">PMI:       2780       2224       2245       2157       2137       2121       2104       2217       1857       1816       1825       1791       1832       1831       1788       2336   Performance monitoring interrupts</span><br><span class="line">IWI:          0          1          0          0          0          0          2          1          0          0          0          1          1          0          0          2   IRQ work interrupts</span><br><span class="line">RTR:          5          0          0          0          0          0          0          0          0          0          0          0          0          0          0          0   APIC ICR <span class="built_in">read</span> retries</span><br><span class="line">RES:   74472650   16932032    5114688    2549839    2040440    1731617    1649749    1658706    1557117    1501392    1461381    1485469    1519270    1507120    1516898    2085564   Rescheduling interrupts</span><br><span class="line">CAL:    9448043    9229567    9268374    9302406    9363137    9393311    9363026    9424404    9003492    8957503    8994174    8898119    8892964    8759141    8922722    8683982   Function call interrupts</span><br><span class="line">TLB:   12034456   12188838   12247965   12196588   12302215   12343219   12252331   12436445   12096334   12112658   12178260   12088858   12123932   11800291   12130182   11829129   TLB shootdowns</span><br><span class="line">TRM:          0          0          0          0          0          0          0          0          0          0          0          0          0          0          0          0   Thermal event interrupts</span><br><span class="line">THR:          0          0          0          0          0          0          0          0          0          0          0          0          0          0          0          0   Threshold APIC interrupts</span><br><span class="line">DFR:          0          0          0          0          0          0          0          0          0          0          0          0          0          0          0          0   Deferred Error APIC interrupts</span><br><span class="line">MCE:          0          0          0          0          0          0          0          0          0          0          0          0          0          0          0          0   Machine check exceptions</span><br><span class="line">MCP:       6426       6427       6427       6427       6427       6427       6427       6427       6427       6427       6427       6427       6427       6427       6427       6427   Machine check polls</span><br><span class="line">HYP:          0          0          0          0          0          0          0          0          0          0          0          0          0          0          0          0   Hypervisor callback interrupts</span><br><span class="line">HRE:          0          0          0          0          0          0          0          0          0          0          0          0          0          0          0          0   Hyper-V reenlightenment interrupts</span><br><span class="line">HVS:          0          0          0          0          0          0          0          0          0          0          0          0          0          0          0          0   Hyper-V stimer0 interrupts</span><br><span class="line">ERR:          0</span><br><span class="line">MIS:          0</span><br><span class="line">PIN:          0          0          0          0          0          0          0          0          0          0          0          0          0          0          0          0   Posted-interrupt notification event</span><br><span class="line">NPI:          0          0          0          0          0          0          0          0          0          0          0          0          0          0          0          0   Nested posted-interrupt event</span><br><span class="line">PIW:          0          0          0          0          0          0          0          0          0          0          0          0          0          0          0          0   Posted-interrupt wakeup event</span><br></pre></td></tr></tbody></table></figure>
+
+<p>最后，我们还得提一下两个重要的数据项 loadavg 和 uptime。前者给出了过去 60 秒，5 分钟，15 分钟的平均系统负荷，后者给出了系统的运行时间，从系统启动经过的时间。</p>
+<p>/proc/net 子目录提供了内核的各种网络选项的有关数据。其中保存了各种协议和设备数据，包括以下几个有趣的数据项。</p>
+<ul>
+<li>udp 和 tcp 提供了 IPv4 的 UDP 和 TCP 套接字的统计数据。IPv6 的对应数据保存在 udp6 和 tcp6 中。UNIX 套接字的统计数据记录在 unix。</li>
+<li>用于反向地址解析的 ARP 表，可以在 arp 文件中查看。</li>
+<li>dev 保存了通过系统的网络接口传输的数据量的统计数据。该信息可用于检查网络的传输质量，因为其中也包括了传输不正确的数据包、被丢弃的数据包和冲突相关的数据。</li>
+</ul>
+<p>用于动态地检查和修改内核行为的系统控制参数，在 proc 文件系统的数据项中，属于最多的一部分。sysctl 参数由一个独立的子目录 /proc/sys 管理，它进一步划分为各种子目录，对应于内核的各个子系统。</p>
+<figure class="highlight bash"><table><tbody><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br></pre></td><td class="code"><pre><span class="line">ls -l</span><br><span class="line">total 0</span><br><span class="line">dr-xr-xr-x 1 root root 0 Nov 18 17:30 abi</span><br><span class="line">dr-xr-xr-x 1 root root 0 Nov 18 17:30 debug</span><br><span class="line">dr-xr-xr-x 1 root root 0 Nov 18 17:30 dev</span><br><span class="line">dr-xr-xr-x 1 root root 0 Oct 25 08:17 fs</span><br><span class="line">dr-xr-xr-x 1 root root 0 Nov 18 17:30 fscache</span><br><span class="line">dr-xr-xr-x 1 root root 0 Oct 25 08:17 kernel</span><br><span class="line">dr-xr-xr-x 1 root root 0 Nov 18 17:29 net</span><br><span class="line">dr-xr-xr-x 1 root root 0 Nov 18 17:30 sunrpc</span><br><span class="line">dr-xr-xr-x 1 root root 0 Nov 18 17:30 user</span><br><span class="line">dr-xr-xr-x 1 root root 0 Nov 18 17:30 vm</span><br></pre></td></tr></tbody></table></figure>
+
+<p>各个子目录中包含了一系列文件，反映了对应的内核子系统的特征数据，例如 /proc/sys/vm 包含如下数据项：</p>
+<figure class="highlight bash"><table><tbody><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br></pre></td><td class="code"><pre><span class="line">ls -l</span><br><span class="line">total 0</span><br><span class="line">-rw-r--r-- 1 root root 0 Nov 18 17:34 admin_reserve_kbytes</span><br><span class="line">-rw-r--r-- 1 root root 0 Nov 18 17:34 block_dump</span><br><span class="line">--w------- 1 root root 0 Nov 18 17:34 compact_memory</span><br><span class="line">-rw-r--r-- 1 root root 0 Nov 18 17:34 compact_unevictable_allowed</span><br><span class="line">-rw-r--r-- 1 root root 0 Nov 18 17:34 dirty_background_bytes</span><br><span class="line">-rw-r--r-- 1 root root 0 Nov 18 17:34 dirty_background_ratio</span><br><span class="line">-rw-r--r-- 1 root root 0 Nov 18 17:34 dirty_bytes</span><br><span class="line">-rw-r--r-- 1 root root 0 Nov 18 17:34 dirty_expire_centisecs</span><br><span class="line">-rw-r--r-- 1 root root 0 Nov 18 17:34 dirty_ratio</span><br><span class="line">-rw-r--r-- 1 root root 0 Nov 18 17:34 dirty_writeback_centisecs</span><br><span class="line">-rw-r--r-- 1 root root 0 Nov 18 17:34 dirtytime_expire_seconds</span><br><span class="line">...</span><br></pre></td></tr></tbody></table></figure>
+
+<p>不同于前面讨论的文件，这里的这些文件不仅可以读，还可以通过普通的文件操作，向其中写入新值，例如 <code>echo "80" &gt; /proc/sys/vm/swappiness</code>。</p>
+<h4 id="sysfs"><a href="#sysfs" class="headerlink" title="sysfs"></a>sysfs</h4><p>kobject（内核对象）包含在一个层次化的组织中。 它们可以有一个父对象，可以包含到一个 kset 中。这决定了 kobject 现在 sysfs 层次结构中的位置: 如果存在父对象，那么需要在父对象对应的目录中新建一项。否则，将其放置到 kobject 所在的 kset 所属的 kobject 对应的目录中。</p>
+<ul>
+<li>每个 kobject 在 sysfs 中都表示为个目录。出现在该目录中的文件是对象的属性。用于导出和设置属性的操作由对象所属的子系统提供(类、驱动程序，等等)。</li>
+<li>总线、设备、驱动程序和类是使用 kobject 机制的主要内核对象，因而也占据了 sysfs 中几乎所有的数据项。</li>
+</ul>
+<h3 id="扩展属性和-ACL"><a href="#扩展属性和-ACL" class="headerlink" title="扩展属性和 ACL"></a>扩展属性和 ACL</h3><p>传统 UNIX 和 Linux 使用自主访问控制模型来判断哪些用户可以访问给定的资源，资源指文件系统中的文件。尽管该方法工作得很好，但它是一种非常粗粒度的安全手段，在某些环境中可能是不适用的。</p>
+<p>为了解决这个问题，我们可以通过 ACL 向文件系统对象提供更细粒度的访问控制手段，即为每个对象附加一个访问控制规则的列表。一般来说我们会通过扩展属性来实现 ACL，扩展属性方法能够向文件系统对象增加额外的、更复杂的属性。</p>
+<h4 id="扩展属性"><a href="#扩展属性" class="headerlink" title="扩展属性"></a>扩展属性</h4><p>从文件系统用户的角度来看，一个扩展属性就是与文件系统对象关联的个“名称/值”对。名称是个普通的字符串，内核对值的内容不作限制。它可以是文本串，但也可以包含任意的二进制数据。属性可以定义，也可以不定义(如果文件没有关联属性，就是这种情形)。如果定义了属性，可以有值，也可以没有。属性名称会按命名空间细分。这意味着，访问属性也要给出命名空间。按照符号约定，用一个点来分隔命名空间和属性名(例如 user.mime_type)。</p>
+<p>内核提供了几个系统调用来读写扩展属性，它们都是作用于 inode：</p>
+<ul>
+<li>setxattr 用于设置或替换某个扩展属性的值，或创建个新的扩展属性</li>
+<li>getxattr 获取某个扩展属性的值</li>
+<li>removexattr 删除一个扩展属性</li>
+<li>listxattr 列出与给定的文件系统对象相关的所有扩展属性</li>
+</ul>
+<h4 id="ACL"><a href="#ACL" class="headerlink" title="ACL"></a>ACL</h4><p>POSIX 访问控制表 (ACL) 是 POSIX 标准定义的一种扩展，用于细化 Linux 的自主访问控制 (DAC) 模型。ACL 借助扩展属性实现，但是它自成一派，ACL 用到的拓展属性被称为 ACL 专用拓展属性，修改 ACL 拓展属性所用的方法与其他普通扩展属性也是相同的。内核对其他普通扩展属性的内容并不感兴趣，但 ACL 扩展属性将被内核集成到 inode 的权限检查中。</p>
+<p>用户层函数 getfacl、setfacl 和 chacl 可以用于获取、设置和修改 ACL 的内容。它们使用可以操作扩展属性的标准系统调用，并不需要与内核进行非标准交互。除了用户应用访问文件时会受到 ACL 的权限检查外，许多其他实用程序（如 ls）都内建了对访问控制表的支持。</p>
+<p>下面我们介绍一个 ACL 的例子，下列是某一文件的 getfacl 输出内容，这里面的 <code>user</code> <code>user:joe</code> 等就是前面提到的 ACL 扩展属性，而后面的 <code>rwx</code> 就是扩展属性的值，这里我们可以看到用户组 <code>group:cool</code> 的权限被限制为只读 <code>r--</code>，有效属性是 <code>r-x</code>，other 属性没有权限限制 <code>other::rwx</code>，那么当我们以 cool 组的账号访问该文件时，ACL 会检查发现该组用户具有读权限，但是没有执行权限，写权限的 ACL 检查被跳过，但是由于 other 中存在该权限，所以最后 cool 组的用户也有写权限。这里要注意 ACL 检查和 other 检查结果是要相与的（ACL 检查 &amp; other），只有所有条件都满足时，才能得到相应的权限。</p>
+<figure class="highlight plain"><table><tbody><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line"> 1:  # file: somedir/</span><br><span class="line"> 2:  # owner: lisa</span><br><span class="line"> 3:  # group: staff</span><br><span class="line"> 4:  # flags: -s-</span><br><span class="line"> 5:  user::rwx  # 文件创建者权限</span><br><span class="line"> 6:  user:joe:rwx  # 用户 joe 的权限</span><br><span class="line"> 7:  group::rwx # 文件创建者所在组权限</span><br><span class="line"> 8:  group:cool:r-- # 组 cool 的权限</span><br><span class="line"> 9:  mask::r-x # 有效权限(mask) 即用户（joe）或组（cool）所设置的权限必须要存在于 mask 的权限设置范围内才会生效，创建人，创建人所在的组，other 的检查不受 mask 的限制</span><br><span class="line">10:  other::rwx # 其他用户权限</span><br></pre></td></tr></tbody></table></figure>
+
+<h2 id="参考内容"><a href="#参考内容" class="headerlink" title="参考内容"></a>参考内容</h2><p>[1]《Linux内核设计与实现》<br>[2]《Linux系统编程》<br>[3]《深入理解Linux内核》<br>[4]《深入Linux内核架构》<br>[5] <span class="exturl" data-url="aHR0cHM6Ly93d3cuY25ibG9ncy5jb20vaGF6aXIvcC9saW51eF9rZXJuZWxfcGlkLmh0bWw=" title="https://www.cnblogs.com/hazir/p/linux_kernel_pid.html">Linux 内核进程管理之进程ID<i class="fa fa-external-link"></i></span><br>[6] <span class="exturl" data-url="aHR0cDovL3NlcnZlci41MWN0by5jb20vc0NvbGxlZ2UtMTk4ODQwLmh0bQ==" title="http://server.51cto.com/sCollege-198840.htm">服务器三大体系SMP、NUMA、MPP介绍<i class="fa fa-external-link"></i></span><br>[7] <span class="exturl" data-url="aHR0cHM6Ly96aHVhbmxhbi56aGlodS5jb20vcC82ODQ2NTk1Mg==" title="https://zhuanlan.zhihu.com/p/68465952">Linux中的物理内存管理 [一]<i class="fa fa-external-link"></i></span><br>[8] <span class="exturl" data-url="aHR0cDovL3d3dy52b2lkY24uY29tL2FydGljbGUvcC1haGZtZWNuei1icnEuaHRtbA==" title="http://www.voidcn.com/article/p-ahfmecnz-brq.html">Linux内核中的page migration和compaction机制简介<i class="fa fa-external-link"></i></span><br>[9] <span class="exturl" data-url="aHR0cHM6Ly9ibG9nLmNzZG4ubmV0L21hY3Jvc3NkemgvYXJ0aWNsZS9kZXRhaWxzLzU5NTQ3NjM=" title="https://blog.csdn.net/macrossdzh/article/details/5954763">物理地址、虚拟地址（线性地址）、逻辑地址以及MMU的知识<i class="fa fa-external-link"></i></span><br>[10] <span class="exturl" data-url="aHR0cHM6Ly9iYWlrZS5iYWlkdS5jb20vaXRlbS/pgLvovpHlnLDlnYA=" title="https://baike.baidu.com/item/逻辑地址">逻辑地址<i class="fa fa-external-link"></i></span><br>[11] <span class="exturl" data-url="aHR0cHM6Ly9ibG9nLmNzZG4ubmV0L3l3Zjg2MTAyOS9hcnRpY2xlL2RldGFpbHMvNjExNDc5NA==" title="https://blog.csdn.net/ywf861029/article/details/6114794">linux内核学习笔记-struct vm_area_struct<i class="fa fa-external-link"></i></span><br>[12] <span class="exturl" data-url="aHR0cDovL2xpdWp1bm1pbmcudG9wLzIwMTcvMDkvMDMvTGludXjkuK3ljL/lkI3pobXnmoTlj43lkJHmmKDlsIQvI+WPjeWQkeaYoOWwhOeahOW8leWFpQ==" title="http://liujunming.top/2017/09/03/Linux中匿名页的反向映射/#反向映射的引入">Linux中匿名页的反向映射<i class="fa fa-external-link"></i></span><br>[13] <span class="exturl" data-url="aHR0cHM6Ly9ibG9nLmNzZG4ubmV0L3NvZGF3YXRlcmVyL2FydGljbGUvZGV0YWlscy81MzQ1NjUxNg==" title="https://blog.csdn.net/sodawaterer/article/details/53456516">系统调用过程详解<i class="fa fa-external-link"></i></span><br>[14] <span class="exturl" data-url="aHR0cDovL3d3dy52b2lkY24uY29tL2FydGljbGUvcC1vZGJpamxwcy1ib2IuaHRtbA==" title="http://www.voidcn.com/article/p-odbijlps-bob.html">再谈Linux内核中的RCU机制<i class="fa fa-external-link"></i></span><br>[15] <span class="exturl" data-url="aHR0cHM6Ly9qYW1pbnpoYW5nLmdpdGh1Yi5pby9uZXR3b3JrL3RoZS1kaWZmZXJlbmNlLWJldHdlZW4tdW5peC1kb21haW4tc29ja2V0LWFuZC10Y3AtaXAtc29ja2V0Lw==" title="https://jaminzhang.github.io/network/the-difference-between-unix-domain-socket-and-tcp-ip-socket/">Unix domain socket 和 TCP/IP socket 的区别<i class="fa fa-external-link"></i></span><br>[16] <span class="exturl" data-url="aHR0cHM6Ly93d3cuaWxpbnV4a2VybmVsLmNvbS9maWxlcy9MaW51eC5HZW5lcmljLkJsb2NrLkxheWVyLnBkZg==" title="https://www.ilinuxkernel.com/files/Linux.Generic.Block.Layer.pdf">Linux通用块设备层<i class="fa fa-external-link"></i></span><br>[17] <span class="exturl" data-url="aHR0cHM6Ly9ibG9nLmNzZG4ubmV0L1l1WmhpSHVpX05vMS9hcnRpY2xlL2RldGFpbHMvNTAyNTY3MTM=" title="https://blog.csdn.net/YuZhiHui_No1/article/details/50256713">ext2文件系统结构分析<i class="fa fa-external-link"></i></span><br>[18] <span class="exturl" data-url="aHR0cHM6Ly9ibG9nLjUxY3RvLmNvbS9ndW9kb25nODEwLzExNzY0Mjc=" title="https://blog.51cto.com/guodong810/1176427">linux ACL权限规划：getfacl,setfacl使用<i class="fa fa-external-link"></i></span><br>[18] <span class="exturl" data-url="aHR0cHM6Ly9ibG9nLmNzZG4ubmV0L3lhbmdfeXVsZWkvYXJ0aWNsZS9kZXRhaWxzLzQ2MzcxOTc1" title="https://blog.csdn.net/yang_yulei/article/details/46371975">查找——图文翔解RadixTree（基数树）<i class="fa fa-external-link"></i></span><br>[19] <span class="exturl" data-url="aHR0cDovL3JvdXgudG9wLzIwMTcvMTAvMjgvcGFnZSUyMGNhY2hlJUU1JTkyJThDYWRkcmVzc19zcGFjZS8=" title="http://roux.top/2017/10/28/page%20cache%E5%92%8Caddress_space/">页缓存page cache和地址空间address_space<i class="fa fa-external-link"></i></span><br>[20] <span class="exturl" data-url="aHR0cHM6Ly9ibG9nLmNzZG4ubmV0L2Fya2JsdWUvYXJ0aWNsZS9kZXRhaWxzLzQ1Nzk2NTUx" title="https://blog.csdn.net/arkblue/article/details/45796551">rocketmq使用的系统参数（dirty_background_ration dirty_ratio）<i class="fa fa-external-link"></i></span><br>[21] <span class="exturl" data-url="aHR0cHM6Ly96aHVhbmxhbi56aGlodS5jb20vcC83MzUzOTMyOA==" title="https://zhuanlan.zhihu.com/p/73539328">Linux内存调节之zone watermark<i class="fa fa-external-link"></i></span><br>[22] <span class="exturl" data-url="aHR0cHM6Ly9ibG9nLmNzZG4ubmV0L3JlbndvdGFvMjAwOS9hcnRpY2xlL2RldGFpbHMvNTE5NzkzNDM=" title="https://blog.csdn.net/renwotao2009/article/details/51979343">Linux的内存回收和交换<i class="fa fa-external-link"></i></span><br>[23] <span class="exturl" data-url="aHR0cHM6Ly96aHVhbmxhbi56aGlodS5jb20vcC83MDk2NDE5NQ==" title="https://zhuanlan.zhihu.com/p/70964195">Linux中的内存回收[一]<i class="fa fa-external-link"></i></span><br>[24] <span class="exturl" data-url="aHR0cHM6Ly93d3cuY25ibG9ncy5jb20vdG9saW1pdC9wLzU0MzUwNjguaHRtbA==" title="https://www.cnblogs.com/tolimit/p/5435068.html">linux内存源码分析 - 内存回收(整体流程)<i class="fa fa-external-link"></i></span><br>[25] <span class="exturl" data-url="aHR0cHM6Ly9ibG9nLmNzZG4ubmV0L2xpX3dlbjAxL2FydGljbGUvZGV0YWlscy84MjY1OTQwNg==" title="https://blog.csdn.net/li_wen01/article/details/82659406">Linux 软中断机制分析<i class="fa fa-external-link"></i></span><br>[26] <span class="exturl" data-url="aHR0cHM6Ly9ibG9nLmNzZG4ubmV0L0RMVVRCcnVjZVpoYW5nL2FydGljbGUvZGV0YWlscy85OTE5NDUz" title="https://blog.csdn.net/DLUTBruceZhang/article/details/9919453">对 jiffies 溢出、回绕及 time_after 宏的理解<i class="fa fa-external-link"></i></span><br>[27] <span class="exturl" data-url="aHR0cHM6Ly9naXRodWIuY29tL2NhaXNhbi9teWJsb2cvYmxvYi9tYXN0ZXIvbGVhcm4tbGludXgtbmV0d29yay1uYW1lc3BhY2UubWQ=" title="https://github.com/caisan/myblog/blob/master/learn-linux-network-namespace.md">learn-linux-network-namespace<i class="fa fa-external-link"></i></span><br>[28] <span class="exturl" data-url="aHR0cHM6Ly96aC53aWtpcGVkaWEub3JnL3dpa2kvJUU2JTk4JUJFJUU1JUJDJThGJUU2JThCJUE1JUU1JUExJTlFJUU5JTgwJTlBJUU3JTlGJUE1" title="https://zh.wikipedia.org/wiki/%E6%98%BE%E5%BC%8F%E6%8B%A5%E5%A1%9E%E9%80%9A%E7%9F%A5">显式拥塞通知<i class="fa fa-external-link"></i></span><br>[29] <span class="exturl" data-url="aHR0cHM6Ly93d3cuY25raXJpdG8ubW9lL3RjcC10YWxrLw==" title="https://www.cnkirito.moe/tcp-talk/">聊聊 TCP 长连接和心跳那些事<i class="fa fa-external-link"></i></span><br>[30] <span class="exturl" data-url="aHR0cHM6Ly9qdWVqaW4uaW0vcG9zdC81OThiYTFkMDZmYjlhMDNjNGQ2NDY0YWI=" title="https://juejin.im/post/598ba1d06fb9a03c4d6464ab">关于 TCP/IP，必知必会的十个问题<i class="fa fa-external-link"></i></span><br>[31] <span class="exturl" data-url="aHR0cHM6Ly9ibG9nLmNzZG4ubmV0L2Z3MDEyNC9hcnRpY2xlL2RldGFpbHMvNzQ1MjY5NQ==" title="https://blog.csdn.net/fw0124/article/details/7452695">TCP协议三次握手连接四次握手断开和DOS攻击<i class="fa fa-external-link"></i></span><br>[32] <span class="exturl" data-url="aHR0cHM6Ly9jb29sc2hlbGwuY24vYXJ0aWNsZXMvMTE1NjQuaHRtbA==" title="https://coolshell.cn/articles/11564.html">TCP 的那些事儿（上）<i class="fa fa-external-link"></i></span><br>[33] <span class="exturl" data-url="aHR0cHM6Ly9jb29sc2hlbGwuY24vYXJ0aWNsZXMvMTE2MDkuaHRtbA==" title="https://coolshell.cn/articles/11609.html">TCP 的那些事儿（下）<i class="fa fa-external-link"></i></span></p>
+
+    </div>
+
+    
+    
+    
+
+      
+        <div id="wechat_subscriber" style="display: block; padding: 10px 0; margin: 20px auto; width: 100%; text-align: center">
+  <img id="wechat_subscriber_qcode" src="/images/qrcode_for_wechat.jpg" alt="贝克街的流浪猫 wechat" style="width: 400px; max-width: 100%;">
+  <div></div>
+</div>
+
+      
+        <div class="reward-container">
+  <div>您的打赏将鼓励我继续分享!</div>
+  <button disable="enable" onclick="var qr = document.getElementById(&quot;qr&quot;); qr.style.display = (qr.style.display === 'none') ? 'block' : 'none';">
+    打赏
+  </button>
+  <div id="qr" style="display: none;">
+      
+      <div style="display: inline-block;">
+        <img src="/images/wechat.jpg" alt="贝克街的流浪猫 微信支付">
+        <p>微信支付</p>
+      </div>
+      
+      <div style="display: inline-block;">
+        <img src="/images/alipay.jpg" alt="贝克街的流浪猫 支付宝">
+        <p>支付宝</p>
+      </div>
+
+  </div>
+</div>
+
+        
+
+<div>
+<ul class="post-copyright">
+  <li class="post-copyright-author">
+    <strong>本文作者： </strong>贝克街的流浪猫
+  </li>
+  <li class="post-copyright-link">
+    <strong>本文链接：</strong>
+    <a href="https://www.beikejiedeliulangmao.top/linux/file-system/" title="Linux Ext 文件系统">https://www.beikejiedeliulangmao.top/linux/file-system/</a>
+  </li>
+  <li class="post-copyright-license">
+    <strong>版权声明： </strong>本博客所有文章除特别声明外，均采用 <span class="exturl" data-url="aHR0cHM6Ly9jcmVhdGl2ZWNvbW1vbnMub3JnL2xpY2Vuc2VzL2J5LW5jLXNhLzQuMC9udWxs"><i class="fa fa-fw fa-creative-commons"></i>BY-NC-SA</span> 许可协议，转载请注明出处！
+  </li>
+  <li class="post-copyright-license">
+    <strong>创作声明： </strong>本文基于上述所有参考内容进行创作，其中可能涉及复制、修改或者转换，图片均来自网络，如有侵权请联系我，我会第一时间进行删除。
+  </li>
+</ul>
+</div>
+
+
+      <footer class="post-footer">
+          <div class="post-tags">
+              <a href="/tags/OperatingSystem/" rel="tag"># OperatingSystem</a>
+              <a href="/tags/Unix/" rel="tag"># Unix</a>
+              <a href="/tags/Linux/" rel="tag"># Linux</a>
+              <a href="/tags/Kernel/" rel="tag"># Kernel</a>
+              <a href="/tags/Ext2/" rel="tag"># Ext2</a>
+              <a href="/tags/Ext3/" rel="tag"># Ext3</a>
+              <a href="/tags/FileSystem/" rel="tag"># FileSystem</a>
+              <a href="/tags/MemoryFileSystem/" rel="tag"># MemoryFileSystem</a>
+          </div>
+
+        
+
+          <div class="post-nav">
+            <div class="post-nav-next post-nav-item">
+                <a href="/linux/cache-and-swap/" rel="next" title="Linux 缓存与页交换">
+                  <i class="fa fa-chevron-left"></i> Linux 缓存与页交换
+                </a>
+            </div>
+
+            <span class="post-nav-divider"></span>
+
+            <div class="post-nav-prev post-nav-item">
+                <a href="/linux/virtual-file-system/" rel="prev" title="Linux 虚拟文件系统">
+                  Linux 虚拟文件系统 <i class="fa fa-chevron-right"></i>
+                </a>
+            </div>
+          </div>
+      </footer>
+    
+  </article>
+  
+  
+  
+
+  </div>
+
+
+          </div>
+          
+    <div class="comments" id="gitalk-container"></div>
+
+        </div>
+          
+  
+  <div class="toggle sidebar-toggle">
+    <span class="toggle-line toggle-line-first"></span>
+    <span class="toggle-line toggle-line-middle"></span>
+    <span class="toggle-line toggle-line-last"></span>
+  </div>
+
+  <aside class="sidebar">
+    <div class="sidebar-inner">
+
+      <ul class="sidebar-nav motion-element">
+        <li class="sidebar-nav-toc">
+          文章目录
+        </li>
+        <li class="sidebar-nav-overview">
+          站点概览
+        </li>
+      </ul>
+
+      <!--noindex-->
+      <div class="post-toc-wrap sidebar-panel">
+          <div class="post-toc motion-element"><ol class="nav"><li class="nav-item nav-level-2"><a class="nav-link" href="#%E5%BC%95%E8%A8%80"><span class="nav-number">1.</span> <span class="nav-text">引言</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E6%96%87%E4%BB%B6%E7%B3%BB%E7%BB%9F%E7%A7%8D%E7%B1%BB"><span class="nav-number">2.</span> <span class="nav-text">文件系统种类</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#Ext-%E6%96%87%E4%BB%B6%E7%B3%BB%E7%BB%9F"><span class="nav-number">2.1.</span> <span class="nav-text">Ext 文件系统</span></a><ol class="nav-child"><li class="nav-item nav-level-4"><a class="nav-link" href="#Ext2"><span class="nav-number">2.1.1.</span> <span class="nav-text">Ext2</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#Ext3"><span class="nav-number">2.1.2.</span> <span class="nav-text">Ext3</span></a></li></ol></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E6%97%A0%E6%8C%81%E4%B9%85%E5%AD%98%E5%82%A8%E6%96%87%E4%BB%B6%E7%B3%BB%E7%BB%9F"><span class="nav-number">2.2.</span> <span class="nav-text">无持久存储文件系统</span></a><ol class="nav-child"><li class="nav-item nav-level-4"><a class="nav-link" href="#proc"><span class="nav-number">2.2.1.</span> <span class="nav-text">proc</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#sysfs"><span class="nav-number">2.2.2.</span> <span class="nav-text">sysfs</span></a></li></ol></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E6%89%A9%E5%B1%95%E5%B1%9E%E6%80%A7%E5%92%8C-ACL"><span class="nav-number">2.3.</span> <span class="nav-text">扩展属性和 ACL</span></a><ol class="nav-child"><li class="nav-item nav-level-4"><a class="nav-link" href="#%E6%89%A9%E5%B1%95%E5%B1%9E%E6%80%A7"><span class="nav-number">2.3.1.</span> <span class="nav-text">扩展属性</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#ACL"><span class="nav-number">2.3.2.</span> <span class="nav-text">ACL</span></a></li></ol></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E5%8F%82%E8%80%83%E5%86%85%E5%AE%B9"><span class="nav-number">3.</span> <span class="nav-text">参考内容</span></a></li></ol></div>
+      </div>
+      <!--/noindex-->
+
+      <div class="site-overview-wrap sidebar-panel">
+        <div class="site-author motion-element" itemprop="author" itemscope="" itemtype="http://schema.org/Person">
+    <img class="site-author-image" itemprop="image" alt="贝克街的流浪猫" src="/images/avatar.jpg">
+  <p class="site-author-name" itemprop="name">贝克街的流浪猫</p>
+  <div class="site-description" itemprop="description">贝贝猫</div>
+</div>
+<div class="site-state-wrap motion-element">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+          <a href="/archives/">
+        
+          <span class="site-state-item-count">120</span>
+          <span class="site-state-item-name">日志</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-categories">
+            <a href="/categories/">
+          
+        <span class="site-state-item-count">24</span>
+        <span class="site-state-item-name">分类</span></a>
+      </div>
+      <div class="site-state-item site-state-tags">
+            <a href="/tags/">
+          
+        <span class="site-state-item-count">158</span>
+        <span class="site-state-item-name">标签</span></a>
+      </div>
+  </nav>
+</div>
+  <div class="feed-link motion-element">
+    <a href="/atom.xml" rel="alternate">
+      <i class="fa fa-rss"></i>RSS
+    </a>
+  </div>
+  <div class="links-of-author motion-element">
+      <span class="links-of-author-item">
+        <span class="exturl" data-url="aHR0cHM6Ly9naXRodWIuY29tL0JlaUtlSmllRGVMaXVMYW5nTWFv" title="GitHub → https://github.com/BeiKeJieDeLiuLangMao"><i class="fa fa-fw fa-github"></i></span>
+      </span>
+      <span class="links-of-author-item">
+        <span class="exturl" data-url="aHR0cHM6Ly96aHVhbmxhbi56aGlodS5jb20vY18xMTY3NDI5NTg4NzExMzM3OTg1" title="知乎 → https://zhuanlan.zhihu.com/c_1167429588711337985"><i class="fa fa-fw fa-book"></i></span>
+      </span>
+      <span class="links-of-author-item">
+        <span class="exturl" data-url="bWFpbHRvOjUxNzM3NTY4NUBxcS5jb20=" title="E-Mail → mailto:517375685@qq.com"><i class="fa fa-fw fa-envelope"></i></span>
+      </span>
+      <span class="links-of-author-item">
+        <span class="exturl" data-url="aHR0cHM6Ly9zdGFja292ZXJmbG93LmNvbS91c2Vycy84NzgyOTY0L3lhbmctY2hlbj90YWI9cHJvZmlsZQ==" title="StackOverflow → https://stackoverflow.com/users/8782964/yang-chen?tab=profile"><i class="fa fa-fw fa-stack-overflow"></i></span>
+      </span>
+  </div>
+
+
+
+      </div>
+        <div class="back-to-top motion-element">
+          <i class="fa fa-arrow-up"></i>
+          <span>0%</span>
+        </div>
+
+    </div>
+  </aside>
+  <div id="sidebar-dimmer"></div>
+
+
+      </div>
+    </main>
+
+    <footer class="footer">
+      <div class="footer-inner">
+        
+  <div class="beian"><span class="exturl" data-url="aHR0cDovL3d3dy5iZWlhbi5taWl0Lmdvdi5jbg==">辽ICP备19017854号 </span>
+  </div>
+
+<div class="copyright">
+  
+  © 2019 – 
+  <span itemprop="copyrightYear">2021</span>
+  <span class="with-love">
+    <i class="fa fa-heart"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">贝克街的流浪猫</span>
+    <span class="post-meta-divider">|</span>
+    <span class="post-meta-item-icon">
+      <i class="fa fa-area-chart"></i>
+    </span>
+      <span class="post-meta-item-text">站点总字数：</span>
+    <span title="站点总字数">1.5m</span>
+    <span class="post-meta-divider">|</span>
+    <span class="post-meta-item-icon">
+      <i class="fa fa-coffee"></i>
+    </span>
+      <span class="post-meta-item-text">站点阅读时长 ≈</span>
+    <span title="站点阅读时长">22:36</span>
+</div>
+
+        
+<div class="busuanzi-count">
+  <script async="" src="https://busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js"></script>
+    <span class="post-meta-item" id="busuanzi_container_site_uv" style="display: none;">
+      <span class="post-meta-item-icon">
+        <i class="fa fa-user"></i>
+      </span>
+      <span class="site-uv" title="总访客量">
+        贝贝猫有
+        <span id="busuanzi_value_site_uv"></span>
+        位同学
+      </span>
+    </span>
+    <span class="post-meta-divider">|</span>
+    <span class="post-meta-item" id="busuanzi_container_site_pv" style="display: none;">
+      <span class="post-meta-item-icon">
+        <i class="fa fa-eye"></i>
+      </span>
+      <span class="site-pv" title="总访问量">
+        笔记被翻阅
+        <span id="busuanzi_value_site_pv"></span>
+        次
+      </span>
+    </span>
+</div>
+
+
+
+
+
+
+  
+
+
+
+
+
+
+        
+      </div>
+    </footer>
+  </div>
+
+  
+  
+  <script src="//cdn.jsdelivr.net/npm/medium-zoom@1/dist/medium-zoom.min.js"></script>
+  <script src="//cdn.jsdelivr.net/npm/pangu@4/dist/browser/pangu.min.js"></script>
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+
+
+
+
+  
+
+<script src="//cdn.jsdelivr.net/npm/instantsearch.js@2/dist/instantsearch.min.js"></script>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+  
+  <script src="//cdn.jsdelivr.net/npm/quicklink@1/dist/quicklink.umd.js"></script>
+  
+
+
+
+
+
+
+
+<script type="text/javascript" src="/bundle.js"></script><script type="text/javascript">function leancloudSelector(url) {
+    return document.getElementById(url).querySelector('.leancloud-visitors-count');
+  }
+  if (CONFIG.page.isPost) {
+    function addCount(Counter) {
+      var visitors = document.querySelector('.leancloud_visitors');
+      var url = visitors.getAttribute('id').trim();
+      var title = visitors.getAttribute('data-flag-title').trim();
+
+      Counter('get', `/classes/Counter?where=${JSON.stringify({ url })}`)
+        .then(response => response.json())
+        .then(({ results }) => {
+          if (results.length > 0) {
+            var counter = results[0];
+              leancloudSelector(url).innerText = counter.time + 1;
+            Counter('put', '/classes/Counter/' + counter.objectId, { time: { '__op': 'Increment', 'amount': 1 } })
+              .then(response => response.json())
+              .catch(error => {
+                console.log('Failed to save visitor count', error);
+              })
+          } else {
+              leancloudSelector(url).innerText = 'Counter not initialized! More info at console err msg.';
+              console.error('ATTENTION! LeanCloud counter has security bug, see how to solve it here: https://github.com/theme-next/hexo-leancloud-counter-security. \n However, you can still use LeanCloud without security, by setting `security` option to `false`.');
+            
+          }
+        })
+        .catch(error => {
+          console.log('LeanCloud Counter Error', error);
+        });
+    }
+  } else {
+    function showTime(Counter) {
+      var visitors = document.querySelectorAll('.leancloud_visitors');
+      var entries = [...visitors].map(element => {
+        return element.getAttribute('id').trim();
+      });
+
+      Counter('get', `/classes/Counter?where=${JSON.stringify({ url: { '$in': entries } })}`)
+        .then(response => response.json())
+        .then(({ results }) => {
+          if (results.length === 0) {
+            document.querySelectorAll('.leancloud_visitors .leancloud-visitors-count').forEach(element => {
+              element.innerText = 0;
+            });
+            return;
+          }
+          for (var i = 0; i < results.length; i++) {
+            var item = results[i];
+            var url = item.url;
+            var time = item.time;
+            leancloudSelector(url).innerText = time;
+          }
+          for (var i = 0; i < entries.length; i++) {
+            var url = entries[i];
+            var element = leancloudSelector(url);
+            if (element.innerText == '') {
+              element.innerText = 0;
+            }
+          }
+        })
+        .catch(error => {
+          console.log('LeanCloud Counter Error', error);
+        });
+    }
+  }
+
+  fetch('https://app-router.leancloud.cn/2/route?appId=gmT3IkYtHVMymcwAjbwHhtiv-gzGzoHsz')
+    .then(response => response.json())
+    .then(({ api_server }) => {
+      var Counter = (method, url, data) => {
+        return fetch(`https://${api_server}/1.1${url}`, {
+          method: method,
+          headers: {
+            'X-LC-Id': 'gmT3IkYtHVMymcwAjbwHhtiv-gzGzoHsz',
+            'X-LC-Key': 'co6tpmcyS9za2D1uqQyMFtnN',
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(data)
+        });
+      };
+      if (CONFIG.page.isPost) {
+        const localhost = /http:\/\/(localhost|127.0.0.1|0.0.0.0)/;
+        if (localhost.test(document.URL)) return;
+        addCount(Counter);
+      } else if (document.querySelectorAll('.post-title-link').length >= 1) {
+        showTime(Counter);
+      }
+    });;(function(){
+      var bp = document.createElement('script');
+      var curProtocol = window.location.protocol.split(':')[0];
+      bp.src = (curProtocol === 'https') ? 'https://zz.bdstatic.com/linksubmit/push.js' : 'http://push.zhanzhang.baidu.com/push.js';
+      var s = document.getElementsByTagName("script")[0];
+      s.parentNode.insertBefore(bp, s);
+    })();;if (document.querySelectorAll('pre.mermaid').length) {
+  NexT.utils.getScript('//cdn.jsdelivr.net/npm/mermaid@8/dist/mermaid.min.js', () => {
+    mermaid.initialize({
+      theme: 'forest',
+      logLevel: 3,
+      flowchart: { curve: 'linear' },
+      gantt: { axisFormat: '%m/%d/%Y' },
+      sequence: { actorMargin: 50 }
+    });
+  }, window.mermaid);
+};window.addEventListener('load', () => {
+      quicklink({
+        timeout: 3000,
+        priority: true,
+        ignores: [uri => uri.includes('#'),uri => uri == 'https://www.beikejiedeliulangmao.top/linux/file-system/',]
+      });
+      });;NexT.utils.getScript('//cdn.jsdelivr.net/npm/gitalk@1/dist/gitalk.min.js', () => {
+    var gitalk = new Gitalk({
+      clientID: '6201d1cc2825a93aa161',
+      clientSecret: '71c60f650595a3eedba64b844f811b90acac3798',
+      repo: 'HexoBlogComment',
+      owner: 'BeiKeJieDeLiuLangMao',
+      admin: ['BeiKeJieDeLiuLangMao'],
+      id: '6439d722acdb2089b458a49d73463ca2',
+        language: 'zh-CN',
+      distractionFreeMode: 'true'
+    });
+    gitalk.render('gitalk-container');
+  }, window.Gitalk);;window.imageLazyLoadSetting = {
+                isSPA: false,
+                processImages: null,
+            };;window.addEventListener("load",function(){var t=/\.(gif|jpg|jpeg|tiff|png)$/i,r=/^data:image\/[a-z]+;base64,/;Array.prototype.slice.call(document.querySelectorAll("img[data-original]")).forEach(function(a){var e=a.parentNode;"A"===e.tagName&&(e.href.match(t)||e.href.match(r))&&(e.href=a.dataset.original)})});;!function(n){n.imageLazyLoadSetting.processImages=o;var i=n.imageLazyLoadSetting.isSPA,l=Array.prototype.slice.call(document.querySelectorAll("img[data-original]"));function o(){i&&(l=Array.prototype.slice.call(document.querySelectorAll("img[data-original]")));for(var r=0;r<l.length;r++)t=l[r],void 0,0<=(e=t.getBoundingClientRect()).bottom&&0<=e.left&&e.top<=(n.innerHeight||document.documentElement.clientHeight)&&function(t){var e,n,i,o,a=l[r];e=a,n=function(){l=l.filter(function(t){return a!==t})},i=new Image,o=e.getAttribute("data-original"),i.onload=function(){e.src=o,n&&n()},i.src=o}();var t,e}o(),n.addEventListener("scroll",function(){var t,e;t=o,e=n,clearTimeout(t.tId),t.tId=setTimeout(function(){t.call(e)},500)})}(this);</script></body></html>

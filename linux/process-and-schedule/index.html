@@ -1,0 +1,3914 @@
+<!DOCTYPE html><html lang="zh-CN"><head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 5.1.1">
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/avatar.jpg">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/avatar.jpg">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/avatar.jpg">
+  <link rel="mask-icon" href="/images/avatar.jpg" color="#222">
+  <link rel="alternate" href="/atom.xml" title="贝克街的流浪猫" type="application/atom+xml">
+  <meta http-equiv="Cache-Control" content="no-transform">
+  <meta http-equiv="Cache-Control" content="no-siteapp">
+  <meta name="google-site-verification" content="PB8pKbwvyCztAdFAxM1AdLMfqXY7wDk6xWZIy3BYn0M">
+  <meta name="baidu-site-verification" content="lHxDkbImj8">
+
+
+
+
+
+  
+  
+
+
+<script id="hexo-configurations">
+  var NexT = window.NexT || {};
+  var CONFIG = {
+    root: '/',
+    scheme: 'Gemini',
+    version: '7.5.0',
+    exturl: true,
+    sidebar: {"position":"left","display":"post","offset":12,"onmobile":false},
+    copycode: {"enable":true,"show_result":true,"style":null},
+    back2top: {"enable":true,"sidebar":true,"scrollpercent":true},
+    bookmark: {"enable":false,"color":"#222","save":"auto"},
+    fancybox: false,
+    mediumzoom: true,
+    lazyload: false,
+    pangu: true,
+    algolia: {
+      appID: 'XKULKGLQCN',
+      apiKey: '59d463bff59108a7719f93aa31f249f3',
+      indexName: 'Hexo Blog',
+      hits: {"per_page":10},
+      labels: {"input_placeholder":"文章查询","hits_empty":"很抱歉，贝贝猫没有发表关于 \"${query}\" 的文章","hits_stats":"找到了 ${hits} 篇文章，耗时 ${time} 毫秒"}
+    },
+    localsearch: {"enable":false,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false},
+    path: '',
+    motion: {"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},
+    sidebarPadding: 40
+  };
+</script>
+
+  <meta name="description" content="引言本文整理了 Linux 内核中进程管理与调度的相关知识，其他 Linux 相关文章均收录于 <Linux系列文章>。">
+<meta property="og:type" content="article">
+<meta property="og:title" content="Linux 进程管理与调度">
+<meta property="og:url" content="https://www.beikejiedeliulangmao.top/linux/process-and-schedule/index.html">
+<meta property="og:site_name" content="贝克街的流浪猫">
+<meta property="og:description" content="引言本文整理了 Linux 内核中进程管理与调度的相关知识，其他 Linux 相关文章均收录于 <Linux系列文章>。">
+<meta property="og:locale" content="zh_CN">
+<meta property="og:image" content="https://www.beikejiedeliulangmao.top/images/loading-cat.gif">
+<meta property="og:image" content="https://www.beikejiedeliulangmao.top/images/loading-cat.gif">
+<meta property="og:image" content="https://www.beikejiedeliulangmao.top/images/loading-cat.gif">
+<meta property="og:image" content="https://www.beikejiedeliulangmao.top/images/loading-cat.gif">
+<meta property="og:image" content="https://www.beikejiedeliulangmao.top/images/loading-cat.gif">
+<meta property="og:image" content="https://www.beikejiedeliulangmao.top/images/loading-cat.gif">
+<meta property="og:image" content="https://www.beikejiedeliulangmao.top/images/loading-cat.gif">
+<meta property="og:image" content="https://www.beikejiedeliulangmao.top/images/loading-cat.gif">
+<meta property="og:image" content="https://www.beikejiedeliulangmao.top/images/loading-cat.gif">
+<meta property="og:image" content="https://www.beikejiedeliulangmao.top/images/loading-cat.gif">
+<meta property="og:image" content="https://www.beikejiedeliulangmao.top/images/loading-cat.gif">
+<meta property="og:image" content="https://www.beikejiedeliulangmao.top/images/loading-cat.gif">
+<meta property="og:image" content="https://www.beikejiedeliulangmao.top/images/loading-cat.gif">
+<meta property="og:image" content="https://www.beikejiedeliulangmao.top/images/loading-cat.gif">
+<meta property="og:image" content="https://www.beikejiedeliulangmao.top/images/loading-cat.gif">
+<meta property="og:image" content="https://www.beikejiedeliulangmao.top/images/loading-cat.gif">
+<meta property="og:image" content="https://www.beikejiedeliulangmao.top/images/loading-cat.gif">
+<meta property="article:published_time" content="2019-10-29T01:39:46.000Z">
+<meta property="article:modified_time" content="2021-01-17T04:25:40.551Z">
+<meta property="article:author" content="贝克街的流浪猫">
+<meta property="article:tag" content="OperatingSystem">
+<meta property="article:tag" content="Unix">
+<meta property="article:tag" content="Linux">
+<meta property="article:tag" content="Kernel">
+<meta property="article:tag" content="Interrupt">
+<meta property="article:tag" content="Process">
+<meta property="article:tag" content="Schedule">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="https://www.beikejiedeliulangmao.top/images/loading-cat.gif">
+
+<link rel="canonical" href="https://www.beikejiedeliulangmao.top/linux/process-and-schedule/">
+
+
+<script id="page-configurations">
+  // https://hexo.io/docs/variables.html
+  CONFIG.page = {
+    sidebar: "",
+    isHome: false,
+    isPost: true,
+    isPage: false,
+    isArchive: false
+  };
+</script>
+
+  <title>Linux 进程管理与调度 | 贝克街的流浪猫</title>
+  
+    <script>
+      function sendPageView() {
+        var host = window.location.hostname;
+        if (host == "localhost" && true) return;
+        var uid = localStorage.getItem('uid') || (Math.random() + '.' + Math.random());
+        localStorage.setItem('uid', uid);
+        navigator.sendBeacon('https://www.google-analytics.com/collect', new URLSearchParams({
+          v  : 1,
+          tid: 'UA-146830566-1',
+          cid: uid,
+          t  : 'pageview',
+          dp : encodeURIComponent(location.pathname)
+        }));
+      }
+      document.addEventListener('pjax:complete', sendPageView);
+      sendPageView();
+    </script>
+
+
+  <script>
+    var _hmt = _hmt || [];
+    (function() {
+      var hm = document.createElement("script");
+      hm.src = "https://hm.baidu.com/hm.js?818a8e6061ff2bd0b5531a739f216601";
+      var s = document.getElementsByTagName("script")[0];
+      s.parentNode.insertBefore(hm, s);
+    })();
+  </script>
+
+
+
+
+  <style>body {
+  background-image: url("https://www.beikejiedeliulangmao.top/images/background.jpeg") !important;
+  background-attachment: fixed !important;
+  background-repeat: no-repeat !important;
+  background-size: 100% 100% !important;
+}
+.bg_content {
+  position: fixed;
+  top: 0;
+  z-index: -1;
+  width: 100%;
+  height: 100%;
+}
+.copyright {
+  color: #000;
+}
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+  background-color: #fff;
+}
+::-webkit-scrollbar-button {
+  width: 0;
+  height: 0;
+}
+::-webkit-scrollbar-button:start:increment,
+::-webkit-scrollbar-button:end:decrement {
+  display: none;
+}
+::-webkit-scrollbar-corner {
+  display: block;
+}
+::-webkit-scrollbar-thumb {
+  border-radius: 6px;
+  background-color: rgba(0,0,0,0.4);
+}
+::-webkit-scrollbar-thumb:hover {
+  border-radius: 6px;
+  background-color: rgba(0,0,0,0.6);
+}
+::-webkit-scrollbar-track,
+::-webkit-scrollbar-thumb {
+  border-right: 1px solid transparent;
+  border-left: 1px solid transparent;
+}
+::-webkit-scrollbar-button:start {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-button:end {
+  width: 6px;
+  height: 6px;
+}
+html {
+  line-height: 1.15; 
+  -webkit-text-size-adjust: 100%; 
+}
+body {
+  margin: 0;
+}
+main {
+  display: block;
+}
+h1 {
+  font-size: 2em;
+  margin: 0.67em 0;
+}
+hr {
+  box-sizing: content-box; 
+  height: 0; 
+  overflow: visible; 
+}
+pre {
+  font-family: monospace, monospace; 
+  font-size: 1em; 
+}
+a {
+  background: transparent;
+}
+abbr[title] {
+  border-bottom: none; 
+  text-decoration: underline; 
+  text-decoration: underline dotted; 
+}
+b,
+strong {
+  font-weight: bolder;
+}
+code,
+kbd,
+samp {
+  font-family: monospace, monospace; 
+  font-size: 1em; 
+}
+small {
+  font-size: 80%;
+}
+sub,
+sup {
+  font-size: 75%;
+  line-height: 0;
+  position: relative;
+  vertical-align: baseline;
+}
+sub {
+  bottom: -0.25em;
+}
+sup {
+  top: -0.5em;
+}
+img {
+  border-style: none;
+}
+button,
+input,
+optgroup,
+select,
+textarea {
+  font-family: inherit; 
+  font-size: 100%; 
+  line-height: 1.15; 
+  margin: 0; 
+}
+button,
+input {
+
+  overflow: visible;
+}
+button,
+select {
+
+  text-transform: none;
+}
+button,
+[type='button'],
+[type='reset'],
+[type='submit'] {
+  -webkit-appearance: button;
+}
+button::-moz-focus-inner,
+[type='button']::-moz-focus-inner,
+[type='reset']::-moz-focus-inner,
+[type='submit']::-moz-focus-inner {
+  border-style: none;
+  padding: 0;
+}
+button:-moz-focusring,
+[type='button']:-moz-focusring,
+[type='reset']:-moz-focusring,
+[type='submit']:-moz-focusring {
+  outline: 1px dotted ButtonText;
+}
+fieldset {
+  padding: 0.35em 0.75em 0.625em;
+}
+legend {
+  box-sizing: border-box; 
+  color: inherit; 
+  display: table; 
+  max-width: 100%; 
+  padding: 0; 
+  white-space: normal; 
+}
+progress {
+  vertical-align: baseline;
+}
+textarea {
+  overflow: auto;
+}
+[type='checkbox'],
+[type='radio'] {
+  box-sizing: border-box; 
+  padding: 0; 
+}
+[type='number']::-webkit-inner-spin-button,
+[type='number']::-webkit-outer-spin-button {
+  height: auto;
+}
+[type='search'] {
+  outline-offset: -2px; 
+  -webkit-appearance: textfield; 
+}
+[type='search']::-webkit-search-decoration {
+  -webkit-appearance: none;
+}
+::-webkit-file-upload-button {
+  font: inherit; 
+  -webkit-appearance: button; 
+}
+details {
+  display: block;
+}
+summary {
+  display: list-item;
+}
+template {
+  display: none;
+}
+[hidden] {
+  display: none;
+}
+::selection {
+  background: #262a30;
+  color: #fff;
+}
+html,
+body {
+  height: 100%;
+}
+body {
+  background: #eee;
+  color: #555;
+  font-family: 'Monda', "PingFang SC", "Microsoft YaHei", sans-serif;
+  font-size: 1em;
+  line-height: 2;
+}
+@media (max-width: 991px) {
+  body {
+    padding-left: 0 !important;
+    padding-right: 0 !important;
+  }
+}
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+  font-family: 'Roboto Slab', 'Monda', "PingFang SC", "Microsoft YaHei", sans-serif;
+  font-weight: bold;
+  line-height: 1.5;
+  margin: 20px 0 15px;
+  padding: 0;
+}
+h1 {
+  font-size: 1.5em;
+}
+h2 {
+  font-size: 1.375em;
+}
+h3 {
+  font-size: 1.25em;
+}
+h4 {
+  font-size: 1.125em;
+}
+h5 {
+  font-size: 1em;
+}
+h6 {
+  font-size: 0.875em;
+}
+p {
+  margin: 0 0 20px 0;
+}
+a,
+span.exturl {
+  border-bottom: 1px solid #999;
+  color: #555;
+  outline: 0;
+  text-decoration: none;
+  overflow-wrap: break-word;
+  word-wrap: break-word;
+  cursor: pointer;
+}
+a:hover,
+span.exturl:hover {
+  border-bottom-color: #222;
+  color: #222;
+}
+iframe,
+img,
+video {
+  display: block;
+  margin-left: auto;
+  margin-right: auto;
+  max-width: 100%;
+}
+hr {
+  background-color: #ddd;
+  background-image: repeating-linear-gradient(-45deg, #fff, #fff 4px, transparent 4px, transparent 8px);
+  border: 0;
+  height: 3px;
+  margin: 40px 0;
+}
+blockquote {
+  border-left: 4px solid #ddd;
+  color: #666;
+  margin: 0;
+  padding: 0 15px;
+}
+blockquote cite::before {
+  content: '-';
+  padding: 0 5px;
+}
+dt {
+  font-weight: 700;
+}
+dd {
+  margin: 0;
+  padding: 0;
+}
+kbd {
+  background-color: #f5f5f5;
+  background-image: linear-gradient(#eee, #fff, #eee);
+  border: 1px solid #ccc;
+  border-radius: 0.2em;
+  box-shadow: 0.1em 0.1em 0.2em rgba(0,0,0,0.1);
+  font-family: inherit;
+  padding: 0.1em 0.3em;
+  white-space: nowrap;
+}
+.table-container {
+  -webkit-overflow-scrolling: touch;
+  overflow: auto;
+}
+table {
+  border-collapse: collapse;
+  border-spacing: 0;
+  font-size: 0.875em;
+  margin: 0 0 20px 0;
+  width: 100%;
+}
+tbody tr:nth-of-type(odd) {
+  background: #f9f9f9;
+}
+tbody tr:hover {
+  background: #f5f5f5;
+}
+caption,
+th,
+td {
+  font-weight: normal;
+  padding: 8px;
+  text-align: left;
+  vertical-align: middle;
+}
+th,
+td {
+  border: 1px solid #ddd;
+  border-bottom: 3px solid #ddd;
+}
+th {
+  font-weight: 700;
+  padding-bottom: 10px;
+}
+td {
+  border-bottom-width: 1px;
+}
+.btn {
+  background: #fff;
+  border: 2px solid #555;
+  border-radius: 2px;
+  color: #555;
+  display: inline-block;
+  font-size: 0.875em;
+  line-height: 2;
+  padding: 0 20px;
+  text-decoration: none;
+  transition-property: background-color;
+  transition-delay: 0s;
+  transition-duration: 0.2s;
+  transition-timing-function: ease-in-out;
+}
+.btn:hover {
+  background: #222;
+  border-color: #222;
+  color: #fff;
+}
+.btn + .btn {
+  margin: 0 0 8px 8px;
+}
+.btn .fa-fw {
+  text-align: left;
+  width: 1.285714285714286em;
+}
+.toggle {
+  line-height: 0;
+}
+.toggle .toggle-line {
+  background: #fff;
+  display: inline-block;
+  height: 2px;
+  left: 0;
+  position: relative;
+  top: 0;
+  transition: all 0.4s;
+  vertical-align: top;
+  width: 100%;
+}
+.toggle .toggle-line:not(:first-child) {
+  margin-top: 3px;
+}
+.toggle.toggle-arrow .toggle-line-first {
+  left: 50%;
+  top: 2px;
+  transform: rotate(45deg);
+  width: 50%;
+}
+.toggle.toggle-arrow .toggle-line-middle {
+  left: 2px;
+  width: 90%;
+}
+.toggle.toggle-arrow .toggle-line-last {
+  left: 50%;
+  top: -2px;
+  transform: rotate(-45deg);
+  width: 50%;
+}
+.toggle.toggle-close .toggle-line-first {
+  transform: rotate(-45deg);
+  top: 5px;
+}
+.toggle.toggle-close .toggle-line-middle {
+  opacity: 0;
+}
+.toggle.toggle-close .toggle-line-last {
+  transform: rotate(45deg);
+  top: -5px;
+}
+.highlight-container {
+  position: relative;
+}
+.highlight-container:hover .copy-btn,
+.highlight-container .copy-btn:focus {
+  opacity: 1;
+}
+.copy-btn {
+  color: #333;
+  cursor: pointer;
+  display: inline-block;
+  font-weight: 700;
+  line-height: 1.6;
+  opacity: 0;
+  outline: 0;
+  padding: 2px 6px;
+  position: absolute;
+  transition: opacity 0.3s ease-in-out;
+  vertical-align: middle;
+  white-space: nowrap;
+  -moz-user-select: none;
+  -ms-user-select: none;
+  -webkit-user-select: none;
+  user-select: none;
+  background-color: #eee;
+  background-image: linear-gradient(#fcfcfc, #eee);
+  border: 1px solid #d5d5d5;
+  border-radius: 3px;
+  font-size: 0.8125em;
+  right: 4px;
+  top: 8px;
+}
+.highlight,
+pre {
+  background: #f7f7f7;
+  color: #4d4d4c;
+  line-height: 1.6;
+  margin: 0 auto 20px;
+}
+pre,
+code {
+  font-family: 'PT Mono', consolas, Menlo, monospace, "PingFang SC", "Microsoft YaHei";
+}
+code {
+  background: #eee;
+  border-radius: 3px;
+  color: #555;
+  padding: 2px 4px;
+  overflow-wrap: break-word;
+  word-wrap: break-word;
+}
+.highlight *::selection {
+  background: #d6d6d6;
+}
+.highlight pre {
+  border: 0;
+  margin: 0;
+  padding: 0;
+}
+.highlight table {
+  border: 0;
+  margin: 0;
+  width: auto;
+}
+.highlight tr:first-child pre {
+  padding-top: 10px;
+}
+.highlight tr:last-child pre {
+  padding-bottom: 10px;
+}
+.highlight td {
+  border: 0;
+  padding: 0;
+}
+.highlight figcaption {
+  background: #eee;
+  color: #4d4d4c;
+  font-size: 0.875em;
+  line-height: 1.2;
+  padding: 0.5em;
+}
+.highlight figcaption::before,
+.highlight figcaption::after {
+  content: ' ';
+  display: table;
+}
+.highlight figcaption::after {
+  clear: both;
+}
+.highlight figcaption a {
+  color: #4d4d4c;
+  float: right;
+}
+.highlight figcaption a:hover {
+  border-bottom-color: #4d4d4c;
+}
+.highlight .gutter pre {
+  background: #eff2f3;
+  color: #869194;
+  padding-left: 10px;
+  padding-right: 10px;
+  text-align: right;
+  -moz-user-select: none;
+  -ms-user-select: none;
+  -webkit-user-select: none;
+  user-select: none;
+}
+.highlight .code pre {
+  background: #f7f7f7;
+  padding-left: 10px;
+  width: 100%;
+}
+.gist table {
+  width: auto;
+}
+.gist table td {
+  border: 0;
+}
+pre {
+  overflow: auto;
+  padding: 10px;
+}
+pre code {
+  background: none;
+  color: #4d4d4c;
+  font-size: 0.875em;
+  padding: 0;
+  text-shadow: none;
+}
+pre .deletion {
+  background: #fdd;
+}
+pre .addition {
+  background: #dfd;
+}
+pre .meta {
+  color: #eab700;
+  -moz-user-select: none;
+  -ms-user-select: none;
+  -webkit-user-select: none;
+  user-select: none;
+}
+pre .comment {
+  color: #8e908c;
+}
+pre .variable,
+pre .attribute,
+pre .tag,
+pre .name,
+pre .regexp,
+pre .ruby .constant,
+pre .xml .tag .title,
+pre .xml .pi,
+pre .xml .doctype,
+pre .html .doctype,
+pre .css .id,
+pre .css .class,
+pre .css .pseudo {
+  color: #c82829;
+}
+pre .number,
+pre .preprocessor,
+pre .built_in,
+pre .builtin-name,
+pre .literal,
+pre .params,
+pre .constant,
+pre .command {
+  color: #f5871f;
+}
+pre .ruby .class .title,
+pre .css .rules .attribute,
+pre .string,
+pre .symbol,
+pre .value,
+pre .inheritance,
+pre .header,
+pre .ruby .symbol,
+pre .xml .cdata,
+pre .special,
+pre .formula {
+  color: #718c00;
+}
+pre .title,
+pre .css .hexcolor {
+  color: #3e999f;
+}
+pre .function,
+pre .python .decorator,
+pre .python .title,
+pre .ruby .function .title,
+pre .ruby .title .keyword,
+pre .perl .sub,
+pre .javascript .title,
+pre .coffeescript .title {
+  color: #4271ae;
+}
+pre .keyword,
+pre .javascript .function {
+  color: #8959a8;
+}
+.blockquote-center {
+  border-left: none;
+  margin: 40px 0;
+  padding: 0;
+  position: relative;
+  text-align: center;
+}
+.blockquote-center::before,
+.blockquote-center::after {
+  background-repeat: no-repeat;
+  background-size: 22px 22px;
+  content: ' ';
+  display: block;
+  height: 24px;
+  opacity: 0.2;
+  position: absolute;
+  width: 100%;
+}
+.blockquote-center::before {
+  background-image: url("../images/quote-l.svg");
+  background-position: 0 -6px;
+  border-top: 1px solid #ccc;
+  top: -20px;
+}
+.blockquote-center::after {
+  background-image: url("../images/quote-r.svg");
+  background-position: 100% 8px;
+  border-bottom: 1px solid #ccc;
+  bottom: -20px;
+}
+.blockquote-center p,
+.blockquote-center div {
+  text-align: center;
+}
+.post-body .group-picture img {
+  border: 0;
+  margin: 0 auto;
+  padding: 0 3px;
+}
+.group-picture-row {
+  margin-bottom: 6px;
+  overflow: hidden;
+}
+.group-picture-column {
+  float: left;
+  margin-bottom: 10px;
+}
+.post-body .label {
+  display: inline;
+  padding: 0 2px;
+}
+.post-body .label.default {
+  background: #f0f0f0;
+}
+.post-body .label.primary {
+  background: #efe6f7;
+}
+.post-body .label.info {
+  background: #e5f2f8;
+}
+.post-body .label.success {
+  background: #e7f4e9;
+}
+.post-body .label.warning {
+  background: #fcf6e1;
+}
+.post-body .label.danger {
+  background: #fae8eb;
+}
+.post-body .tabs {
+  margin-bottom: 20px;
+}
+.post-body .tabs,
+.tabs-comment {
+  display: block;
+  padding-top: 10px;
+  position: relative;
+}
+.post-body .tabs ul.nav-tabs,
+.tabs-comment ul.nav-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  margin: 0;
+  margin-bottom: -1px;
+  padding: 0;
+}
+@media (max-width: 413px) {
+  .post-body .tabs ul.nav-tabs,
+  .tabs-comment ul.nav-tabs {
+    display: block;
+    margin-bottom: 5px;
+  }
+}
+.post-body .tabs ul.nav-tabs li.tab,
+.tabs-comment ul.nav-tabs li.tab {
+  background: #fff;
+  border-bottom: 1px solid #ddd;
+  border-left: 1px solid transparent;
+  border-right: 1px solid transparent;
+  border-top: 3px solid transparent;
+  flex-grow: 1;
+  list-style-type: none;
+}
+@media (max-width: 413px) {
+  .post-body .tabs ul.nav-tabs li.tab,
+  .tabs-comment ul.nav-tabs li.tab {
+    border-bottom: 1px solid transparent;
+    border-left: 3px solid transparent;
+    border-right: 1px solid transparent;
+    border-top: 1px solid transparent;
+  }
+}
+.post-body .tabs ul.nav-tabs li.tab a,
+.tabs-comment ul.nav-tabs li.tab a {
+  border-bottom: initial;
+  display: block;
+  line-height: 1.8;
+  outline: 0;
+  padding: 0.25em 0.75em;
+  text-align: center;
+  transition-delay: 0s;
+  transition-duration: 0.2s;
+  transition-timing-function: ease-out;
+}
+.post-body .tabs ul.nav-tabs li.tab a i,
+.tabs-comment ul.nav-tabs li.tab a i {
+  width: 1.285714285714286em;
+}
+.post-body .tabs ul.nav-tabs li.tab.active,
+.tabs-comment ul.nav-tabs li.tab.active {
+  border-bottom: 1px solid transparent;
+  border-left: 1px solid #ddd;
+  border-right: 1px solid #ddd;
+  border-top: 3px solid #fc6423;
+}
+@media (max-width: 413px) {
+  .post-body .tabs ul.nav-tabs li.tab.active,
+  .tabs-comment ul.nav-tabs li.tab.active {
+    border-bottom: 1px solid #ddd;
+    border-left: 3px solid #fc6423;
+    border-right: 1px solid #ddd;
+    border-top: 1px solid #ddd;
+  }
+}
+.post-body .tabs ul.nav-tabs li.tab.active a,
+.tabs-comment ul.nav-tabs li.tab.active a {
+  color: #555;
+  cursor: default;
+}
+.post-body .tabs .tab-content .tab-pane,
+.tabs-comment .tab-content .tab-pane {
+  border: 1px solid #ddd;
+  padding: 20px 20px 0 20px;
+}
+.post-body .tabs .tab-content .tab-pane:not(.active),
+.tabs-comment .tab-content .tab-pane:not(.active) {
+  display: none;
+}
+.post-body .tabs .tab-content .tab-pane.active,
+.tabs-comment .tab-content .tab-pane.active {
+  display: block;
+}
+.post-body .note {
+  margin-bottom: 20px;
+  padding: 15px;
+  position: relative;
+  border: 1px solid #eee;
+  border-left-width: 5px;
+  border-radius: 3px;
+}
+.post-body .note h2,
+.post-body .note h3,
+.post-body .note h4,
+.post-body .note h5,
+.post-body .note h6 {
+  margin-top: 0;
+  border-bottom: initial;
+  margin-bottom: 0;
+  padding-top: 0;
+}
+.post-body .note p:first-child,
+.post-body .note ul:first-child,
+.post-body .note ol:first-child,
+.post-body .note table:first-child,
+.post-body .note pre:first-child,
+.post-body .note blockquote:first-child,
+.post-body .note img:first-child {
+  margin-top: 0;
+}
+.post-body .note p:last-child,
+.post-body .note ul:last-child,
+.post-body .note ol:last-child,
+.post-body .note table:last-child,
+.post-body .note pre:last-child,
+.post-body .note blockquote:last-child,
+.post-body .note img:last-child {
+  margin-bottom: 0;
+}
+.post-body .note.default {
+  border-left-color: #777;
+}
+.post-body .note.default h2,
+.post-body .note.default h3,
+.post-body .note.default h4,
+.post-body .note.default h5,
+.post-body .note.default h6 {
+  color: #777;
+}
+.post-body .note.primary {
+  border-left-color: #6f42c1;
+}
+.post-body .note.primary h2,
+.post-body .note.primary h3,
+.post-body .note.primary h4,
+.post-body .note.primary h5,
+.post-body .note.primary h6 {
+  color: #6f42c1;
+}
+.post-body .note.info {
+  border-left-color: #428bca;
+}
+.post-body .note.info h2,
+.post-body .note.info h3,
+.post-body .note.info h4,
+.post-body .note.info h5,
+.post-body .note.info h6 {
+  color: #428bca;
+}
+.post-body .note.success {
+  border-left-color: #5cb85c;
+}
+.post-body .note.success h2,
+.post-body .note.success h3,
+.post-body .note.success h4,
+.post-body .note.success h5,
+.post-body .note.success h6 {
+  color: #5cb85c;
+}
+.post-body .note.warning {
+  border-left-color: #f0ad4e;
+}
+.post-body .note.warning h2,
+.post-body .note.warning h3,
+.post-body .note.warning h4,
+.post-body .note.warning h5,
+.post-body .note.warning h6 {
+  color: #f0ad4e;
+}
+.post-body .note.danger {
+  border-left-color: #d9534f;
+}
+.post-body .note.danger h2,
+.post-body .note.danger h3,
+.post-body .note.danger h4,
+.post-body .note.danger h5,
+.post-body .note.danger h6 {
+  color: #d9534f;
+}
+.pagination .prev,
+.pagination .next,
+.pagination .page-number,
+.pagination .space {
+  display: inline-block;
+  margin: 0 10px;
+  padding: 0 11px;
+  position: relative;
+  top: -1px;
+}
+@media (max-width: 767px) {
+  .pagination .prev,
+  .pagination .next,
+  .pagination .page-number,
+  .pagination .space {
+    margin: 0 5px;
+  }
+}
+.pagination {
+  border-top: 1px solid #eee;
+  margin: 120px 0 0;
+  text-align: center;
+}
+.pagination .prev,
+.pagination .next,
+.pagination .page-number {
+  border-bottom: 0;
+  border-top: 1px solid #eee;
+  transition-property: border-color;
+  transition-delay: 0s;
+  transition-duration: 0.2s;
+  transition-timing-function: ease-in-out;
+}
+.pagination .prev:hover,
+.pagination .next:hover,
+.pagination .page-number:hover {
+  border-top-color: #222;
+}
+.pagination .space {
+  margin: 0;
+  padding: 0;
+}
+.pagination .prev {
+  margin-left: 0;
+}
+.pagination .next {
+  margin-right: 0;
+}
+.pagination .page-number.current,
+.algolia-pagination .current .page-number {
+  background: #ccc;
+  border-top-color: #ccc;
+  color: #fff;
+}
+@media (max-width: 767px) {
+  .pagination {
+    border-top: none;
+  }
+  .pagination .prev,
+  .pagination .next,
+  .pagination .page-number {
+    border-bottom: 1px solid #eee;
+    border-top: 0;
+    margin-bottom: 10px;
+    padding: 0 10px;
+  }
+  .pagination .prev:hover,
+  .pagination .next:hover,
+  .pagination .page-number:hover {
+    border-bottom-color: #222;
+  }
+}
+.comments {
+  margin: 60px 20px 0;
+  overflow: hidden;
+}
+.comment-button-group {
+  display: flex;
+  flex-wrap: wrap-reverse;
+  justify-content: center;
+  margin: 1em 0;
+}
+.comment-button-group .comment-button {
+  margin: 0.1em 0.2em;
+}
+.comment-button-group .comment-button.active {
+  background: #222;
+  border-color: #222;
+  color: #fff;
+}
+.comment-position {
+  display: none;
+}
+.comment-position.active {
+  display: block;
+}
+.tabs-comment {
+  background: #fff;
+  margin-top: 4em;
+  padding-top: 0;
+}
+.tabs-comment .comments {
+  border: 0;
+  box-shadow: none;
+  margin-top: 0;
+  padding-top: 0;
+}
+.container {
+  min-height: 100%;
+  position: relative;
+}
+.main-inner {
+  margin: 0 auto;
+  width: calc(100% - 20px);
+}
+@media (min-width: 1200px) {
+  .main-inner {
+    width: 1160px;
+  }
+}
+@media (min-width: 1600px) {
+  .main-inner {
+    width: 73%;
+  }
+}
+.header {
+  background: transparent;
+}
+.header-inner {
+  margin: 0 auto;
+  position: relative;
+  width: calc(100% - 20px);
+}
+@media (min-width: 1200px) {
+  .header-inner {
+    width: 1160px;
+  }
+}
+@media (min-width: 1600px) {
+  .header-inner {
+    width: 73%;
+  }
+}
+.headband {
+  background: #222;
+  height: 3px;
+}
+.site-meta {
+  margin: 0;
+  text-align: center;
+}
+@media (max-width: 767px) {
+  .site-meta {
+    text-align: center;
+  }
+}
+.brand {
+  background: #222;
+  border-bottom: none;
+  color: #fff;
+  display: inline-block;
+  line-height: 1.375em;
+  padding: 0 40px;
+  position: relative;
+}
+.brand:hover {
+  color: #fff;
+}
+.site-title {
+  display: inline-block;
+  font-family: 'Monda', "PingFang SC", "Microsoft YaHei", sans-serif;
+  font-size: 1.375em;
+  font-weight: normal;
+  line-height: 1.5;
+  vertical-align: top;
+}
+.site-subtitle {
+  color: #ddd;
+  font-size: 0.8125em;
+  margin-top: 10px;
+}
+.use-motion .brand {
+  opacity: 0;
+}
+.use-motion .site-title,
+.use-motion .site-subtitle,
+.use-motion .custom-logo-image {
+  opacity: 0;
+  position: relative;
+  top: -10px;
+}
+.site-nav-toggle {
+  display: none;
+  left: 10px;
+  position: absolute;
+}
+@media (max-width: 767px) {
+  .site-nav-toggle {
+    display: block;
+  }
+}
+.site-nav-toggle .toggle {
+  background: transparent;
+  border: 0;
+  margin-top: 2px;
+  padding: 10px;
+  width: 22px;
+}
+.site-nav-toggle .toggle .toggle-line {
+  background: #555;
+  border-radius: 1px;
+}
+.site-nav {
+  display: block;
+}
+@media (max-width: 767px) {
+  .site-nav {
+    border-top: 1px solid #ddd;
+    clear: both;
+    display: none;
+    margin: 0 -10px;
+    padding: 0 10px;
+  }
+}
+.site-nav.site-nav-on {
+  display: block;
+}
+.menu {
+  margin-top: 20px;
+  padding-left: 0;
+  text-align: center;
+}
+.menu-item {
+  display: inline-block;
+  list-style: none;
+  margin: 0 10px;
+}
+@media (max-width: 767px) {
+  .menu-item {
+    margin-top: 10px;
+  }
+}
+.menu-item a,
+.menu-item span.exturl {
+  border-bottom: 0;
+  display: block;
+  font-size: 0.8125em;
+  transition-property: border-color;
+  transition-delay: 0s;
+  transition-duration: 0.2s;
+  transition-timing-function: ease-in-out;
+}
+@media (hover: none) {
+  .menu-item a:hover,
+  .menu-item span.exturl:hover {
+    border-bottom-color: transparent !important;
+  }
+}
+.menu-item .fa {
+  margin-right: 8px;
+}
+.menu-item .badge {
+  display: inline-block;
+  font-weight: 700;
+  line-height: 1;
+  margin-left: 0.35em;
+  margin-top: 0.35em;
+  text-align: center;
+  white-space: nowrap;
+}
+@media (max-width: 767px) {
+  .menu-item .badge {
+    float: right;
+    margin-left: 0;
+  }
+}
+.use-motion .menu-item {
+  opacity: 0;
+}
+.github-corner :hover .octo-arm {
+  animation: octocat-wave 560ms ease-in-out;
+}
+.github-corner svg {
+  border: 0;
+  color: #fff;
+  fill: #222;
+  position: absolute;
+  right: 0;
+  top: 0;
+  z-index: 1000;
+}
+@media (max-width: 991px) {
+  .github-corner svg {
+    color: #222;
+    fill: #fff;
+  }
+  .github-corner .github-corner:hover .octo-arm {
+    animation: none;
+  }
+  .github-corner .github-corner .octo-arm {
+    animation: octocat-wave 560ms ease-in-out;
+  }
+}
+@-moz-keyframes octocat-wave {
+  0%, 100% {
+    transform: rotate(0);
+  }
+  20%, 60% {
+    transform: rotate(-25deg);
+  }
+  40%, 80% {
+    transform: rotate(10deg);
+  }
+}
+@-webkit-keyframes octocat-wave {
+  0%, 100% {
+    transform: rotate(0);
+  }
+  20%, 60% {
+    transform: rotate(-25deg);
+  }
+  40%, 80% {
+    transform: rotate(10deg);
+  }
+}
+@-o-keyframes octocat-wave {
+  0%, 100% {
+    transform: rotate(0);
+  }
+  20%, 60% {
+    transform: rotate(-25deg);
+  }
+  40%, 80% {
+    transform: rotate(10deg);
+  }
+}
+@keyframes octocat-wave {
+  0%, 100% {
+    transform: rotate(0);
+  }
+  20%, 60% {
+    transform: rotate(-25deg);
+  }
+  40%, 80% {
+    transform: rotate(10deg);
+  }
+}
+.sidebar {
+  background: #222;
+  bottom: 0;
+  box-shadow: inset 0 2px 6px #000;
+  position: fixed;
+  top: 0;
+  z-index: 1200;
+}
+.sidebar a,
+.sidebar span.exturl {
+  border-bottom-color: #555;
+  color: #999;
+}
+.sidebar a:hover,
+.sidebar span.exturl:hover {
+  border-bottom-color: #eee;
+  color: #eee;
+}
+@media (max-width: 991px) {
+  .sidebar {
+    display: none;
+  }
+}
+.sidebar-inner {
+  color: #999;
+  padding: 20px 10px;
+  text-align: center;
+}
+.site-overview-wrap {
+  overflow-x: hidden;
+  overflow-y: auto;
+}
+.cc-license {
+  margin-top: 10px;
+  text-align: center;
+}
+.cc-license .cc-opacity {
+  border-bottom: none;
+  opacity: 0.7;
+}
+.cc-license .cc-opacity:hover {
+  opacity: 0.9;
+}
+.cc-license img {
+  display: inline-block;
+}
+.site-author-image {
+  border: 1px solid #eee;
+  display: block;
+  height: auto;
+  margin: 0 auto;
+  max-width: 120px;
+  padding: 2px;
+  border-radius: 50%;
+}
+.site-author-name {
+  color: #222;
+  font-weight: 600;
+  margin: 0;
+  text-align: center;
+}
+.site-description {
+  color: #999;
+  font-size: 0.8125em;
+  margin-top: 0;
+  text-align: center;
+}
+.links-of-author {
+  margin-top: 15px;
+}
+.links-of-author a,
+.links-of-author span.exturl {
+  border-bottom-color: #555;
+  display: inline-block;
+  font-size: 0.8125em;
+  margin-bottom: 10px;
+  margin-right: 10px;
+  vertical-align: middle;
+  transition-delay: 0s;
+  transition-duration: 0.2s;
+  transition-timing-function: ease-in-out;
+}
+.links-of-author a::before,
+.links-of-author span.exturl::before {
+  background: #0ab5cd;
+  border-radius: 50%;
+  content: ' ';
+  display: inline-block;
+  height: 4px;
+  margin-right: 3px;
+  vertical-align: middle;
+  width: 4px;
+}
+.feed-link,
+.chat {
+  margin-top: 15px;
+}
+.feed-link a,
+.chat a {
+  border: 1px solid #fc6423;
+  border-radius: 4px;
+  color: #fc6423;
+  display: inline-block;
+  padding: 0 15px;
+}
+.feed-link a .fa,
+.chat a .fa {
+  margin-right: 5px;
+}
+.feed-link a:hover,
+.chat a:hover {
+  background: #fc6423;
+  border: 1px solid #fc6423;
+  color: #fff;
+}
+.feed-link a:hover .fa,
+.chat a:hover .fa {
+  color: #fff;
+}
+.links-of-blogroll {
+  font-size: 0.8125em;
+  margin-top: 10px;
+}
+.links-of-blogroll-title {
+  font-size: 0.875em;
+  font-weight: 600;
+  margin-top: 0;
+}
+.links-of-blogroll-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.links-of-blogroll-item {
+  padding: 2px 10px;
+}
+.links-of-blogroll-item a,
+.links-of-blogroll-item span.exturl {
+  box-sizing: border-box;
+  display: inline-block;
+  max-width: 280px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+#sidebar-dimmer {
+  display: none;
+}
+@media (max-width: 767px) {
+  #sidebar-dimmer {
+    background: #000;
+    display: block;
+    height: 100%;
+    left: 100%;
+    opacity: 0;
+    position: fixed;
+    top: 0;
+    width: 100%;
+    z-index: 1100;
+  }
+  .sidebar-active + #sidebar-dimmer {
+    opacity: 0.7;
+    transform: translateX(-100%);
+    transition: opacity 0.5s;
+  }
+}
+.sidebar-nav {
+  margin: 0;
+  padding-bottom: 20px;
+  padding-left: 0;
+}
+.sidebar-nav li {
+  border-bottom: 1px solid transparent;
+  color: #555;
+  cursor: pointer;
+  display: inline-block;
+  font-size: 0.875em;
+}
+.sidebar-nav li.sidebar-nav-overview {
+  margin-left: 10px;
+}
+.sidebar-nav li:hover {
+  color: #fc6423;
+}
+.sidebar-nav .sidebar-nav-active {
+  border-bottom-color: #fc6423;
+  color: #fc6423;
+}
+.sidebar-nav .sidebar-nav-active:hover {
+  color: #fc6423;
+}
+.sidebar-panel {
+  display: none;
+}
+.sidebar-panel-active {
+  display: block;
+}
+.sidebar-toggle {
+  background: #222;
+  bottom: 45px;
+  cursor: pointer;
+  height: 14px;
+  left: 30px;
+  padding: 5px;
+  position: fixed;
+  width: 14px;
+  z-index: 1300;
+}
+@media (max-width: 991px) {
+  .sidebar-toggle {
+    left: 20px;
+    opacity: 0.8;
+    display: none;
+  }
+}
+.sidebar-toggle:hover .toggle-line {
+  background: #fc6423;
+}
+.post-toc-wrap {
+  overflow-x: hidden;
+  overflow-y: auto;
+}
+.post-toc {
+  font-size: 0.875em;
+}
+.post-toc ol {
+  list-style: none;
+  margin: 0;
+  padding: 0 2px 5px 10px;
+  text-align: left;
+}
+.post-toc ol > ol {
+  padding-left: 0;
+}
+.post-toc ol a {
+  border-bottom-color: #ccc;
+  color: #666;
+  transition-property: all;
+  transition-delay: 0s;
+  transition-duration: 0.2s;
+  transition-timing-function: ease-in-out;
+}
+.post-toc ol a:hover {
+  border-bottom-color: #000;
+  color: #000;
+}
+.post-toc .nav-item {
+  line-height: 1.8;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.post-toc .nav .nav-child {
+  display: none;
+}
+.post-toc .nav .active > .nav-child {
+  display: block;
+}
+.post-toc .nav .active-current > .nav-child {
+  display: block;
+}
+.post-toc .nav .active-current > .nav-child > .nav-item {
+  display: block;
+}
+.post-toc .nav .active > a {
+  border-bottom-color: #fc6423;
+  color: #fc6423;
+}
+.post-toc .nav .active-current > a {
+  color: #fc6423;
+}
+.post-toc .nav .active-current > a:hover {
+  color: #fc6423;
+}
+.site-state {
+  display: flex;
+  justify-content: center;
+  line-height: 1.4;
+  margin-top: 10px;
+  overflow: hidden;
+  text-align: center;
+  white-space: nowrap;
+}
+.site-state-item {
+  padding: 0 15px;
+}
+.site-state-item:not(:first-child) {
+  border-left: 1px solid #eee;
+}
+.site-state-item a {
+  border-bottom: none;
+}
+.site-state-item-count {
+  color: inherit;
+  display: block;
+  font-size: 1em;
+  font-weight: 600;
+  text-align: center;
+}
+.site-state-item-name {
+  color: #999;
+  font-size: 0.8125em;
+}
+.footer {
+  color: #999;
+  font-size: 0.875em;
+  padding: 20px 0;
+}
+.footer.footer-fixed {
+  bottom: 0;
+  left: 0;
+  position: absolute;
+  right: 0;
+}
+.footer img {
+  border: 0;
+}
+.footer-inner {
+  box-sizing: border-box;
+  margin: 0 auto;
+  text-align: center;
+  width: calc(100% - 20px);
+}
+@media (min-width: 1200px) {
+  .footer-inner {
+    width: 1160px;
+  }
+}
+@media (min-width: 1600px) {
+  .footer-inner {
+    width: 73%;
+  }
+}
+.with-love {
+  color: red;
+  display: inline-block;
+  margin: 0 5px;
+  animation: iconAnimate 1.33s ease-in-out infinite;
+}
+.powered-by,
+.theme-info {
+  display: inline-block;
+}
+@-moz-keyframes iconAnimate {
+  0%, 100% {
+    transform: scale(1);
+  }
+  10%, 30% {
+    transform: scale(0.9);
+  }
+  20%, 40%, 60%, 80% {
+    transform: scale(1.1);
+  }
+  50%, 70% {
+    transform: scale(1.1);
+  }
+}
+@-webkit-keyframes iconAnimate {
+  0%, 100% {
+    transform: scale(1);
+  }
+  10%, 30% {
+    transform: scale(0.9);
+  }
+  20%, 40%, 60%, 80% {
+    transform: scale(1.1);
+  }
+  50%, 70% {
+    transform: scale(1.1);
+  }
+}
+@-o-keyframes iconAnimate {
+  0%, 100% {
+    transform: scale(1);
+  }
+  10%, 30% {
+    transform: scale(0.9);
+  }
+  20%, 40%, 60%, 80% {
+    transform: scale(1.1);
+  }
+  50%, 70% {
+    transform: scale(1.1);
+  }
+}
+@keyframes iconAnimate {
+  0%, 100% {
+    transform: scale(1);
+  }
+  10%, 30% {
+    transform: scale(0.9);
+  }
+  20%, 40%, 60%, 80% {
+    transform: scale(1.1);
+  }
+  50%, 70% {
+    transform: scale(1.1);
+  }
+}
+.back-to-top {
+  background: #eee;
+  font-size: 12px;
+  margin: 8px -10px -20px;
+  opacity: 0;
+  text-align: center;
+  transition-delay: 0s;
+  transition-duration: 0.2s;
+  transition-timing-function: ease-in-out;
+}
+.back-to-top.back-to-top-on {
+  cursor: pointer;
+  opacity: 0.6;
+}
+.back-to-top.back-to-top-on:hover {
+  opacity: 0.8;
+}
+.post-body {
+  font-family: 'Monda', "PingFang SC", "Microsoft YaHei", sans-serif;
+  overflow-wrap: break-word;
+  word-wrap: break-word;
+}
+@media (min-width: 1200px) {
+  .post-body {
+    font-size: 1.125em;
+  }
+}
+.post-body span.exturl .fa {
+  font-size: 0.875em;
+  margin-left: 4px;
+}
+.post-body .image-caption,
+.post-body .figure .caption {
+  color: #999;
+  font-size: 0.875em;
+  font-weight: bold;
+  line-height: 1;
+  margin: -20px auto 15px;
+  text-align: center;
+}
+.post-sticky-flag {
+  display: inline-block;
+  transform: rotate(30deg);
+}
+.post-button {
+  margin-top: 40px;
+  text-align: center;
+}
+.use-motion .post-block,
+.use-motion .pagination,
+.use-motion .comments {
+  opacity: 0;
+}
+.use-motion .post-header {
+  opacity: 0;
+}
+.use-motion .post-body {
+  opacity: 0;
+}
+.use-motion .collection-header {
+  opacity: 0;
+}
+.posts-collapse {
+  margin-left: 55px;
+  position: relative;
+}
+@media (max-width: 767px) {
+  .posts-collapse {
+    margin-left: 20px;
+    margin-right: 20px;
+  }
+}
+.posts-collapse .collection-title {
+  font-size: 1.125em;
+  position: relative;
+}
+.posts-collapse .collection-title::before {
+  background: #999;
+  border: 1px solid #fff;
+  border-radius: 50%;
+  content: ' ';
+  height: 10px;
+  left: 0;
+  margin-left: -6px;
+  margin-top: -4px;
+  position: absolute;
+  top: 50%;
+  width: 10px;
+}
+.posts-collapse .collection-year {
+  margin: 60px 0;
+  position: relative;
+}
+.posts-collapse .collection-year::before {
+  background: #bbb;
+  border-radius: 50%;
+  content: ' ';
+  height: 8px;
+  left: 0;
+  margin-left: -4px;
+  margin-top: -4px;
+  position: absolute;
+  top: 50%;
+  width: 8px;
+}
+.posts-collapse .collection-header {
+  display: inline-block;
+  margin: 0 0 0 20px;
+}
+.posts-collapse .collection-header small {
+  color: #bbb;
+  margin-left: 5px;
+}
+.posts-collapse .post-header {
+  border-bottom: 1px dashed #ccc;
+  margin: 30px 0;
+  padding-left: 15px;
+  position: relative;
+  transition-property: border;
+  transition-delay: 0s;
+  transition-duration: 0.2s;
+  transition-timing-function: ease-in-out;
+}
+.posts-collapse .post-header::before {
+  background: #bbb;
+  border: 1px solid #fff;
+  border-radius: 50%;
+  content: ' ';
+  height: 6px;
+  left: 0;
+  margin-left: -4px;
+  position: absolute;
+  top: 0.75em;
+  transition-property: background;
+  width: 6px;
+  transition-delay: 0s;
+  transition-duration: 0.2s;
+  transition-timing-function: ease-in-out;
+}
+.posts-collapse .post-header:hover {
+  border-bottom-color: #666;
+}
+.posts-collapse .post-header:hover::before {
+  background: #222;
+}
+.posts-collapse .post-meta {
+  display: inline;
+  font-size: 0.75em;
+  margin-right: 10px;
+}
+.posts-collapse .post-title {
+  display: inline;
+  font-size: 1em;
+  font-weight: normal;
+  margin-bottom: 0;
+  margin-top: 0;
+}
+.posts-collapse .post-title a,
+.posts-collapse .post-title span.exturl {
+  border-bottom: none;
+  color: #666;
+}
+.posts-collapse::before {
+  background: #f5f5f5;
+  content: ' ';
+  height: 100%;
+  left: 0;
+  margin-left: -2px;
+  position: absolute;
+  top: 1.25em;
+  width: 4px;
+}
+.posts-collapse .fa-external-link {
+  font-size: 0.875em;
+  margin-left: 5px;
+}
+.post-eof {
+  background: #ccc;
+  height: 1px;
+  margin: 80px auto 60px;
+  text-align: center;
+  width: 8%;
+}
+.post-block:last-child .post-eof {
+  display: none;
+}
+.posts-expand {
+  padding-top: 40px;
+}
+@media (max-width: 767px) {
+  .posts-expand {
+    margin: 0 20px;
+  }
+}
+@media (min-width: 992px) {
+  .post-body {
+    text-align: left;
+  }
+}
+@media (max-width: 991px) {
+  .post-body {
+    text-align: left;
+  }
+}
+.post-body h2,
+.post-body h3,
+.post-body h4,
+.post-body h5,
+.post-body h6 {
+  padding-top: 10px;
+}
+.post-body h2 .header-anchor,
+.post-body h3 .header-anchor,
+.post-body h4 .header-anchor,
+.post-body h5 .header-anchor,
+.post-body h6 .header-anchor {
+  border-bottom-style: none;
+  color: #ccc;
+  float: right;
+  margin-left: 10px;
+  visibility: hidden;
+}
+.post-body h2 .header-anchor:hover,
+.post-body h3 .header-anchor:hover,
+.post-body h4 .header-anchor:hover,
+.post-body h5 .header-anchor:hover,
+.post-body h6 .header-anchor:hover {
+  color: inherit;
+}
+.post-body h2:hover .header-anchor,
+.post-body h3:hover .header-anchor,
+.post-body h4:hover .header-anchor,
+.post-body h5:hover .header-anchor,
+.post-body h6:hover .header-anchor {
+  visibility: visible;
+}
+.post-body img {
+  border: 1px solid #ddd;
+  box-sizing: border-box;
+  padding: 3px;
+}
+@media (max-width: 767px) {
+  .post-body img {
+    padding: initial;
+  }
+}
+.post-body iframe,
+.post-body img,
+.post-body video {
+  margin-bottom: 20px;
+}
+.post-body .video-container {
+  height: 0;
+  margin-bottom: 20px;
+  overflow: hidden;
+  padding-top: 75%;
+  position: relative;
+  width: 100%;
+}
+.post-body .video-container iframe,
+.post-body .video-container object,
+.post-body .video-container embed {
+  height: 100%;
+  left: 0;
+  margin: 0;
+  position: absolute;
+  top: 0;
+  width: 100%;
+}
+.post-gallery {
+  border-collapse: separate;
+  display: table;
+  table-layout: fixed;
+  width: 100%;
+}
+.post-gallery .post-gallery-img {
+  border: 0;
+  display: table-cell;
+  text-align: center;
+  vertical-align: middle;
+}
+.post-gallery .post-gallery-img img {
+  border: 0;
+  max-height: 100%;
+  max-width: 100%;
+}
+.post-gallery-row {
+  display: table-row;
+}
+.posts-expand .post-header {
+  font-size: 1.125em;
+}
+.posts-expand .post-title {
+  font-weight: 400;
+  margin: initial;
+  text-align: center;
+  overflow-wrap: break-word;
+  word-wrap: break-word;
+}
+.posts-expand .post-title-link {
+  border-bottom: none;
+  color: #555;
+  display: inline-block;
+  position: relative;
+  vertical-align: top;
+}
+.posts-expand .post-title-link::before {
+  background: #000;
+  bottom: 0;
+  content: '';
+  height: 2px;
+  left: 0;
+  position: absolute;
+  transform: scaleX(0);
+  visibility: hidden;
+  width: 100%;
+  transition-delay: 0s;
+  transition-duration: 0.2s;
+  transition-timing-function: ease-in-out;
+}
+.posts-expand .post-title-link:hover::before {
+  transform: scaleX(1);
+  visibility: visible;
+}
+.posts-expand .post-title-link .fa {
+  font-size: 0.875em;
+  margin-left: 5px;
+}
+.posts-expand .post-meta {
+  color: #999;
+  font-family: 'Monda', "PingFang SC", "Microsoft YaHei", sans-serif;
+  font-size: 0.75em;
+  margin: 3px 0 60px 0;
+  text-align: center;
+}
+.posts-expand .post-meta .post-description {
+  font-size: 0.875em;
+  margin-top: 2px;
+}
+.posts-expand .post-meta time {
+  border-bottom: 1px dashed #999;
+  cursor: pointer;
+}
+.post-meta .post-meta-item + .post-meta-item::before {
+  content: '|';
+  margin: 0 0.5em;
+}
+.post-meta-divider {
+  margin: 0 0.5em;
+}
+.post-meta-item-icon {
+  margin-right: 3px;
+}
+@media (max-width: 991px) {
+  .post-meta-item-icon {
+    display: inline-block;
+  }
+}
+@media (max-width: 991px) {
+  .post-meta-item-text {
+    display: none;
+  }
+}
+.post-nav {
+  border-top: 1px solid #eee;
+  display: table;
+  margin-top: 15px;
+  width: 100%;
+}
+.post-nav-divider {
+  display: table-cell;
+  width: 10%;
+}
+.post-nav-item {
+  display: table-cell;
+  padding: 10px 0 0 0;
+  vertical-align: top;
+  width: 45%;
+}
+.post-nav-item a {
+  border-bottom: none;
+  color: #555;
+  display: block;
+  font-size: 0.875em;
+  line-height: 1.6;
+  position: relative;
+}
+.post-nav-item a:hover {
+  border-bottom: none;
+  color: #222;
+}
+.post-nav-item a:active {
+  top: 2px;
+}
+.post-nav-item .fa {
+  font-size: 0.75em;
+  margin-right: 5px;
+}
+.post-nav-next a {
+  padding-left: 5px;
+}
+.post-nav-prev {
+  text-align: right;
+}
+.post-nav-prev a {
+  padding-right: 5px;
+}
+.post-nav-prev .fa {
+  margin-left: 5px;
+}
+.rtl.post-body p,
+.rtl.post-body a,
+.rtl.post-body h1,
+.rtl.post-body h2,
+.rtl.post-body h3,
+.rtl.post-body h4,
+.rtl.post-body h5,
+.rtl.post-body h6,
+.rtl.post-body li,
+.rtl.post-body ul,
+.rtl.post-body ol {
+  direction: rtl;
+  font-family: UKIJ Ekran;
+}
+.rtl.post-title {
+  font-family: UKIJ Ekran;
+}
+.post-tags {
+  margin-top: 40px;
+  text-align: center;
+}
+.post-tags a {
+  display: inline-block;
+  font-size: 0.8125em;
+}
+.post-tags a:not(:last-child) {
+  margin-right: 10px;
+}
+.post-widgets {
+  border-top: 1px solid #eee;
+  margin-top: 15px;
+  text-align: center;
+}
+.wp_rating {
+  height: 20px;
+  line-height: 20px;
+  margin-top: 10px;
+  padding-top: 6px;
+  text-align: center;
+}
+.social-like {
+  display: flex;
+  font-size: 0.875em;
+  justify-content: center;
+  text-align: center;
+}
+.reward-container {
+  margin: 20px auto;
+  padding: 10px 0;
+  text-align: center;
+  width: 90%;
+}
+.reward-container button {
+  background: #ff2a2a;
+  border: 0;
+  border-radius: 5px;
+  color: #fff;
+  cursor: pointer;
+  line-height: 2;
+  outline: 0;
+  padding: 0 15px;
+  vertical-align: text-top;
+}
+.reward-container button:hover {
+  background: #f55;
+}
+#qr {
+  padding-top: 20px;
+}
+#qr a {
+  border: 0;
+}
+#qr img {
+  display: inline-block;
+  margin: 0.8em 2em 0 2em;
+  max-width: 100%;
+  width: 180px;
+}
+#qr p {
+  text-align: center;
+}
+.post-copyright {
+  background: #f5f5f5;
+  border-left: 3px solid #ff2a2a;
+  list-style: none;
+  margin: 2em 0 0;
+  padding: 0.5em 1em;
+}
+.category-all-page .category-all-title {
+  text-align: center;
+}
+.category-all-page .category-all {
+  margin-top: 20px;
+}
+.category-all-page .category-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.category-all-page .category-list-item {
+  margin: 5px 10px;
+}
+.category-all-page .category-list-count {
+  color: #bbb;
+}
+.category-all-page .category-list-count::before {
+  content: ' (';
+  display: inline;
+}
+.category-all-page .category-list-count::after {
+  content: ') ';
+  display: inline;
+}
+.category-all-page .category-list-child {
+  padding-left: 10px;
+}
+.event-list {
+  padding: 0;
+}
+.event-list hr {
+  background: #222;
+  margin: 20px 0 45px 0;
+}
+.event-list hr::after {
+  background: #222;
+  color: #fff;
+  content: 'NOW';
+  display: inline-block;
+  font-weight: bold;
+  padding: 0 5px;
+  text-align: right;
+}
+.event-list .event {
+  background: #222;
+  margin: 20px 0;
+  min-height: 40px;
+  padding: 15px 0 15px 10px;
+}
+.event-list .event .event-summary {
+  color: #fff;
+  margin: 0;
+  padding-bottom: 3px;
+}
+.event-list .event .event-summary::before {
+  animation: dot-flash 1s alternate infinite ease-in-out;
+  color: #fff;
+  content: '\f111';
+  display: inline-block;
+  font-family: 'FontAwesome';
+  font-size: 10px;
+  margin-right: 25px;
+  vertical-align: middle;
+}
+.event-list .event .event-relative-time {
+  color: #bbb;
+  display: inline-block;
+  font-size: 12px;
+  font-weight: 400;
+  padding-left: 12px;
+}
+.event-list .event .event-details {
+  color: #fff;
+  display: block;
+  line-height: 18px;
+  margin-left: 56px;
+  padding-bottom: 6px;
+  padding-top: 3px;
+  text-indent: -24px;
+}
+.event-list .event .event-details::before {
+  color: #fff;
+  display: inline-block;
+  font-family: 'FontAwesome';
+  margin-right: 9px;
+  text-align: center;
+  text-indent: 0;
+  width: 14px;
+}
+.event-list .event .event-details.event-location::before {
+  content: '\f041';
+}
+.event-list .event .event-details.event-duration::before {
+  content: '\f017';
+}
+.event-list .event-past {
+  background: #f5f5f5;
+}
+.event-list .event-past .event-summary,
+.event-list .event-past .event-details {
+  color: #bbb;
+  opacity: 0.9;
+}
+.event-list .event-past .event-summary::before,
+.event-list .event-past .event-details::before {
+  animation: none;
+  color: #bbb;
+}
+@-moz-keyframes dot-flash {
+  from {
+    opacity: 1;
+    transform: scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: scale(0.8);
+  }
+}
+@-webkit-keyframes dot-flash {
+  from {
+    opacity: 1;
+    transform: scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: scale(0.8);
+  }
+}
+@-o-keyframes dot-flash {
+  from {
+    opacity: 1;
+    transform: scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: scale(0.8);
+  }
+}
+@keyframes dot-flash {
+  from {
+    opacity: 1;
+    transform: scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: scale(0.8);
+  }
+}
+ul.breadcrumb {
+  font-size: 0.75em;
+  list-style: none;
+  margin: 1em 0;
+  padding: 0 2em;
+  text-align: center;
+}
+ul.breadcrumb li {
+  display: inline;
+}
+ul.breadcrumb li + li::before {
+  content: '/\00a0';
+  font-weight: normal;
+  padding: 0.5em;
+}
+ul.breadcrumb li + li:last-child {
+  font-weight: bold;
+}
+.tag-cloud {
+  text-align: center;
+}
+.tag-cloud a {
+  display: inline-block;
+  margin: 10px;
+}
+.tag-cloud a:hover {
+  color: #222 !important;
+}
+.gt-header a,
+.gt-comments a,
+.gt-popup a {
+  border-bottom: none;
+}
+.gt-container .gt-popup .gt-action.is--active::before {
+  top: 0.7em;
+}
+.search-pop-overlay {
+  background: rgba(0,0,0,0.3);
+  display: none;
+  height: 100%;
+  left: 0;
+  overflow: hidden;
+  position: fixed;
+  top: 0;
+  width: 100%;
+  z-index: 1400;
+}
+.search-popup {
+  background: #fff;
+  border-radius: 5px;
+  color: #333;
+  display: none;
+  height: 80%;
+  left: 50%;
+  margin-left: -350px;
+  padding: 0;
+  position: fixed;
+  top: 10%;
+  width: 700px;
+  z-index: 1500;
+}
+@media (max-width: 767px) {
+  .search-popup {
+    border-radius: 0;
+    height: 100%;
+    left: 0;
+    margin: 0;
+    padding: 0;
+    top: 0;
+    width: 100%;
+  }
+}
+.search-popup .search-icon,
+.search-popup .popup-btn-close {
+  color: #999;
+  display: inline-block;
+  font-size: 18px;
+  height: 36px;
+  padding-left: 10px;
+  padding-right: 10px;
+  width: 18px;
+}
+.search-popup .popup-btn-close {
+  border-left: 1px solid #eee;
+  cursor: pointer;
+  float: right;
+}
+.search-popup .popup-btn-close:hover .fa {
+  color: #222;
+}
+.search-popup .search-header {
+  background: #f5f5f5;
+  border-top-left-radius: 5px;
+  border-top-right-radius: 5px;
+  padding: 5px;
+}
+.search-input {
+  display: inline-block;
+  width: calc(90% - 30px);
+}
+.search-input input {
+  background: transparent;
+  border: 0;
+  outline: 0;
+  padding: 5px 0;
+  width: 100%;
+}
+.search-input .ais-search-box--magnifier svg,
+.search-input .ais-search-box--reset svg {
+  display: none;
+}
+.algolia-powered {
+  float: right;
+}
+.algolia-powered img {
+  display: inline-block;
+  height: 18px;
+  vertical-align: middle;
+}
+.algolia-results {
+  height: calc(100% - 55px);
+  overflow: auto;
+  padding: 5px 30px;
+  position: relative;
+}
+.algolia-results hr {
+  margin: 10px 0;
+}
+.algolia-results .highlight {
+  color: #f00;
+  font-size: inherit;
+  font-style: normal;
+  margin: 0;
+  padding: 0 2px;
+}
+.algolia-hits {
+  margin-top: 20px;
+}
+.algolia-hit-item {
+  margin: 15px 0;
+}
+.algolia-hit-item-link {
+  border-bottom: 1px dashed #ccc;
+  display: block;
+  transition-delay: 0s;
+  transition-duration: 0.2s;
+  transition-timing-function: ease-in-out;
+}
+.algolia-pagination .pagination {
+  border-top: none;
+  margin: 40px 0;
+  opacity: 1;
+  padding: 0;
+}
+.algolia-pagination .pagination-item {
+  display: inline-block;
+}
+.algolia-pagination .page-number {
+  border-top: none;
+}
+.algolia-pagination .page-number:hover {
+  border-bottom: 1px solid #222;
+}
+.algolia-pagination .disabled-item {
+  visibility: hidden;
+}
+.header {
+  margin: 0 auto;
+  position: relative;
+  width: calc(100% - 20px);
+}
+@media (min-width: 1200px) {
+  .header {
+    width: 1160px;
+  }
+}
+@media (min-width: 1600px) {
+  .header {
+    width: 73%;
+  }
+}
+@media (max-width: 991px) {
+  .header {
+    width: auto;
+  }
+}
+.header-inner {
+  background: #fff;
+  border-radius: initial;
+  box-shadow: 0 2px 2px 0 rgba(0,0,0,0.12), 0 3px 1px -2px rgba(0,0,0,0.06), 0 1px 5px 0 rgba(0,0,0,0.12);
+  overflow: hidden;
+  padding: 0;
+  position: absolute;
+  top: 0;
+  width: 240px;
+}
+@media (min-width: 1200px) {
+  .header-inner {
+    width: 240px;
+  }
+}
+@media (max-width: 991px) {
+  .header-inner {
+    border-radius: initial;
+    position: relative;
+    width: auto;
+  }
+}
+.main::before,
+.main::after {
+  content: ' ';
+  display: table;
+}
+.main::after {
+  clear: both;
+}
+@media (max-width: 991px) {
+  .main-inner {
+    width: auto;
+  }
+}
+.content-wrap {
+  background: #fff;
+  border-radius: initial;
+  box-shadow: 0 2px 2px 0 rgba(0,0,0,0.12), 0 3px 1px -2px rgba(0,0,0,0.06), 0 1px 5px 0 rgba(0,0,0,0.12);
+  box-sizing: border-box;
+  float: right;
+  padding: 40px;
+  width: calc(100% - 252px);
+}
+@media (max-width: 991px) {
+  .content-wrap {
+    border-radius: initial;
+    padding: 20px;
+    width: 100%;
+  }
+}
+.sidebar {
+  background: #eee;
+  box-shadow: none;
+  float: left;
+  position: static;
+  width: 240px;
+}
+@media (max-width: 991px) {
+  .sidebar {
+    display: none;
+  }
+}
+.sidebar-toggle {
+  display: none;
+}
+.footer-inner {
+  padding-left: 260px;
+}
+.back-to-top {
+  left: auto;
+  right: 30px;
+}
+@media (max-width: 991px) {
+  .back-to-top {
+    right: 20px;
+  }
+}
+@media (max-width: 991px) {
+  .footer-inner {
+    padding-left: 0;
+    padding-right: 0;
+    width: auto;
+  }
+}
+.site-brand-container {
+  position: relative;
+}
+.site-meta {
+  background: #222;
+  color: #fff;
+  padding: 20px 0;
+}
+@media (max-width: 991px) {
+  .site-meta {
+    box-shadow: 0 0 16px rgba(0,0,0,0.5);
+  }
+}
+.brand {
+  background: none;
+  padding: 0;
+}
+.brand:hover {
+  color: #fff;
+}
+.site-subtitle {
+  font-weight: initial;
+  margin: 10px 10px 0;
+}
+.custom-logo-image {
+  margin-top: 20px;
+}
+@media (max-width: 991px) {
+  .custom-logo-image {
+    display: none;
+  }
+}
+.site-nav-toggle {
+  left: 20px;
+  top: 50%;
+  transform: translateY(-50%);
+}
+@media (min-width: 768px) and (max-width: 991px) {
+  .site-nav-toggle {
+    display: block;
+  }
+}
+.site-nav-toggle .toggle .toggle-line {
+  background: #fff;
+}
+.site-nav {
+  border-top: none;
+}
+@media (min-width: 768px) and (max-width: 991px) {
+  .site-nav {
+    display: none;
+  }
+}
+.menu-item-active a,
+.menu .menu-item a:hover,
+.menu .menu-item span.exturl:hover {
+  background: #f5f5f5;
+}
+.menu-item-active a::after,
+.menu .menu-item a:hover::after,
+.menu .menu-item span.exturl:hover::after {
+  background: #bbb;
+  border-radius: 50%;
+  content: ' ';
+  height: 6px;
+  margin-top: -3px;
+  position: absolute;
+  right: 15px;
+  top: 50%;
+  width: 6px;
+}
+.menu .menu-item {
+  display: block;
+  margin: 0;
+}
+.menu .menu-item a,
+.menu .menu-item span.exturl {
+  padding: 5px 20px;
+  position: relative;
+  text-align: left;
+  transition-property: background-color;
+}
+.menu .menu-item .badge {
+  background: #ccc;
+  border-radius: 10px;
+  color: #fff;
+  float: right;
+  padding: 2px 5px;
+  text-shadow: 1px 1px 0 rgba(0,0,0,0.1);
+  vertical-align: middle;
+}
+.sub-menu {
+  background: #fff;
+  border-bottom: 1px solid #ddd;
+  margin: 0;
+  padding: 6px 0;
+}
+.sub-menu .menu-item {
+  display: inline-block;
+}
+.sub-menu .menu-item a,
+.sub-menu .menu-item span.exturl {
+  margin: 5px 10px;
+  padding: initial;
+}
+.sub-menu .menu-item a:hover,
+.sub-menu .menu-item span.exturl:hover {
+  background: initial;
+  color: #fc6423;
+}
+.sub-menu .menu-item a::after,
+.sub-menu .menu-item span.exturl::after {
+  content: initial !important;
+}
+.sub-menu .menu-item-active a {
+  background: #fff;
+  border-bottom-color: #fc6423;
+  color: #fc6423;
+}
+.sub-menu .menu-item-active a:hover {
+  background: #fff;
+  border-bottom-color: #fc6423;
+}
+.sidebar {
+  bottom: auto;
+  right: auto;
+}
+.sidebar a,
+.sidebar span.exturl {
+  color: #555;
+}
+.sidebar a:hover,
+.sidebar span.exturl:hover {
+  border-bottom-color: #222;
+  color: #222;
+}
+.sidebar-inner {
+  background: #fff;
+  border-radius: initial;
+  box-shadow: 0 2px 2px 0 rgba(0,0,0,0.12), 0 3px 1px -2px rgba(0,0,0,0.06), 0 1px 5px 0 rgba(0,0,0,0.12), 0 -1px 0.5px 0 rgba(0,0,0,0.09);
+  box-sizing: border-box;
+  color: #555;
+  width: 240px;
+  opacity: 0;
+}
+.sidebar-inner.affix {
+  position: fixed;
+  top: 12px;
+}
+.sidebar-inner.affix-bottom {
+  position: absolute;
+}
+.site-state-item {
+  padding: 0 10px;
+}
+.feed-link,
+.chat {
+  border-bottom: 1px dotted #ccc;
+  border-top: 1px dotted #ccc;
+  margin-top: 10px;
+  text-align: center;
+}
+.feed-link a,
+.chat a {
+  border: 0;
+  color: #fc6423;
+  display: block;
+}
+.feed-link a:hover,
+.chat a:hover {
+  background: none;
+  border: 0;
+  color: #e34603;
+}
+.feed-link a:hover .fa,
+.chat a:hover .fa {
+  color: #e34603;
+}
+.links-of-author {
+  display: flex;
+  flex-wrap: wrap;
+  margin-top: 10px;
+  justify-content: center;
+}
+.links-of-author-item {
+  margin: 5px 0 0;
+}
+.links-of-author-item a,
+.links-of-author-item span.exturl {
+  box-sizing: border-box;
+  display: inline-block;
+  margin-bottom: 0;
+  margin-right: 0;
+  max-width: 216px;
+  overflow: hidden;
+  padding: 0 5px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.links-of-author-item a,
+.links-of-author-item span.exturl {
+  border-bottom: none;
+  display: block;
+  text-decoration: none;
+}
+.links-of-author-item a::before,
+.links-of-author-item span.exturl::before {
+  display: none;
+}
+.links-of-author-item a:hover,
+.links-of-author-item span.exturl:hover {
+  background: #eee;
+  border-radius: 4px;
+}
+.links-of-author-item .fa {
+  margin-right: 2px;
+}
+.links-of-blogroll-item {
+  padding: 0;
+}
+.content-wrap {
+  background: initial;
+  box-shadow: initial;
+  padding: initial;
+}
+.post-block {
+  background: #fff;
+  border-radius: initial;
+  box-shadow: 0 2px 2px 0 rgba(0,0,0,0.12), 0 3px 1px -2px rgba(0,0,0,0.06), 0 1px 5px 0 rgba(0,0,0,0.12);
+  padding: 40px;
+}
+.post-block + .post-block {
+  border-radius: initial;
+  box-shadow: 0 2px 2px 0 rgba(0,0,0,0.12), 0 3px 1px -2px rgba(0,0,0,0.06), 0 1px 5px 0 rgba(0,0,0,0.12), 0 -1px 0.5px 0 rgba(0,0,0,0.09);
+  margin-top: 12px;
+}
+.comments {
+  background: #fff;
+  border-radius: initial;
+  box-shadow: 0 2px 2px 0 rgba(0,0,0,0.12), 0 3px 1px -2px rgba(0,0,0,0.06), 0 1px 5px 0 rgba(0,0,0,0.12), 0 -1px 0.5px 0 rgba(0,0,0,0.09);
+  margin: auto;
+  margin-top: 12px;
+  padding: 40px;
+}
+.tabs-comment {
+  margin-top: 1em;
+}
+.posts-expand {
+  padding-top: initial;
+}
+.post-nav-divider {
+  width: 4%;
+}
+.post-nav-item {
+  width: 48%;
+}
+.post-eof {
+  display: none;
+}
+.pagination {
+  background: #fff;
+  border-radius: initial;
+  border-top: initial;
+  box-shadow: 0 2px 2px 0 rgba(0,0,0,0.12), 0 3px 1px -2px rgba(0,0,0,0.06), 0 1px 5px 0 rgba(0,0,0,0.12), 0 -1px 0.5px 0 rgba(0,0,0,0.09);
+  margin: 12px 0 0;
+  padding: 10px 0 10px;
+}
+.pagination .prev,
+.pagination .next,
+.pagination .page-number {
+  margin-bottom: initial;
+  top: initial;
+}
+.main {
+  padding-bottom: initial;
+}
+.footer {
+  bottom: auto;
+}
+.sub-menu {
+  border-bottom: initial;
+  box-shadow: 0 2px 2px 0 rgba(0,0,0,0.12), 0 3px 1px -2px rgba(0,0,0,0.06), 0 1px 5px 0 rgba(0,0,0,0.12);
+}
+.sub-menu + .content .post-block {
+  box-shadow: 0 2px 2px 0 rgba(0,0,0,0.12), 0 3px 1px -2px rgba(0,0,0,0.06), 0 1px 5px 0 rgba(0,0,0,0.12), 0 -1px 0.5px 0 rgba(0,0,0,0.09);
+  margin-top: 12px;
+}
+@media (min-width: 768px) and (max-width: 991px) {
+  .sub-menu + .content .post-block {
+    margin-top: 10px;
+  }
+}
+@media (max-width: 767px) {
+  .sub-menu + .content .post-block {
+    margin-top: 8px;
+  }
+}
+.post-body h1,
+.post-body h2 {
+  border-bottom: 1px solid #eee;
+}
+.post-body h3 {
+  border-bottom: 1px solid #eee;
+}
+.post-body h4 {
+  border-bottom: 1px dotted #eee;
+}
+@media (min-width: 768px) and (max-width: 991px) {
+  .content-wrap {
+    padding: 10px;
+  }
+  .posts-expand {
+    margin: initial;
+  }
+  .posts-expand .post-button {
+    margin-top: 20px;
+  }
+  .post-block {
+    border-radius: initial;
+    box-shadow: 0 2px 2px 0 rgba(0,0,0,0.12), 0 3px 1px -2px rgba(0,0,0,0.06), 0 1px 5px 0 rgba(0,0,0,0.12), 0 -1px 0.5px 0 rgba(0,0,0,0.09);
+    padding: 20px;
+  }
+  .post-block + .post-block {
+    margin-top: 10px;
+  }
+  .comments {
+    margin-top: 10px;
+    padding: 10px 20px;
+  }
+  .pagination {
+    margin: 10px 0 0;
+  }
+}
+@media (max-width: 767px) {
+  .content-wrap {
+    padding: 8px;
+  }
+  .posts-expand {
+    margin: initial;
+  }
+  .posts-expand .post-button {
+    margin: 12px 0;
+  }
+  .post-block {
+    border-radius: initial;
+    box-shadow: 0 2px 2px 0 rgba(0,0,0,0.12), 0 3px 1px -2px rgba(0,0,0,0.06), 0 1px 5px 0 rgba(0,0,0,0.12), 0 -1px 0.5px 0 rgba(0,0,0,0.09);
+    min-height: auto;
+    padding: 12px;
+  }
+  .post-block + .post-block {
+    margin-top: 8px;
+  }
+  .comments {
+    margin-top: 8px;
+    padding: 10px 12px;
+  }
+  .pagination {
+    margin: 8px 0 0;
+  }
+}</style><noscript>
+  <style>
+  .use-motion .brand,
+  .use-motion .menu-item,
+  .sidebar-inner,
+  .use-motion .post-block,
+  .use-motion .pagination,
+  .use-motion .comments,
+  .use-motion .post-header,
+  .use-motion .post-body,
+  .use-motion .collection-header { opacity: initial; }
+
+  .use-motion .site-title,
+  .use-motion .site-subtitle {
+    opacity: initial;
+    top: initial;
+  }
+
+  .use-motion .logo-line-before i { left: initial; }
+  .use-motion .logo-line-after i { right: initial; }
+  </style>
+</noscript>
+
+<script>function loadCss(l){var d=document,h=d.head,s=d.createElement('link');s.rel='stylesheet';s.href=l;!function e(f){if (d.body)return f();setTimeout(function(){e(f)})}(function(){h.appendChild(s);});}loadCss('/style.css');loadCss('//fonts.googleapis.com/css?family=Monda:300,300italic,400,400italic,700,700italic|Roboto Slab:300,300italic,400,400italic,700,700italic|PT Mono:300,300italic,400,400italic,700,700italic&display=swap&subset=latin,latin-ext');loadCss('//cdn.jsdelivr.net/npm/instantsearch.js@2/dist/instantsearch.min.css');loadCss('//cdn.jsdelivr.net/npm/gitalk@1/dist/gitalk.min.css');</script><noscript><link rel="stylesheet" href="/style.css"><link rel="stylesheet" href="//fonts.googleapis.com/css?family=Monda:300,300italic,400,400italic,700,700italic|Roboto Slab:300,300italic,400,400italic,700,700italic|PT Mono:300,300italic,400,400italic,700,700italic&amp;display=swap&amp;subset=latin,latin-ext"><link rel="stylesheet" href="//cdn.jsdelivr.net/npm/instantsearch.js@2/dist/instantsearch.min.css"><link rel="stylesheet" href="//cdn.jsdelivr.net/npm/gitalk@1/dist/gitalk.min.css"></noscript></head>
+
+<body itemscope="" itemtype="http://schema.org/WebPage">
+  <div class="container use-motion">
+    <div class="headband"></div>
+
+    <header class="header" itemscope="" itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-container">
+  <div class="site-meta">
+
+    <div>
+      <a href="/" class="brand" rel="start">
+        <span class="logo-line-before"><i></i></span>
+        <span class="site-title">贝克街的流浪猫</span>
+        <span class="logo-line-after"><i></i></span>
+      </a>
+    </div>
+        <h1 class="site-subtitle" itemprop="description">技术博客</h1>
+      
+  </div>
+
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="切换导航栏">
+      <span class="toggle-line toggle-line-first"></span>
+      <span class="toggle-line toggle-line-middle"></span>
+      <span class="toggle-line toggle-line-last"></span>
+    </div>
+  </div>
+</div>
+
+
+<nav class="site-nav">
+  
+  <ul id="menu" class="menu">
+        <li class="menu-item menu-item-home">
+
+    <a href="/" rel="section"><i class="fa fa-fw fa-home"></i>首页</a>
+
+  </li>
+        <li class="menu-item menu-item-tags">
+
+    <a href="/tags/" rel="section"><i class="fa fa-fw fa-tags"></i>标签</a>
+
+  </li>
+        <li class="menu-item menu-item-categories">
+
+    <a href="/categories/" rel="section"><i class="fa fa-fw fa-th"></i>分类</a>
+
+  </li>
+        <li class="menu-item menu-item-archives">
+
+    <a href="/archives/" rel="section"><i class="fa fa-fw fa-archive"></i>归档</a>
+
+  </li>
+        <li class="menu-item menu-item-about">
+
+    <a href="/about/" rel="section"><i class="fa fa-fw fa-user"></i>关于</a>
+
+  </li>
+      <li class="menu-item menu-item-search">
+        <a role="button" class="popup-trigger"><i class="fa fa-search fa-fw"></i>搜索
+        </a>
+      </li>
+  </ul>
+
+</nav>
+  <div class="site-search">
+    <div class="popup search-popup">
+    <div class="search-header">
+  <span class="search-icon">
+    <i class="fa fa-search"></i>
+  </span>
+  <div class="search-input" id="search-input"></div>
+  <span class="popup-btn-close">
+    <i class="fa fa-times-circle"></i>
+  </span>
+</div>
+<div class="algolia-results">
+  <div id="algolia-stats"></div>
+  <div id="algolia-hits"></div>
+  <div id="algolia-pagination" class="algolia-pagination"></div>
+</div>
+
+  
+</div>
+<div class="search-pop-overlay"></div>
+
+  </div>
+</div>
+    </header>
+
+    
+
+  <span class="exturl github-corner" data-url="aHR0cHM6Ly9naXRodWIuY29tL0JlaUtlSmllRGVMaXVMYW5nTWFv" title="欢迎关注我的 GitHub" aria-label="欢迎关注我的 GitHub"><svg width="80" height="80" viewBox="0 0 250 250" aria-hidden="true"><path d="M0,0 L115,115 L130,115 L142,142 L250,250 L250,0 Z"></path><path d="M128.3,109.0 C113.8,99.7 119.0,89.6 119.0,89.6 C122.0,82.7 120.5,78.6 120.5,78.6 C119.2,72.0 123.4,76.3 123.4,76.3 C127.3,80.9 125.5,87.3 125.5,87.3 C122.9,97.6 130.6,101.9 134.4,103.2" fill="currentColor" style="transform-origin: 130px 106px;" class="octo-arm"></path><path d="M115.0,115.0 C114.9,115.1 118.7,116.5 119.8,115.4 L133.7,101.6 C136.9,99.2 139.9,98.4 142.2,98.6 C133.8,88.0 127.5,74.4 143.8,58.0 C148.5,53.4 154.0,51.2 159.7,51.0 C160.3,49.4 163.2,43.6 171.4,40.1 C171.4,40.1 176.1,42.5 178.8,56.2 C183.1,58.6 187.2,61.8 190.9,65.4 C194.5,69.0 197.7,73.2 200.1,77.6 C213.8,80.2 216.3,84.9 216.3,84.9 C212.7,93.1 206.9,96.0 205.4,96.6 C205.1,102.4 203.0,107.8 198.3,112.5 C181.9,128.9 168.3,122.5 157.7,114.1 C157.9,116.9 156.7,120.9 152.7,124.9 L141.0,136.5 C139.8,137.7 141.6,141.9 141.8,141.8 Z" fill="currentColor" class="octo-body"></path></svg></span>
+
+
+    <main class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          
+
+          <div class="content">
+            
+
+  <div class="posts-expand">
+      
+  
+  
+  <article itemscope="" itemtype="http://schema.org/Article" class="post-block " lang="zh-CN">
+    <link itemprop="mainEntityOfPage" href="https://www.beikejiedeliulangmao.top/linux/process-and-schedule/">
+
+    <span hidden="" itemprop="author" itemscope="" itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.jpg">
+      <meta itemprop="name" content="贝克街的流浪猫">
+      <meta itemprop="description" content="贝贝猫">
+    </span>
+
+    <span hidden="" itemprop="publisher" itemscope="" itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="贝克街的流浪猫">
+    </span>
+      <header class="post-header">
+        <h2 class="post-title" itemprop="name headline">
+          Linux 进程管理与调度
+        </h2>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="fa fa-calendar-o"></i>
+              </span>
+              <span class="post-meta-item-text">发表于</span>
+
+              <time title="创建时间：2019-10-29 09:39:46" itemprop="dateCreated datePublished" datetime="2019-10-29T09:39:46+08:00">2019-10-29</time>
+            </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="fa fa-folder-o"></i>
+              </span>
+              <span class="post-meta-item-text">分类于</span>
+                <span itemprop="about" itemscope="" itemtype="http://schema.org/Thing">
+                  <a href="/categories/Linux/" itemprop="url" rel="index">
+                    <span itemprop="name">Linux</span>
+                  </a>
+                </span>
+            </span>
+
+          
+            <span id="/linux/process-and-schedule/" class="post-meta-item leancloud_visitors" data-flag-title="Linux 进程管理与调度" title="阅读次数">
+              <span class="post-meta-item-icon">
+                <i class="fa fa-eye"></i>
+              </span>
+              <span class="post-meta-item-text">阅读次数：</span>
+              <span class="leancloud-visitors-count"></span>
+            </span><br>
+            <span class="post-meta-item" title="本文字数">
+              <span class="post-meta-item-icon">
+                <i class="fa fa-file-word-o"></i>
+              </span>
+                <span class="post-meta-item-text">本文字数：</span>
+              <span>22k</span>
+            </span>
+            <span class="post-meta-item" title="阅读时长">
+              <span class="post-meta-item-icon">
+                <i class="fa fa-clock-o"></i>
+              </span>
+                <span class="post-meta-item-text">阅读时长 ≈</span>
+              <span>20 分钟</span>
+            </span>
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+        <h2 id="引言"><a href="#引言" class="headerlink" title="引言"></a>引言</h2><p>本文整理了 Linux 内核中进程管理与调度的相关知识，其他 Linux 相关文章均收录于 <a href="https://www.beikejiedeliulangmao.top/categories/Linux">&lt;Linux系列文章&gt;</a>。</p>
+<a id="more"></a>
+
+<h2 id="进程管理与调度"><a href="#进程管理与调度" class="headerlink" title="进程管理与调度"></a>进程管理与调度</h2><p>现代操作系统都能同时运行多个进程，至少从用户的角度来看是这个样子的。每一个处理器上某一指定时刻只能有一个程序可以运行，在多处理器系统中，并行运行的进程数目取决于 CPU 的数量。</p>
+<p>内核和处理器相互配合，给用户以多任务并行的错觉，这是通过以很短的时间间隔在运行的应用程序之间不停地切换而做到的。因为切换的间隔足够短，所以用户根本感觉不到短时间内的停滞，从而觉得计算机能够同时做多件事。</p>
+<p>由于操作系统通过上述方式管理程序的运行，就引出了如下几个问题：</p>
+<ul>
+<li>除非明确声明，否则程序之间不能彼此干扰。一个程序不能读取或修改其他程序的内存，否则就会访问到其他程序的私有数据。</li>
+<li>CPU 时间应该在各个应用程序之间尽可能公平的分享，并允许某些应用程序的优先级比其他应用程序更高。</li>
+</ul>
+<p>第一个问题，我们后面介绍内存管理的时候再详细说明，这里我们主要关心 CPU 时间分配的策略以及如何进行程序之间的切换。</p>
+<h3 id="进程优先级"><a href="#进程优先级" class="headerlink" title="进程优先级"></a>进程优先级</h3><p>前面我们提到过，进程之间可能优先级各不相同，对于优先级较高的进程，理想的情况是它能够分配更多的 CPU 时间，反之，如果优先度较低，则分配较少的 CPU 时间。下图给出了 CPU 时间分配的一个简图，进程的运行按时间片调度，分配给进程的时间片份额与其相对重要性相当。系统中时间的流动对应于圆盘的转动，而 CPU 则由圆周旁的“扫描器”表示。最终效果是，尽管所有的进程都有机会运行，但重要的进程会比次要的得到更多的 CPU 时间。<br><img src="/images/loading-cat.gif" data-original="https://bbm-hexo.oss-accelerate.aliyuncs.com/images/linux/time-segment.png" alt="time-segment"><br>这种方案我们称之为抢占式多任务处理，各个任务按照优先级分配到一定的时间段执行。当时间段到期后，内核收回控制权，让下一个进程运行，而前一个进程的所有运行状态，即 CPU 寄存器和页表，都会保存起来，因而其执行状态不会丢失。当该进程恢复执行时，其进程状态可以完全恢复。</p>
+<p>上述的简化模型忽略了几个问题，某些进程可能在等待其他事件，如网络包的接收，磁盘 IO 的完成，在等待过程中它无事可做，这时候还把 CPU 时间分配给它显然不利于充分利用 CPU 资源。另一个如果有一些进程需要实时调度的话可能需要还没等当前进程的时间片耗尽就抢先执行。这里就牵扯到实时进程的概念，我们不妨看一看：</p>
+<ul>
+<li>硬实时进程：有严格的时间限制，某些任务必须在指定的时间内完成。试想一下如果飞机处于着陆过程中，而飞行员想要拉起机头。如果飞机几秒后才能拉起机头的话，可能就太晚了！<strong>Linux 不支持硬实时处理</strong>，不过一些修改版的 Linux 支持，这些修改版中 Linux 内核作为一个独立的进程运行着，它用来处理不是那么重要的任务，而实时任务的执行由内核的更下层管理。只有当没有硬实时的任务时，内核才能得以运行。</li>
+<li>软实时进程：是硬实时进程的弱化，尽管仍然需要尽快完成实时任务，但是稍微晚一点也不会影响太大。不过这种软实时进程拿到的 CPU 时间至少要好过普通进程。</li>
+<li>普通进程：大多数进程是没有特定时间约束的普通进程，但仍然需要根据其重要性分配优先级。</li>
+</ul>
+<p>总结一下，在 Linux 中进程会分为两大类，软实时进程和普通进程，当软实时进程存在时，会立即抢占普通进程的执行，此外软实时进程之间也有优先度的划分，优先级高的软实时进程会抢占优先级低的软实时进程。当没有软实时进程时，普通进程开始运作，它们根据优先级的不同划分不同大小的 CPU 时间执行，这很类似前面提到的基于时间片的简要模型，不过要注意的是在 2.6.23 之后 Linux 中已经不存在时间片的概念了，Linux 采用了一个完全公平调度器 CFS 来规划每个进程的运行时间，这些我们后面就会介绍到。</p>
+<h3 id="进程的生命周期"><a href="#进程的生命周期" class="headerlink" title="进程的生命周期"></a>进程的生命周期</h3><p>进程并不是一直都可以立即运行，有时候它必须等待来自外部的信号，当信号到来之后才能回到可运行状态，例如等待键盘输入。进行进程调度的时候，显然我们需要将 CPU 时间分配给可立即运行的进程才对，否则就是在浪费 CPU 资源。进程可以有如下状态：</p>
+<ul>
+<li>运行：该进程此刻正在执行。</li>
+<li>等待：该进程能够运行，但是可能现在没轮到它执行，CPU 当前被分配给另一个进程。</li>
+<li>睡眠：进程正在睡眠无法运行，它在等待一个外部事件，调度器无法在下次任务切换的时候选择该进程，只有当外部事件到来之后，内核将该进程的状态改为等待状态，之后调度器才有机会选择它作为下一个运行的进程。</li>
+<li>终止：当进程退出时，会处于终止状态。</li>
+</ul>
+<p><img src="/images/loading-cat.gif" data-original="https://bbm-hexo.oss-accelerate.aliyuncs.com/images/linux/process-lifecycle.png" alt="process-lifecycle"></p>
+<ul>
+<li>上图描述了一个进程的各种可能的状态转换。首先，该进程可能已经就绪，但没有运行，因为 CPU 分配给了其他进程(因此该进程的状态是“等待”)。在调度器授予 CPU 时间之前，进程会一直保持该状态。</li>
+<li>在分配 CPU 时间之后，其状态改变为“运行”(路径4)。</li>
+<li>在调度器决定从该进程收回 CPU 资源时(可能的原因稍后讲述)，进程状态从“运行”改变为“等待”(路径2)，循环重新开始。</li>
+<li>如果进程必须等待事件，则其状态从“运行”改变为“睡眠”(路径1)，但进程状态无法从“睡眠”直接改变为“运行”。在所等待的事件发生后，进程先变回到“等待”状态(路径3)，然后重新回到正常循环。</li>
+<li>在程序执行终止(例如，用户关闭应用程序)后，过程状态由“运行”变为“终止”(路径5)。</li>
+</ul>
+<p>上文没有列出的一个特殊的进程状态是所谓的“僵尸”状态。顾名思义，这样的进程已经死亡，但仍然以某种方式活着。实际上，说这些进程死了，是因为其资源(内存、与外设的连接，等等)已经释放，因此它们无法也决不会再次运行。说它们仍然活着，是因为进程表中仍然有对应的表项。</p>
+<p>那么僵尸是如何产生的？其原因在于 UNIX 操作系统下进程创建和销毁的方式。程序由另一个进程或一个用户杀死(通常是通过发送 SIGTERM 或 SIGKILL 信号来完成，这等价于正常地终止进程)，进程的父进程在子进程终止时必须调用或已经调用 wait4 系统调用。这相当于向内核证实父进程已经确认子进程的终结。该系统调用使得内核可以释放为子进程保留的资源。</p>
+<p>只有在程序终止而父进程没有调用 wait4 的情况下，才会出现“僵尸”状态。在进程终止之后，其数据尚未从进程表删除之前，进程总是暂时处于“僵尸”状态。有时候(例如，如果父进程编程极其糟糕，没有发出wait调用)，僵尸进程可能稳定地寄身于进程表中，直至下一次系统重启。从进程工具(如ps或top)的输出，可以看到僵尸进程。因为残余的数据在内核中占据的空间极少，所以这几乎不是问题。</p>
+<p>另外一类进程的状态是通过内核态和用户态划分的。这反映了现在 CPU 的两种不同状态，其中一个具有无限的权力，而另一个则受到各种限制。例如，可能禁止访问某些内存区域。这是进程之间实现隔离的前提，防止用户进程之间互相打扰。</p>
+<p>进程通常处于用户状态，只能访问自己的数据，无法干扰其他进程，甚至感知不到其他进程的存在。</p>
+<p>如果进程想要访问系统资源或者功能，则必须切换到核心态，前面提到过进程可以通过系统调用的方式切换到内核态，除此之外，还有一种机制是中断，虽然系统调用也是通过软中断的方式实现，但是这里我们特指硬中断，系统调用是应用程序有意触发的，而中断的发生或多或少是不可预测的。通常这种中断的发生和正在运行的应用程序之间没有任何关系。例如当网络包到来时，可能和当前正在运行的进程不相干。当这种情况发生时，当前运行中的进程是无法感知到的，因为内核通过抢占调度的方式来处理中断。</p>
+<p>这就牵扯到抢占调度的问题，那么什么时候进程可以被抢占调度呢？</p>
+<ul>
+<li>普通进程随时可以被抢占，甚至由其他进程抢占。当一个重要进程变得可运行时，调度器可能决定立即执行该程序，即使当前进程仍然在正常运行。对于实现良好交互体验和低系统延迟来说，抢占至关重要。</li>
+<li>当系统处于核心态，并且正在处理系统调用时，那么系统中的其他进程是无法抢占其 CPU 时间的，调度器必须等其系统调用结束后，才能选择另一个进程执行，<strong>但是中断可以终止系统调用</strong>。</li>
+<li>中断可以暂停处于用户态或者核心态的进程，甚至可以抢占正在运行的中断处理程序，中断具有最高优先级，因为中断发生时必须尽快处理。</li>
+</ul>
+<p>在内核 2.5 开发期间，一个称之为内核抢占(kernel preemption)的选项添加到内核。该选项支持在紧急情况下切换到另一个进程，甚至当前是处于核心态执行系统调用(中断处理期间是不行的)。尽管内核会试图尽快执行系统调用，但对于依赖恒定数据流的应用程序来说，系统调用所需的时间仍然太长了。内核抢占可以减少这样的等待时间，从而保证“更平滑的”程序执行。</p>
+<h3 id="进程表示"><a href="#进程表示" class="headerlink" title="进程表示"></a>进程表示</h3><p>内核的进程是通过名为 task_struct 的数据结构建立的，其中包含了很多和进程相关的信息，这里我们将其划分为多个部分简单介绍一下：</p>
+<ul>
+<li>状态和执行信息，如待决信号，使用的二进制格式，进程 ID，到父进程和其他相关进程的指针，优先级和 cpu 时间等。</li>
+<li>有关于已分配的虚拟内存的信息。</li>
+<li>进程身份凭证，如用户 ID，组 ID 以及权限等。</li>
+<li>使用的文件，包含代码二进制文件，以及进程所处理的所有文件的文件系统信息。</li>
+<li>线程信息记录了该进程特定于 CPU 的运行时间数据。</li>
+<li>进程间通讯的信息</li>
+<li>进程所用的信号处理程序，用来响应信号</li>
+</ul>
+<p>进程的状态 state 可以为如下值：</p>
+<ul>
+<li>TASK_RUNNING：进程处于<strong>可运行</strong>状态，不过当前 CPU 可能并不是由该进程持有。</li>
+<li>TASK_INTERRUPTIBLE：表示等待某事件或其他资源的睡眠进程，在内核发送信号给该进程表明事件发生时，进程变为 TASK_RUNNING 状态。</li>
+<li>TASK_UNINTERRUPTIBLE：因内核指示而停用的睡眠进程。它不能由外部信号唤醒，只能由内核唤醒。</li>
+<li>TASK_STOPPED：进程特意停止，如由调试器暂停。</li>
+<li>TASK_TRACED：本不是进程状态，用于从停止的进程中，将当前被调试的那些与常规的进程区分开。</li>
+<li>EXIT_ZOMBIE：前面介绍的僵尸状态。</li>
+<li>EXIT_DEAD：指 wait 系统调用已经发出，而进程完全从系统移除之前的状态。</li>
+</ul>
+<p>Linux 还提供了限制机制，对进程使用的资源施加限制，可限制的资源如下图所示：<br><img src="/images/loading-cat.gif" data-original="https://bbm-hexo.oss-accelerate.aliyuncs.com/images/linux/rlimit.png" alt="rlimit"><br>这些限制存在 task_struct 的 rlim 数组中，数组项类型为 struct rlimit，其中包括软限制和硬限制，软限制 &lt;= 硬限制。我们可以通过查看<code>/proc/pid/limits</code> 来查看进程的当前限制：</p>
+<figure class="highlight bash"><table><tbody><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br></pre></td><td class="code"><pre><span class="line">cat /proc/self/limits</span><br><span class="line">Limit                     Soft Limit           Hard Limit           Units</span><br><span class="line">Max cpu time              unlimited            unlimited            seconds</span><br><span class="line">Max file size             unlimited            unlimited            bytes</span><br><span class="line">Max data size             unlimited            unlimited            bytes</span><br><span class="line">Max stack size            8388608              unlimited            bytes</span><br><span class="line">Max core file size        0                    unlimited            bytes</span><br><span class="line">Max resident <span class="built_in">set</span>          unlimited            unlimited            bytes</span><br><span class="line">Max processes             4096                 7282                 processes</span><br><span class="line">Max open files            65535                65535                files</span><br><span class="line">Max locked memory         65536                65536                bytes</span><br><span class="line">Max address space         unlimited            unlimited            bytes</span><br><span class="line">Max file locks            unlimited            unlimited            locks</span><br><span class="line">Max pending signals       7282                 7282                 signals</span><br><span class="line">Max msgqueue size         819200               819200               bytes</span><br><span class="line">Max nice priority         0                    0</span><br><span class="line">Max realtime priority     0                    0</span><br><span class="line">Max realtime timeout      unlimited            unlimited            us</span><br></pre></td></tr></tbody></table></figure>
+
+<h4 id="进程与线程"><a href="#进程与线程" class="headerlink" title="进程与线程"></a>进程与线程</h4><p>我们知道在 Linux 中一个进程默认只有一个线程，新进程的创建是通过 fork 和 exec 系统调用来产生。</p>
+<p>fork 生成当前进程的一个相同副本，该副本称之为子进程。原进程的所有资源都以适当的方式复制到子进程，因此该系统调用之后，原来的进程就有了两个独立的实例。这两个实例的联系包括: 同一组打开文件、同样的工作目录、内存中同样的数据(两个进程各有一份副本)，等等。此外二者并无关联。</p>
+<p>exec 从一个可执行的二进制文件加载另一个应用程序，来代替当前运行的进程。换句话说，加载了一个新程序。因为 exec 并不创建新进程，所以必须首先使用 fork 复制一个旧的程序，然后调用 exec 在系统上创建另一个应用程序。</p>
+<p>在 Linux 中一个 task struct 可以代表一个进程，该进程只包含一个默认线程，这听上去有点蠢，这不是废话吗（task struct 当然代表了一个进程），但是你要知道 Linux 不像其他系统那样将一个进程的多个线程都打包进同一个进程描述结构体中，相反的，Linux 中一个 task_struct 结构体还可以表示一个线程。</p>
+<p>Linux 提供了 clone 系统调用，clone 的工作原理和 fork 基本相同，但是新进程不是独立于父进程的，而是可以与其共享某些资源。比如内存数据，打开的文件和安装的信号处理程序。clone 是用来实现线程的，但是仅仅靠它是不够的，还需要用户空间库来提供完整的线程实现。</p>
+<h4 id="命名空间"><a href="#命名空间" class="headerlink" title="命名空间"></a>命名空间</h4><p>命名空间提供了虚拟化的一种轻量级实现，是我们可以看到系统全局属性的不同视图。原来，Linux 以及其他 Unix 系统中，许多资源都是全局的，例如 PID，这样所有人所能查看到的 PID 列表就是相同的。同时，每个进程都有一个对应的用户 UID，相同 UID 的进程之间可以互相影响，比如在一个进程中关闭另一个相同 UID 的进程，不过如果两个进程的 UID 不同的话，这类操作是受限的，除非当前使用的是 root 用户，root 用户基本上可以做任何事。这样看上去没有什么问题，每个进程通过 UID 限制了其权限，使其无法操作非法的资源，但是某些情况下，可能云提供商可能需要给予某一用户所有 Linux 资源的访问权限，这就需要给他 root 权限，但是为了有效利用资源，又需要同一个物理主机上运行多个这样的用户。这时候就需要使用 KVM 这样的虚拟化技术，来为不同的用户提供一个虚拟空间，但是这种解决方案在资源的利用上做得不是很好，每个用户都要运行一个独立的内核。</p>
+<p>而命名空间则另辟蹊径，所需资源少，一台物理机就只运行一个内核，所有全局资源都可以通过命名空间的方式分组，各个命名空间内的用户只能看到同组内的资源。本质上，命名空间建立了系统的不同视图，命名空间以分层的结构来组织，某一命名空间内全局资源映射到父命名空间的一个资源。换句话说，子命名空间的资源在父命名空间中能够被看到。下图描述了 PID 的命名空间管理方式，同一命名空间下 PID 不会重复，但是多个命名空间的不同进程 PID 可能会相同，换句话说<code>&lt;PID + 命名空间&gt;</code>的二元组是全局唯一的。<br><img src="/images/loading-cat.gif" data-original="https://bbm-hexo.oss-accelerate.aliyuncs.com/images/linux/namespace.png" alt="namespace"><br>除了上述这种带层级结构的命名空间之外，还有一些比较简单的量，它们是平坦的非层级的，在这种情况下，父子命名空间是没有关系的，比如 hostname。</p>
+<p>在进行 fork 或 clone 时可以指定是否共享父进程的命名空间，还是建立新的命名空间，同时也可以通过 unshare 系统调用来将进程的某些部分从父进程中分离，其中也包括命名空间。通过这两种手段从父命名空间分离后，对于一些简单的量来说，子进程的改动就不会传播到父进程的命名空间，而父进程的修改也不会波及子进程。</p>
+<p>在每个进程的描述信息中，包含一个 nsproxy 结构体，这里面保存了该进程的各类命名空间信息。<br><img src="/images/loading-cat.gif" data-original="https://bbm-hexo.oss-accelerate.aliyuncs.com/images/linux/nsproxy.png" alt="nsproxy"></p>
+<figure class="highlight cpp"><table><tbody><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line"><span class="class"><span class="keyword">struct</span> <span class="title">nsproxy</span> {</span></span><br><span class="line">    <span class="keyword">atomic_t</span> count;</span><br><span class="line">    <span class="class"><span class="keyword">struct</span> <span class="title">uts_namespace</span> *<span class="title">uts_ns</span>;</span> <span class="comment">// 包含内核名称，版本，主机名等</span></span><br><span class="line">    <span class="class"><span class="keyword">struct</span> <span class="title">ipc_namespace</span> *<span class="title">ipc_ns</span>;</span> <span class="comment">// 与进程间通讯 IPC 相关的信息</span></span><br><span class="line">    <span class="class"><span class="keyword">struct</span> <span class="title">mnt_namespace</span> *<span class="title">mnt_ns</span>;</span> <span class="comment">// 装载的文件系统视图</span></span><br><span class="line">    <span class="class"><span class="keyword">struct</span> <span class="title">pid_namespace</span> *<span class="title">pid_ns</span>;</span> <span class="comment">// 有关进程 ID 的信息</span></span><br><span class="line">    <span class="class"><span class="keyword">struct</span> <span class="title">user_namespace</span> *<span class="title">user_ns</span>;</span> <span class="comment">// 用户相关命名空间参数</span></span><br><span class="line">    <span class="class"><span class="keyword">struct</span> <span class="title">net</span> *<span class="title">net_ns</span>;</span> <span class="comment">// 网络相关命名空间参数</span></span><br><span class="line">}</span><br></pre></td></tr></tbody></table></figure>
+
+<h4 id="进程-ID-号"><a href="#进程-ID-号" class="headerlink" title="进程 ID 号"></a>进程 ID 号</h4><p>我们已经知道，每个 UNIX 进程都会被分配一个号码（PID），用于在命名空间中标识它。通过 fork 或者 clone 会自动由内核分配一个新的 PID。但是除了 PID 之外，一个进程还有其他的一些 ID：</p>
+<ul>
+<li>TGID: 处于某个线程组的进程都有统一的线程组 ID，如果一个进程没有使用线程，则 TGID 等于 PID。在一个线程组中，主进程成为组长，TGID 等于组长的 PID。</li>
+<li>PGID: 独立进程可以合并为进程组（pgrp），进程组成员的 pgrp 都是相同的，即组长的 PID。通过进程组，我们能够一次性向组内所有成员发送信号，管道连接的进程就从属于同一个进程组，当我们使用 <code>CTRL + C</code> 发送终止信号时，所有通过管道连接的进程都会关闭。</li>
+<li>SID: 几个进程可以合成一个会话，会话中的所有进程都具有相同的会话 ID，它可以用于终端程序。</li>
+</ul>
+<p>很显然，前面提到的命名空间增加了进程 ID 的管理复杂度。比如以层级结构组织的 PID，新建立一个命名空间时，父命名空间可以看到该子空间的 PID，而子空间内无法看到父空间的 PID。这就意味着，一个进程会有多个 PID，对于每个可以看到该进程的空间内都会有一个与之对应的 PID。</p>
+<p>首先，内核本身和初始化命名空间中每个进程有一个唯一的 ID 称为全局 ID，对于上述的每种 ID 类型都有一个给定的全局 ID，保证整个系统中是唯一的。而对于某一特定的命名空间，都存在一个局部域内的 ID，我们称之为局部 ID，对于每个局部 ID，只在所属的命名空间内有效。</p>
+<p>全局 PID 和 TGID 直接保存在 task_struct 中，而全局会话 ID 和全局进程组 ID 则保存在 task_struct-&gt;signal 中。除了这些全局 ID 之外，内核还要维护所有命名空间内的局部 ID，我们可以通过下图来了解内核是如何管理这些局部 ID 的。<br><img src="/images/loading-cat.gif" data-original="https://bbm-hexo.oss-accelerate.aliyuncs.com/images/linux/pid-manage.png" alt="pid-manage"></p>
+<blockquote>
+<p>所有进程 ID（包括 PID PGID SID） 的信息都通过一种叫做 pid 的结构体保存，所以一个 pid struct 可以代表多个类型的进程 ID（PID，PGID，SID），之所以没有 TGID 是因为 TGID 等于线程组的 PID，当需要获得 TGID 时，直接访问 task_struct-&gt;group_leader 的 PID 即可，所以我们这里着重讨论除了 TGID 之外其他 3 种 ID 类型的管理。</p>
+</blockquote>
+<p>在上图中有 3 个 task_struct，我们假设它们是同一个进程组的 3 个进程，A 进程是组长，为了在一个 task_struct 结构中保存 3 种局部 ID（PID，PGID，SID），所以在 task_struct 中有一个 pids 数组（数据结构为 pid_link），数组的 0，1，2 号位置分别代表了局部 PID，局部 PGID，和局部 SID。从图中我们可以看到 A 进程的 <code>pids[0]</code>(代表 PID)和 B C 进程的 <code>pids[1]</code> 都指向了同一个 pid 结构体，因为进程 A 是进程 BC 的进程组组长。<br><img src="/images/loading-cat.gif" data-original="https://bbm-hexo.oss-accelerate.aliyuncs.com/images/linux/pid-manage.png" alt="pid-manage"><br>在 pid 结构体中，首先有一个 tasks 数组，它保存了所有使用了该 pid 结构体的 task_struct 链表（链表头），这个 tasks 数组存在 3 个元素，0，1，2 号元素分别代表 PID，PGID，SID 使用该 pid 结构体的 task_struct 链表（链表头），这有点像 task_struct 中的 pids 数组，数组中的 3 个元素分别代表了 PID，PGID 和 SID。我们回到 tasks 数组的讨论中来，这个地方有点绕，什么是使用该 pid 结构体的 task_struct 链表。我们以上图的例子来看，<code>tasks[0]</code>（代表 PID） 指向了 A 进程，是因为 A 进程的 <code>pids[0]</code>（代表 PID） 指向了该 pid 结构体，而 <code>tasks[1]</code>（代表 TGID）指向了 B 进程，而 B 进程的又指向了 C 进程，这是因为进程 B C 的进程组 ID 使用了该 pid 结构体（还记得吗，前面我们假设 ABC 三个进程在同一个进程组，并且 A 为组长）。</p>
+<p>不知道大家有没有理解 tasks 数组和 pids 数组的关系，我们换个角度来看，如果某个 task_struct 的 <code>pids[N]</code> 指向了一个 pid 结构体，那么通过该 pid 结构体的 <code>tasks[N]</code> 就能找到该 task_struct，因为 <code>tasks[N]</code> 指向了一个链表，该链表中包含了这个 task_struct。<br><img src="/images/loading-cat.gif" data-original="https://bbm-hexo.oss-accelerate.aliyuncs.com/images/linux/pid-manage.png" alt="pid-manage"><br>除了 tasks 之外，pid 结构体还保存了 level 字段，它标识了该 pid 在命名空间中最大的深度，level = 2，就是说它最深级别为 2，在 level 0，level1，和 level2 中都有对应的 ID，后半段的 number 数组（数据结构为 upid）就对应了该 pid 在不同深度的命名空间中的属性，从图中我们可以看出在 level 0 的命名空间中 ID 为 289，level 1 中 ID 为 134，level2 中对应的 ID 是 45，ns 属性指向了命名空间结构体。</p>
+<p>为了能够通过<code>&lt;PID + 命名空间&gt;</code>这个二元组快速找到对应的资源，内核还维护了一个散列表，散列表的 key 是<code>&lt;PID + 命名空间&gt;</code>，散列表的 value 是 pid 中的 upid 结构体。通过这个 upid 结构体就能顺藤摸瓜般地找到所有和该<code>&lt;pid + 命名空间&gt;</code>相关的所有资源信息。</p>
+<p>除了管理这些进程 ID 之外，内核还要负责提供某种机制来生成唯一的 ID，这里我们只需要能生成唯一的 PID 即可，其他 ID 均可由 PID 派生出来。</p>
+<ul>
+<li>PGID: 进程组组长的 PID</li>
+<li>TGID：线程组组长的 PID</li>
+<li>SID：会话领导进程的 PID</li>
+</ul>
+<p>Linux 为了跟踪已经分配的和仍然使用的 PID，使用了一个大的位图，其中每个 PID 有一个比特位标识，PID 的值可以根据比特位在位图中的位置来确定。因此，分配一个空闲的 PID，本质上就是从位图中找到一个值为 0 的比特，接下来将该比特的值置为 1。反之，释放一个 PID 就将对应的比特位置为 0。</p>
+<p>从建立进程的命名空间，一直到初始的全局命名空间，内核会为每个命名空间分别维护一个上述的位图，通过它来为每个命名空间分别创建一个局部 PID。</p>
+<h4 id="进程关系"><a href="#进程关系" class="headerlink" title="进程关系"></a>进程关系</h4><p>前面我们已经或多或少的提到过，在 Linux 中进程之间是存在一个家族关系的，如果 A 进程创建了进程 B，则 A 进程称为父进程而 B 进程称为子进程。如果 A 进程又创建了一个进程 C，那么进程 BC 之间互为兄弟关系。<br><img src="/images/loading-cat.gif" data-original="https://bbm-hexo.oss-accelerate.aliyuncs.com/images/linux/process-family.png" alt="process-family"></p>
+<h3 id="调度器实现"><a href="#调度器实现" class="headerlink" title="调度器实现"></a>调度器实现</h3><p>我们已经介绍了进程如何在内核中表示，以及多个进程之间怎么构建起关联关系。接下来该介绍一下调度器了，它负责控制进程之间怎么共享 CPU 时间。它既要让各个进程之间尽可能公平地分享 CPU 时间，同时又要考虑优先级。</p>
+<p>在介绍实际的调度算法之前，我们不妨先来看一看一些一般性的知识，在 Linux 中有两种方法会激活调度，一种比较直接，比如进程打算睡眠或出于其他原因放弃 CPU；另一种是通过周期性的时钟中断触发的，这是以一个固定的频率进行，不时地检测是否有必要进行进程切换。在下面的介绍中，主动调度我们称为通用调度器，周期性调度我们称为核心调度器。<br><img src="/images/loading-cat.gif" data-original="https://bbm-hexo.oss-accelerate.aliyuncs.com/images/linux/shceduler.png" alt="shceduler"><br>这里 Linux 对调度行为进行了分层，在调度器这一层，主要进行和调度策略无关的逻辑，其主要调用下一层的调度器类来完成进程选择的任务，内核支持不同的调度策略：完全公平调度，实时调度，在无事可做时运行空闲进程。在选中下一个要运行的进程后，调度器要进行底层的任务切换，这往往与 CPU 架构有比较大的联系，这就通常需要配合汇编语言。有一点要注意的是，一个进程只会归某一个调度器类管辖。</p>
+<h4 id="进程优先级计算"><a href="#进程优先级计算" class="headerlink" title="进程优先级计算"></a>进程优先级计算</h4><figure class="highlight cpp"><table><tbody><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br></pre></td><td class="code"><pre><span class="line"><span class="class"><span class="keyword">struct</span> <span class="title">task_struct</span> {</span></span><br><span class="line">...</span><br><span class="line"><span class="keyword">int</span> prio，static_prio，normal_prio;</span><br><span class="line"><span class="keyword">unsigned</span> <span class="keyword">int</span> rt_priority;</span><br><span class="line"><span class="keyword">const</span> <span class="class"><span class="keyword">struct</span> <span class="title">sched_class</span> *<span class="title">sched_class</span>;</span></span><br><span class="line"><span class="keyword">unsigned</span> <span class="keyword">int</span> policy;</span><br><span class="line"><span class="keyword">cpumask_t</span> cpus_allowed;</span><br><span class="line"><span class="class"><span class="keyword">struct</span> <span class="title">list_head</span> <span class="title">run_list</span>;</span></span><br><span class="line"><span class="keyword">unsigned</span> <span class="keyword">int</span> time_slice;</span><br><span class="line"><span class="class"><span class="keyword">struct</span> <span class="title">sched_entity</span> <span class="title">se</span>;</span></span><br><span class="line">...</span><br><span class="line">}</span><br></pre></td></tr></tbody></table></figure>
+
+<ul>
+<li>在 task_struct 中，有 4 个成员来表示一个进程的优先级：prio 和 normal_prio 表示动态优先级，static_prio 表示进程的静态优先级，rt_priority 则和这三个不同，它只作用于实时进程。<ul>
+<li>静态优先级（static_prio）是进程启动时分配的优先级，也可以通过 nice 等系统调用修改，它的取值范围是 -20 ~ 19。值越低优先级越高。</li>
+<li>普通优先级（normal_prio）表示基于静态优先级和调度策略计算出来的优先级。因此，即便普通进程和实时进程具有相同的静态优先级，其普通优先级也不同，在创建子进程时，子进程会继承普通优先级。</li>
+<li>prio 则是调度器需要考虑的优先级，有些时候系统可能需要临时提高某一进程的优先级，因此需要这个变量来表示。由于该优先级的提高是临时的，因此静态和普通优先级不受影响。</li>
+<li>rt_priority 表示实时进程的优先级，取值范围是 0 ~ 99，值越大优先级越高。</li>
+</ul>
+</li>
+<li>每个进程除了优先级的标识外，还有一个 sched_class 字段表示该进程所属的调度器类。而进程的 policy 属性则表示了该进程的调度策略，Linux 支持 5 种可能的值：<ul>
+<li>SCHED_NORMAL: 用于普通进程，我们主要介绍该类进程，它通过完全公平调度器类来处理。</li>
+<li>SCHED_BATCH：用于非交互，CPU 密集型批处理进程，它不会抢占另一个进程，因此不会打扰交互式进程。他也通过完全公平调度器类管理。</li>
+<li>SCHED_IDLE：重要度比较低，调度权重最小，通过完全公平调度器类来处理。</li>
+<li>SCHED_RR: 实现了一种循环调度，由实时调度器类负责。</li>
+<li>SCHED_FIFO：先入先出调度，由实时调度器类负责。</li>
+</ul>
+</li>
+<li>cpus_allowed 是一个位域，用来限制进程可以在哪些 CPU 上运行。</li>
+<li>run_list 和 time_slice 是循环实时调度器类使用的资源，run_list 表示循环调度任务的列表头（维护包含各个进程的一个运行表），而 time_slice 表示该进程可使用的剩余 CPU 时间。</li>
+<li>se 字段表明 task_struct 是一个可调度实体，在 linux 中，不仅可以以进程作为调度目标，也可以把一个进程组作为调度目标，或者按用户作为调度目标，它们都可以通过调度器类进行调度，来保证一个各个调度实体之间的公平性，这里我们着重介绍以进程作为调度实体的情况。</li>
+</ul>
+<p>在内核中，Linux 对优先级进行了转换，用户设定的静态优先级(static_prio)，和实时优先级(rt_priority)被映射到了从 0 ~ 139 的范围内(normal_prio)，根据进程的调度策略，会以不同的方式进行计算，0 ~ 99 对应了实时进程（rt_priority），100 ~ 139 对应了普通进程（static_prio）。<br><img src="/images/loading-cat.gif" data-original="https://bbm-hexo.oss-accelerate.aliyuncs.com/images/linux/priority.png" alt="priority"><br>至此我们知道了，normal_prio 是如何通过 static_prio 和 rt_priority 计算出来的，prio 属性是内核视情况临时提高进程优先级时设置的，这里我们先不展开介绍。有了这些信息，我们得明确一下内核在进行调度时，使用了哪个优先级作为参考。</p>
+<figure class="highlight cpp"><table><tbody><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">static</span> <span class="keyword">int</span> <span class="title">effective_prio</span><span class="params">(struct task_struct *p)</span></span></span><br><span class="line"><span class="function"></span>{</span><br><span class="line">    <span class="comment">// 先计算 normal_prio，如果是实时进程则根据 rt_priority 换算到 0 ~ 99，否则通过 static_prio 换算到 100 ~ 139</span></span><br><span class="line">    p-&gt;normal_prio = normal_prio(p);</span><br><span class="line">    <span class="comment">// 如果内核改变了 prio 属性 并且其值达到了实时进程的阈值 100，则返回 prio 否则返回 normal_prio</span></span><br><span class="line">    <span class="keyword">if</span> (!rt_prio(p-&gt;prio))</span><br><span class="line">        <span class="keyword">return</span> p-&gt;normal_prio;</span><br><span class="line">    <span class="keyword">return</span> p-&gt;prio;</span><br><span class="line">}</span><br></pre></td></tr></tbody></table></figure>
+
+<p>在这里，我们先介绍了进程的优先级计算方案，这至关重要，因为无论是周期性调度还是主动调度，都要根据现有的进程优先级来分配 CPU 时间。明白了优先级的计算方法之后，我们开始看一看调度器这一层的活儿。</p>
+<h4 id="调度器"><a href="#调度器" class="headerlink" title="调度器"></a>调度器</h4><p>调度器分两类，周期性调度和主动调度。如果系统正在活动中，内核会按照频率 HZ 自动触发周期性调度。这个周期性的触发任务有两个作用：</p>
+<ol>
+<li>管理内核中与整个系统和各个进程的度量相关的统计信息。</li>
+<li>激活负责当前进程的调度类的周期性调度方法。</li>
+</ol>
+<p>除了周期性调度外，在内核中的很多地方，如果要将 CPU 分配给另一个进程，都会直接调用主动调度器，比如在系统调用结束后，内核会检查当前进程是否设置了重新调度标志 TIF_NEED_RESCHED，前面介绍的周期性调度器可能就会设置该标志，举个例子：可能一个进程调用了一个花销较大的系统调用，在未开启内核抢占的情况下，其他进程无法抢占该系统调用，只会将该进程的 TIF_NEED_RESCHED 设置为 1，等其系统调用结束后，主动进行进程调度。</p>
+<p>好了，现在回到实际的调度过程中来：</p>
+<ol>
+<li>当要进行进程调度时，调度器首先获取该 CPU 上的就绪进程队列 rq，然后通知调度器类（put_prev_task）当前进程要被另一个取代了，注意这并不是将进程从就绪队列剔除，只是更新一些统计信息。</li>
+<li>从调度器类中选取下一个要运行的进程（put_prev_task），如果没有其他进行可以调度的话，当前进程还会继续运行。但如果找到了下一个要运行的进程，就要开始进行硬件级的进程切换。</li>
+<li>调度器通过 context_switch 进行进程的上下文切换，其下层的代码就和各个体系结构相关了。</li>
+</ol>
+<p>在进行上下文切换时主要进行如下两个工作：</p>
+<ol>
+<li>它会通过 task_struct-&gt;mm 更换内存管理上下文，主要包括加载页表，（部分或全部）刷出地址转换后备缓冲器（TLB），向内存管理单元（MMU）提供新的信息。这些都深入到 CPU 的细节中，我们就不深入介绍了。</li>
+<li>切换处理器寄存器内容和内核栈（虚拟地址空间的用户部分在第一步中已经完成，其中就包括了用户态的栈，因此用户栈不需要显式地变更），此项工作在不同体系结构下差别很大，代码通常使用汇编语言。</li>
+</ol>
+<p>有一点例外是，内核线程没有自身的用户空间内存上下文，所以它可能在某个随机进程的地址空间上执行，内核线程 task_struct-&gt;mm 为 NULL，从当前进程”借来”的地址空间记录在 active_mm 中。</p>
+<p>到这为止，调度器这一层就介绍完了，我们回顾一下 Linux 是如何进行调度的，首先会有一个周期性的触发器来触发调度任务，这是通过硬件中断来进行了，它一般会以硬件的方式向 CPU 发送中断信号，CPU 会在执行下一条指令前，跳转到该中断信号对应的中断处理程序上（这个中断处理程序会调用调度器），也就是说这会强制打断当前运行的进程，你不必担心一个进程写一个死循环会一直占据 CPU。</p>
+<p>然后，在调度器这里会判断当前是否需要进行进程切换，如果当前进程才刚开始运行没多久，显然没必要换入下一个进程，因为太频繁的进程调度会浪费 CPU 时间，如果存在下一个要运行的进程，它会先进行判断，当前进程是否能够被抢占：</p>
+<ul>
+<li>比如系统调用时可能就不能被抢占（除非开启内核抢占），这时候就需要将进程的 TIF_NEED_RESCHED 置为 true，等该进程的系统调用结束后，主动进行调度。</li>
+<li>如果当前进程在用户态执行用户代码，显然可以被抢占，这时候如果调度器类觉得该运行下一个进程了，那么就会开始进行上下文切换，前面刚详细介绍了切换过程，这里就不赘述了。</li>
+<li>如果现在正在执行某一中断处理程序，也不能被抢占，因为进程没法抢占中断处理程序，它具有最高执行优先级，这时会等待中断处理程序结束后，再择机进行调度（可能是主动的也可能是周期性调度的）</li>
+</ul>
+<p>说完了周期性调度的职责，我们再看看主动调度的过程，主动调度可能发生在很多地方，比如系统调用结束时，就如前面说的会检查 TIF_NEED_RESCHED 标识来决定是否进行主动调度，此外还有进程被挂起（等待其他资源）等等。如果下层调度器类觉得需要进行进程调度时，它就会进行相关上下文切换。<br><img src="/images/loading-cat.gif" data-original="https://bbm-hexo.oss-accelerate.aliyuncs.com/images/linux/shceduler.png" alt="shceduler"><br>说完了不同调度器的职责，我们还要知道每个 CPU 上都会有一个就绪队列（执行进程队列），每个 CPU 上都对应了独立的一个调度器层（包括主动调度，和周期调度），调度器下层还存在多个调度器类，实时调度器类，完全公平调度器类，这些我们后面会介绍，这里先有一个概念就行。当前 CPU 的就绪队列中的每个进程都由某个确定的调度器类管辖。当要进行调度时，调度器层会帮我们进行调度器的选择。每个进程只能出现在一个 CPU 就绪队列中，因为不可能在多个 CPU 上同时运行一个进程。</p>
+<p>希望各位同学读到这，能够对这个 Linux 进程有一个全局上认识，比如：Linux 如果管理进程的数据，什么时候进行调度，以及调度的完整过程，这里我们还没有介绍具体的调度算法，但是你要知道 Linux 中对调度算法分层就是为了将通用的部分抽象出来，这样以后切换调度算法时，能不影响这些通用的过程。在清楚地理解了这些通用过程后，我们接下来，就开始介绍 Linux 的两大调度算法，即两大调度器类的内容了。</p>
+<h4 id="调度器类"><a href="#调度器类" class="headerlink" title="调度器类"></a>调度器类</h4><p>在调度器类这一层，Linux 将其抽象为一个接口，各个调度器类都实现了该接口，调度器类之间的层次结构是平坦的，它们之间的优先级关系是：实时&gt;完全公平&gt;空闲；当需要进行调度时，实时进程在完全公平进程之前处理，而完全公平进程优于空闲进程。</p>
+<figure class="highlight cpp"><table><tbody><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br></pre></td><td class="code"><pre><span class="line"><span class="class"><span class="keyword">struct</span> <span class="title">sched_class</span> {</span></span><br><span class="line">    <span class="keyword">const</span> <span class="class"><span class="keyword">struct</span> <span class="title">sched_class</span> *<span class="title">next</span>;</span></span><br><span class="line">    <span class="keyword">void</span> (*enqueue_task) (struct rq *rq，struct task_struct *p，<span class="keyword">int</span> wakeup);</span><br><span class="line">    <span class="keyword">void</span> (*dequeue_task) (struct rq *rq，struct task_struct *p，<span class="keyword">int</span> sleep);</span><br><span class="line">    <span class="keyword">void</span> (*yield_task) (struct rq *rq);</span><br><span class="line">    <span class="keyword">void</span> (*check_preempt_curr) (struct rq *rq，struct task_struct *p);</span><br><span class="line">    <span class="class"><span class="keyword">struct</span> <span class="title">task_struct</span> * (*<span class="title">pick_next_task</span>) (<span class="title">struct</span> <span class="title">rq</span> *<span class="title">rq</span>);</span></span><br><span class="line">    <span class="keyword">void</span> (*put_prev_task) (struct rq *rq，struct task_struct *p);</span><br><span class="line">    <span class="keyword">void</span> (*set_curr_task) (struct rq *rq);</span><br><span class="line">    <span class="keyword">void</span> (*task_tick) (struct rq *rq，struct task_struct *p);</span><br><span class="line">    <span class="keyword">void</span> (*task_new) (struct rq *rq，struct task_struct *p);</span><br><span class="line">}</span><br></pre></td></tr></tbody></table></figure>
+
+<ul>
+<li>enqueue_task：向就绪队列添加一个新进程，在进程从睡眠状态变成可运行时，会发生。</li>
+<li>dequeue_task：提供逆向操作，将一个进程从就绪队列去除。事实上，在进程从可运行状态切换到不可运行状态时，就会发生该操作。内核有可能因为其他理由将进程从就绪队列去除，比如，进程的优先级可能需要改变。</li>
+<li>yield_task：在进程想要自愿放弃对处理器的控制权时，可使用 sched_yield 系统调用。这导致内核调用 yield_task。</li>
+<li>check_preempt_curr：用一个新唤醒的进程来抢占当前进程。例如，当等待某一事件的进程被唤醒时，会调用该函数，确认是否可以抢占当前运行的进程。</li>
+<li>pick_next_task：用于选择下一个将要运行的进程</li>
+<li>put_prev_task：在用另一个进程代替当前运行的进程之前调用。要注意，这些操作并不等价于将进程加入或撤出就绪队列的操作，如 enqueue_task 和 dequeue_task。相反，它们负责向进程提供或撤销 CPU。但在不同进程之间切换，那仍然需要执行一个底层的上下文切换。</li>
+<li>set_curr_task：在进程的调度策略发生变化时，需要调用 set_curr_task。</li>
+<li>task_tick：在每次激活周期性调度器时，由周期性调度器调用。</li>
+<li>new_task：用于建立 fork 系统调用和调度器之间的关联。每次新进程建立后，则用 new_task 通知调度器。</li>
+</ul>
+<h5 id="完全公平调度器类"><a href="#完全公平调度器类" class="headerlink" title="完全公平调度器类"></a>完全公平调度器类</h5><p>首先我们把注意力放在完全公平调度器类 CFS 上。在 CFS 中有一个虚拟时钟，它是用来度量进程在 CFS 中能得到的 CPU 时间。这个虚拟时钟是通过进程的实际运行时间和其负荷权重计算出来的，优先度越大的进程，它的 CPU 使用权重就大，在 Linux 中每个 static_prio 即 nice 值（-20 ~ 19）都有一个对应的 CPU 执行权重。</p>
+<figure class="highlight cpp"><table><tbody><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">static</span> <span class="keyword">const</span> <span class="keyword">int</span> prio_to_weight[<span class="number">40</span>] = {</span><br><span class="line"><span class="comment">/* -20 */</span> <span class="number">88761</span>，<span class="number">71755</span>，<span class="number">56483</span>，<span class="number">46273</span>，<span class="number">36291</span>，</span><br><span class="line"><span class="comment">/* -15 */</span> <span class="number">29154</span>，<span class="number">23254</span>，<span class="number">18705</span>，<span class="number">14949</span>，<span class="number">11916</span>，</span><br><span class="line"><span class="comment">/* -10 */</span> <span class="number">9548</span>， <span class="number">7620</span>， <span class="number">6100</span>， <span class="number">4904</span>， <span class="number">3906</span>，</span><br><span class="line"><span class="comment">/* -5  */</span> <span class="number">3121</span>， <span class="number">2501</span>， <span class="number">1991</span>， <span class="number">1586</span>， <span class="number">1277</span>，</span><br><span class="line"><span class="comment">/*  0  */</span> <span class="number">1024</span>， <span class="number">820</span>，  <span class="number">655</span>，  <span class="number">526</span>，  <span class="number">423</span>，</span><br><span class="line"><span class="comment">/*  5  */</span> <span class="number">335</span>，  <span class="number">272</span>，  <span class="number">215</span>，  <span class="number">172</span>，  <span class="number">137</span>，</span><br><span class="line"><span class="comment">/*  10 */</span> <span class="number">110</span>，  <span class="number">87</span>，   <span class="number">70</span>，   <span class="number">56</span>，   <span class="number">45</span>，</span><br><span class="line"><span class="comment">/*  15 */</span> <span class="number">36</span>，   <span class="number">29</span>，   <span class="number">23</span>，   <span class="number">18</span>，   <span class="number">15</span>，</span><br><span class="line">}</span><br></pre></td></tr></tbody></table></figure>
+
+<p>上述数组中，就记录了从 nice 值到 CPU 执行权重之间的映射关系，相邻比例因子之间相差 1.25 倍，这样进程每降低一个 nice 值，则多获得 10% 的执行时间，每升高一个 nice 值，则放弃 10% 的执行时间。举个例子，假设 AB 进程的 nice 值都是 0，也就是说它们的执行权重都是 1024，每个进程的 CPU 份额就是<code>1024 /（1024 + 1024）= 0.5</code>，如果 B 进程 nice 值加一，就变成 <code>820 / (1024 + 820) ≈ 0.45</code> 这相较于 0.5 来说下降了 10 %。</p>
+<p>前面我们说过虚拟时间是和其 CPU 权重相关的，具体是什么关系呢？它们的关系是 <code>virtual_time = real_time * NICE_0_CPU_WEIGHT / CURRENT_CPU_WEIGHT</code>，它以 NICE 值为 0 作为基准点，通过对应的 CPU 负载权重和 NICE 0 的比值，等比换算虚拟时间。<br><img src="/images/loading-cat.gif" data-original="https://bbm-hexo.oss-accelerate.aliyuncs.com/images/linux/v-time-r-time.png" alt="v-time-r-time"><br>从图中我们可以看出，NICE 值越大意味着它的优先级越低，它的虚拟时钟走的越快，而 NICE 值越小它的虚拟时钟走得越慢。<strong>CFS 尽可能保证各个进程的虚拟时间的分配是公平的</strong>，这就间接地保证了优先级越高的进程，它能获得的实际 CPU 时间就越长。现在思绪有点乱的同学可以先停下来，捋一下这个关系。</p>
+<p>接下来，我们看一看 CFS 是如何组织这些进程的虚拟运行时间，并如何利用它的，首先 CFS 会维护一个红黑树，它根据进程的虚拟运行时间来计算 key（虚拟时间越小越靠左），以进程作为 value。这也就是说，CFS 进程加入进程移除进程的时间复杂度为 <code>O(logN)</code>。该红黑树的最左节点，就是虚拟运行时间最小的进程，它会被最先进行调度。越重要的进程虚拟时间涨的越慢，它在红黑树的左侧停留的时间更长，所以它相对于其他进程会更容易被调度。但当进程运行时，其虚拟时间就会稳定的增加，这样它就会在红黑树中缓慢向右移动，这样其他进程就会被调度。<br><img src="/images/loading-cat.gif" data-original="https://bbm-hexo.oss-accelerate.aliyuncs.com/images/linux/cfs-red-black.png" alt="cfs-red-black"><br>现在，我们通过红黑树对就绪队列进行了排序，越急迫需要 CPU 时间的进程（虚拟时间越小）越排在队列的前面，而 CFS 选择队列最左边的进程运行，实际上就是在消除对它的亏欠，毕竟它虚拟时间最短，相当于它执行的时间最少，我们理应让它先执行。这样就是 CFS 名称的由来，为了保证大家都一样的”公平”分配 CPU，当然这种”公平”是考虑到进程的优先级的。</p>
+<p>这时候还会有一个问题，就是每个进程给挑选出来的进程分配多长时间的 CPU 呢？如果分配的太长，后面进程可能很久都不会得到运行，这样它可能就会”饿死”，这显然不是我们期望的，在 CFS 调度算法中没有时间片的概念，Linux 之前的调度算法是基于时间片的，每个进程可以被执行指定长度的时间片，时间片耗尽后调度下一个进程，现在的 Linux CFS 中有一个系统参数 sysctl_sched_latency，它代表了一个进程每个多久就至少需要被调度一次，我们称之为一个调度周期，它的默认值是 20 ms。除此之外，还有一个参数，描述了前面的 sysctl_sched_latency 对多大规模的进程数目生效，试想一下，如果一个机器上有一万个，我们显然很难保证，每个进程 20 ms 调度一次，那会意味着进程间的切换会过于频繁。所以这里我们还要引入一个 sched_nr_latency，它代表了一个调度周期中能处理的最大活动进程数，如果当前活动进程数超过该上限 sched_nr_latency，就需要根据它们的比值等比的扩大 sysctl_sched_latency，<code>sysctl_sched_latency * running_task / sched_nr_latency</code>。</p>
+<p>在一个调度周期内，CFS 中的所有活动进程会按照其相对权重分配 CPU 执行时长。想象一下，CPU 权重越大的进程，当 CFS 选它作为下一个要执行的进程时，会给它分配一个较长的 CPU 执行时间，但是因为其虚拟运行时间的计算也是要根据权重计算的，这样算下来，在一个调度周期内所有的进程最终虚拟时间增长会是相同的。没搞明白的同学，我再次建议你停下来捋一下思路。</p>
+<p>明确了，CFS 如何组织运行队列后，我们来看一看完整的调度过程，假设这时候周期性调度器触发：</p>
+<ol>
+<li>它先会更新一下当前进程的运行时间</li>
+<li>然后看看运行队列中是否有其他可运行的进程，如果没有的话，自然需要让当前进程继续执行</li>
+<li>如果有其他进程需要被调度，确认当前运行的进程其运行时间是否大于其分配的 CPU 时间<ul>
+<li>如果当前进程执行时间已经大于其分配的 CPU 时间，则将 task_struct 中的 TIF_NEED_RESCHED 设为 true，核心调度器会在合适的时机发起调度（如果不能抢占调度，则等主动调度过程来进行相关操作，如果能抢占调度，则直接抢占调度，这点我们前面介绍过）</li>
+<li>否则，让当前进程继续运行</li>
+</ul>
+</li>
+</ol>
+<p>接下来，我们介绍一下当进程被唤醒时的操作过程。首先，内核要通过调度器类来确认新进程能否抢占当前运行的进程，注意这个过程不涉及核心调度器，如果被唤醒的进程是实时进程（由实时调度器类管理），而当前运行的进程是普通进程（由 CFS 管理），则会直接抢占，因为实时进程优先级大于普通进程。而如果两个进程都是普通进程，则会进行一个比较过程，如果当前进程才刚开始运行没多久，我们就不允许抢占，内核确保被抢占着至少获取一定的时间份额，试想一下如果没有这个限制，那么所有进程都不停地唤醒-&gt;睡眠-&gt;唤醒的话，会把大部分时间都花费在上下文切换上。那么每个进程至少要分配多大的时间份额呢？这个值通过 sysctl_sched_wakeup_granularity 控制，默认是 4 ms，注意这里指的是实际时间。</p>
+<p>最后，我们看一看新进程的调度处理过程。在一个新进程启动时，默认会比父进程更先得到调度，试想一下新进程很可能是父进程通过 fork-&gt;exec 创建的，在调用 exec 之前这个过程中子进程还共享着父进程的资源（写时复制），如果父进程先于子进程得到调度，不就会涉及写时拷贝了吗，而如果子进程先调度并顺利执行了 exec，就避免了写时拷贝的性能损失。可以说 Linux 上的进程如此轻量级，主要是就是因为写时拷贝技术 + 子进程优先调度。子进程加入到运行队列后，会先计算进程的虚拟时间，<code>virtual_time = run_queue-&gt;min_virtual_time + child_process_weight / run_queue-&gt;weight_sum * sysctl_sched_latency</code>，注意 sysctl_sched_latency 会根据当前运行的进程数进行缩放，这里为了简化公式所以用 sysctl_sched_latency 代替。计算完，虚拟时间之后，会和父进程的虚拟时间进行比较，如果父进程的虚拟时间小于子进程，则会交换双方的虚拟时间，这样才能保证子进程先于父进程被调度，处理完所有的这些之后，将子进程放入红黑树中的合适位置，然后立即请求重新调度，这样父进程就会被换出并且子进程会先于父进程调度。</p>
+<h5 id="实时调度器类"><a href="#实时调度器类" class="headerlink" title="实时调度器类"></a>实时调度器类</h5><p>讲完了完全公平调度器类后，我们再来看看实时进程的调度器类。按照 POSIX 的强制要求，除了普通进程外，Linux 还支持两种实时调度类。因为 Linux 的调度器分层，所以这两种调度器类可以很容易集成进内核中，而不需修改调度器层。</p>
+<p>实时进程和普通进程有一个根本不同，就是如果系统有一个实时进程在运行，那么调度器总会先选择运行它，除非有一个优先级更高的实时进程要运行。</p>
+<p>现有的两种实时调度器类：</p>
+<ul>
+<li>循环进程（RR）：有时间片，其值在进程运行时会减少，就像普通进程，当时间片耗尽时，重置它们的时间片，并将其置于队尾，队列中的下一个实时进程开始执行。这确保了在同一优先级的多个进程之间总是依次执行。</li>
+<li>先进先出进程（FIFO）：没有片，在被调度器选择后，可以运行任意长的时间。</li>
+</ul>
+<p>很明显，如果实时进程编写的不好，系统就会变得无法使用。只要写一个死循环，循环体不进入睡眠即可。所以在编写实时应用时要多加小心。这里大家可能会问，前面不是说 CPU 周期性触发调度么，为什么这里写一个死循环就没法抢占了呢？这是因为，对于实时应用的处理策略是，低优先级不抢占高优先级，所以并不是内核没能力抢占，而是原则上不愿意抢占。</p>
+<p>在实时调度器类这块的实现非常类似与原来的 O(1) 调度器，该调度器以时间复杂度为常数而著称，尽管前面提到的 CFS 时间复杂度是 O(logN)，但是除非有大量进程同时处于可运行状态，否则调度器的性能影响可以忽略不计。</p>
+<p>我们已经说过，实时调度器类按照优先级管理实时进程，高优先级具有绝对权威，所以 Linux 按照优先级的不同划分出了多个队列，每个优先级有一个对应的队列，为了能够按照优先级从高到低的顺序快速找到第一个有活动进程的队列，内核用一个 bitmap 来表述每个优先级是否存在活动进程，一个 bit 位代表了一个优先级。<br><img src="/images/loading-cat.gif" data-original="https://bbm-hexo.oss-accelerate.aliyuncs.com/images/linux/rs.png" alt="rs"><br>上图就是循环调度器类 RR 的数据管理格式，进程的入队出队都比较简单，就找到和优先级匹配的队列，然后入队或者出队即可，当队列不为空或者为空时，设置或者清除 bitmap 对应的位。注意，新进程总是排列在队列的尾部。</p>
+<p>周期调度的过程同样很简单， FIFO 进程最容易，因为它可以运行任意时长，必须通过 yield 系统调用主动让出 CPU 给另一个进程。而如果是循环进程，则减少剩余时间片，如果时间片尚未耗尽，就什么也不做，如果时间片耗尽就重置为 DEF_TIMESLICE（100 * HZ / 1000，即 100ms），如果不是唯一的实时进程，则排列到队列尾部。通过设置 TIF_NEED_RESCHED 来让调度器层择机进行调度。</p>
+<h3 id="调度器增强"><a href="#调度器增强" class="headerlink" title="调度器增强"></a>调度器增强</h3><p>除了上述的调度内容外，Linux 还要考虑一些增强的功能，例如在多核处理器 SMP 上，内核必须考虑如下问题：</p>
+<ul>
+<li>CPU 负荷要尽可能公平的分散在所有的处理器上。</li>
+<li>进程和系统的某些 CPU 获取需要一些亲和性，例如绑定在某一块 CPU 上执行。<ul>
+<li>Linux 提供了 sched_setaffinity 系统调用来修改进程与 CPU 的绑定关系。</li>
+</ul>
+</li>
+<li>内核必须要能将一个进程从一个 CPU 移到另一个。</li>
+</ul>
+<p>在 SMP 上内核必能能够支持负载均衡，实际上周期性调度函数会在执行完前面所说的工作后触发一个 SCHEDULE_SOFTIRQ 软中断，该终端会在适当的时机对当前 CPU 执行负载均衡任务。<br><img src="/images/loading-cat.gif" data-original="https://bbm-hexo.oss-accelerate.aliyuncs.com/images/linux/soft-irq-schedule.png" alt="soft-irq-schedule"><br>就绪队列是特定于 CPU 的，内核为了给每个就绪队列提供一个负载均衡的机制，为每个就绪队列增加了一个迁移队列，可以接受迁移请求，这些请求就保存在迁移队列中。当某一 CPU 的就绪队列调度任务过于繁忙，或者被限制不能在本 CPU 上运行该进程，则会向其它 CPU 的就绪队列发送迁移请求。</p>
+<p>那么此外，还有一点需要知道的是，所有的就绪队列被组织为调度域。这可以将物理上临近或共享高速缓存的 CPU 集结起来，应优先选择在这些 CPU 之间迁移进程。在内核中有很多参数可以调配相关内容，比如可以设置多长时间间隔才能发起负载均衡，导致队列需要重新负载均衡的最小不平衡条件等等。</p>
+<p>负载均衡分两个方向进行，一个是前面所提到的周期性的负载均衡，它有一些限制，如果周期性的负载均衡效果不佳会触发主动负载均衡，它们之间有什么区别呢？我们不妨看看它们的工作内容。</p>
+<p>周期性负载均衡先遍了所有调度队列，确认达到最低的不平衡条件，然后找到最繁忙的队列，将其中的某些任务移到自己的队列中，至于要移动哪些进程，就要参考前面的调度域条件和 CPU 亲和度条件等。除此之外，还要保证被迁移的进程没有处于运行状态，或者刚结束运行，因为这些情况下 CPU 高速缓存充满了该进程的数据，迁移之后这些高速缓存相当于被浪费了。注意这里它只会移动一些优先级比较低的进程，如果目标队列的所有进程优先级都过高，则将唤醒该 CPU （最忙 CPU）的主动迁移线程（一个内核线程，与 CPU 绑定，负责对应 CPU 上的进程迁移任务）进行主动负载均衡任务，并将自己的 CPU （空闲 CPU）号记录在目标就绪进程队列（最忙 CPU）中来表明希望主动负载均衡将进程已交给自己来运行（空闲 CPU）。</p>
+<p>接下来迁移线程（最忙 CPU）会开始主动迁移任务，它会检查是否有其他 CPU （空闲 CPU）请求进行进程迁移，如果有它会尽可能地将自身的某个进程迁移到请求迁移的 CPU （空闲 CPU）上。完成主动迁移后，它会确认自己的迁移队列中是否有别的迁移请求，如果有，就完成该迁移任务，否则重新回到正常的进程调度中去。</p>
+<p>总结一下，周期性负载均衡是把最忙 CPU 上运行的进程提取出来一些自己执行，而主动负载均衡是把自己的进程分给别的 CPU 执行。</p>
+<p>除此之外，当用 exec 系统调用启动一个新进程时，是进行进程迁移的良好时机，因为这种进程不会出现高速缓存浪费的情况。它会挑选一个负载最小的 CPU 运行，这就可能会想起发送一个迁移请求。</p>
+<p>前面我们提到过进程并不是内核调度的唯一目标，我们还可以对进程组和用户进行调度，调度器确认每个用户获得的 CPU 时间，然后该 CPU 时间又会在该用户的所有进程中以公平的方式分配。这就意味着如果一个用户的进程越多，那么每个进程分配的 CPU 就越少，单用户的总 CPU 时间和进程的多少无关。</p>
+<p>除了通过用户组进行分配外，内核还提供了控制组 cgroups，该特性使得可以通过特殊文件系统 cgroups 来创建任意的进程集合，甚至可以分为多个层次。可用的 CPU 时间首先在控制组之间分配，然后在组内进行进程间分配。docker 就是通过该方式控制资源的使用的。<br><img src="/images/loading-cat.gif" data-original="https://bbm-hexo.oss-accelerate.aliyuncs.com/images/linux/group-schedule.png" alt="group-schedule"><br>最后，我们来谈谈内核抢占，前面提到过这个概念，它能够让系统更平滑的切换进程。如上所述，在系统调用后返回用户状态之前，或者是内核中某些指定的点上，都会调用调度器。这确保除了一些明确指定的情况之外，内核是无法中断的，这不同于用户进程。如果内核处于相对耗时较长的操作中，比如文件系统或内存管理相关的任务，这种行为可能会带来问题。内核代表特定的进程执行相当长的时间，而其他进程则无法运行。这可能导致系统延迟增加，用户体验到“缓慢的”响应。如果多媒体应用长时间无法得到 CPU，则可能发生视频和音频漏失现象。</p>
+<p>在编译内核时启用对内核抢占的支持，则可以解决这些问题。如果高优先级进程有事情需要完成，那么在启用内核抢占的情况下，不仅用户空间应用程序可以被中断，内核也可以被中断。切记，内核抢占和用户层进程被其他进程抢占是两个不同的概念!</p>
+<p>内核抢占是在内核版本2.5开发期间增加的。尽管使内核可抢占所需的改动非常少，但该机制不像抢占用户空间进程那样容易实现。如果内核无法一次性完成某些操作(例如，对数据结构的操作)，那么可能出现竞争条件而使得系统不一致。</p>
+<p>因此内核不能在任意点上被中断。内核的某些易于出现问题的部分每次只能由一个处理器访问，这些部分使用所谓的自旋锁保护: 到达危险区域(亦称之为临界区)的第一个处理器会获得锁，在离开该区域时释放该锁。另一个想要访问该区域的处理器在此期间必须等待，直到第一个处理器释放锁为止。只有此时它才能获得锁并进入临界区。</p>
+<p>如果内核可以被抢占，即使单处理器系统也会像是 SMP 系统。考虑正在临界区内部工作的内核被抢占的情形。下一个进程也在核心态操作，凑巧也想要访问同一个临界区。这实际上等价于两个处理器在临界区中工作，我们必须防止这种情形。每次内核进入临界区时，我们必须停用内核抢占。</p>
+<p>那么内核如何跟踪它能否被抢占呢？在每个进程中都会有一个抢占计数器：preempt_count。该变量标识了是否可以被中断，如果该值为零则可以被中断，否则不行。每次内核进入重要区域，就会停止抢占，那时候就会将该值+1。当退出该区域时，会将该值-1。这里之所以使用 int 而不是 bool 是因为它允许嵌套进入临界区，只有退出所有临界区时才会允许内核抢占。</p>
+<p>即便开启了内核抢占，如果抢占计数器大于 0，那么抢占仍然是停用的，因此内核不能被中断，该函数立即结束。如果在某些重要的点上内核停用了硬件中断(比如进入自旋锁时，为了防止中断引发死锁，会停用中断)，以保证一次性完成相关的处理，那么抢占也是不可能的。irqs_disabled 会检测是否停用了中断，如果已经停用，则内核不能被抢占。</p>
+<p>除了内核抢占之外，内核也在切换进程方面做了不少努力，例如在内核态处理长循环任务时，会在不重要的地方插入很多调度检查，如果发现当前进程需要被调度，即 TIF_NEED_RESCHED 标志为 true，则会进行主动调度过程。这样即便没有开启内核抢占，也能从系统调用中进行进程调度任务。</p>
+<h2 id="参考内容"><a href="#参考内容" class="headerlink" title="参考内容"></a>参考内容</h2><p>[1]《Linux内核设计与实现》<br>[2]《Linux系统编程》<br>[3]《深入理解Linux内核》<br>[4]《深入Linux内核架构》<br>[5] <span class="exturl" data-url="aHR0cHM6Ly93d3cuY25ibG9ncy5jb20vaGF6aXIvcC9saW51eF9rZXJuZWxfcGlkLmh0bWw=" title="https://www.cnblogs.com/hazir/p/linux_kernel_pid.html">Linux 内核进程管理之进程ID<i class="fa fa-external-link"></i></span><br>[6] <span class="exturl" data-url="aHR0cDovL3NlcnZlci41MWN0by5jb20vc0NvbGxlZ2UtMTk4ODQwLmh0bQ==" title="http://server.51cto.com/sCollege-198840.htm">服务器三大体系SMP、NUMA、MPP介绍<i class="fa fa-external-link"></i></span><br>[7] <span class="exturl" data-url="aHR0cHM6Ly96aHVhbmxhbi56aGlodS5jb20vcC82ODQ2NTk1Mg==" title="https://zhuanlan.zhihu.com/p/68465952">Linux中的物理内存管理 [一]<i class="fa fa-external-link"></i></span><br>[8] <span class="exturl" data-url="aHR0cDovL3d3dy52b2lkY24uY29tL2FydGljbGUvcC1haGZtZWNuei1icnEuaHRtbA==" title="http://www.voidcn.com/article/p-ahfmecnz-brq.html">Linux内核中的page migration和compaction机制简介<i class="fa fa-external-link"></i></span><br>[9] <span class="exturl" data-url="aHR0cHM6Ly9ibG9nLmNzZG4ubmV0L21hY3Jvc3NkemgvYXJ0aWNsZS9kZXRhaWxzLzU5NTQ3NjM=" title="https://blog.csdn.net/macrossdzh/article/details/5954763">物理地址、虚拟地址（线性地址）、逻辑地址以及MMU的知识<i class="fa fa-external-link"></i></span><br>[10] <span class="exturl" data-url="aHR0cHM6Ly9iYWlrZS5iYWlkdS5jb20vaXRlbS/pgLvovpHlnLDlnYA=" title="https://baike.baidu.com/item/逻辑地址">逻辑地址<i class="fa fa-external-link"></i></span><br>[11] <span class="exturl" data-url="aHR0cHM6Ly9ibG9nLmNzZG4ubmV0L3l3Zjg2MTAyOS9hcnRpY2xlL2RldGFpbHMvNjExNDc5NA==" title="https://blog.csdn.net/ywf861029/article/details/6114794">linux内核学习笔记-struct vm_area_struct<i class="fa fa-external-link"></i></span><br>[12] <span class="exturl" data-url="aHR0cDovL2xpdWp1bm1pbmcudG9wLzIwMTcvMDkvMDMvTGludXjkuK3ljL/lkI3pobXnmoTlj43lkJHmmKDlsIQvI+WPjeWQkeaYoOWwhOeahOW8leWFpQ==" title="http://liujunming.top/2017/09/03/Linux中匿名页的反向映射/#反向映射的引入">Linux中匿名页的反向映射<i class="fa fa-external-link"></i></span><br>[13] <span class="exturl" data-url="aHR0cHM6Ly9ibG9nLmNzZG4ubmV0L3NvZGF3YXRlcmVyL2FydGljbGUvZGV0YWlscy81MzQ1NjUxNg==" title="https://blog.csdn.net/sodawaterer/article/details/53456516">系统调用过程详解<i class="fa fa-external-link"></i></span><br>[14] <span class="exturl" data-url="aHR0cDovL3d3dy52b2lkY24uY29tL2FydGljbGUvcC1vZGJpamxwcy1ib2IuaHRtbA==" title="http://www.voidcn.com/article/p-odbijlps-bob.html">再谈Linux内核中的RCU机制<i class="fa fa-external-link"></i></span><br>[15] <span class="exturl" data-url="aHR0cHM6Ly9qYW1pbnpoYW5nLmdpdGh1Yi5pby9uZXR3b3JrL3RoZS1kaWZmZXJlbmNlLWJldHdlZW4tdW5peC1kb21haW4tc29ja2V0LWFuZC10Y3AtaXAtc29ja2V0Lw==" title="https://jaminzhang.github.io/network/the-difference-between-unix-domain-socket-and-tcp-ip-socket/">Unix domain socket 和 TCP/IP socket 的区别<i class="fa fa-external-link"></i></span><br>[16] <span class="exturl" data-url="aHR0cHM6Ly93d3cuaWxpbnV4a2VybmVsLmNvbS9maWxlcy9MaW51eC5HZW5lcmljLkJsb2NrLkxheWVyLnBkZg==" title="https://www.ilinuxkernel.com/files/Linux.Generic.Block.Layer.pdf">Linux通用块设备层<i class="fa fa-external-link"></i></span><br>[17] <span class="exturl" data-url="aHR0cHM6Ly9ibG9nLmNzZG4ubmV0L1l1WmhpSHVpX05vMS9hcnRpY2xlL2RldGFpbHMvNTAyNTY3MTM=" title="https://blog.csdn.net/YuZhiHui_No1/article/details/50256713">ext2文件系统结构分析<i class="fa fa-external-link"></i></span><br>[18] <span class="exturl" data-url="aHR0cHM6Ly9ibG9nLjUxY3RvLmNvbS9ndW9kb25nODEwLzExNzY0Mjc=" title="https://blog.51cto.com/guodong810/1176427">linux ACL权限规划：getfacl,setfacl使用<i class="fa fa-external-link"></i></span><br>[18] <span class="exturl" data-url="aHR0cHM6Ly9ibG9nLmNzZG4ubmV0L3lhbmdfeXVsZWkvYXJ0aWNsZS9kZXRhaWxzLzQ2MzcxOTc1" title="https://blog.csdn.net/yang_yulei/article/details/46371975">查找——图文翔解RadixTree（基数树）<i class="fa fa-external-link"></i></span><br>[19] <span class="exturl" data-url="aHR0cDovL3JvdXgudG9wLzIwMTcvMTAvMjgvcGFnZSUyMGNhY2hlJUU1JTkyJThDYWRkcmVzc19zcGFjZS8=" title="http://roux.top/2017/10/28/page%20cache%E5%92%8Caddress_space/">页缓存page cache和地址空间address_space<i class="fa fa-external-link"></i></span><br>[20] <span class="exturl" data-url="aHR0cHM6Ly9ibG9nLmNzZG4ubmV0L2Fya2JsdWUvYXJ0aWNsZS9kZXRhaWxzLzQ1Nzk2NTUx" title="https://blog.csdn.net/arkblue/article/details/45796551">rocketmq使用的系统参数（dirty_background_ration dirty_ratio）<i class="fa fa-external-link"></i></span><br>[21] <span class="exturl" data-url="aHR0cHM6Ly96aHVhbmxhbi56aGlodS5jb20vcC83MzUzOTMyOA==" title="https://zhuanlan.zhihu.com/p/73539328">Linux内存调节之zone watermark<i class="fa fa-external-link"></i></span><br>[22] <span class="exturl" data-url="aHR0cHM6Ly9ibG9nLmNzZG4ubmV0L3JlbndvdGFvMjAwOS9hcnRpY2xlL2RldGFpbHMvNTE5NzkzNDM=" title="https://blog.csdn.net/renwotao2009/article/details/51979343">Linux的内存回收和交换<i class="fa fa-external-link"></i></span><br>[23] <span class="exturl" data-url="aHR0cHM6Ly96aHVhbmxhbi56aGlodS5jb20vcC83MDk2NDE5NQ==" title="https://zhuanlan.zhihu.com/p/70964195">Linux中的内存回收[一]<i class="fa fa-external-link"></i></span><br>[24] <span class="exturl" data-url="aHR0cHM6Ly93d3cuY25ibG9ncy5jb20vdG9saW1pdC9wLzU0MzUwNjguaHRtbA==" title="https://www.cnblogs.com/tolimit/p/5435068.html">linux内存源码分析 - 内存回收(整体流程)<i class="fa fa-external-link"></i></span><br>[25] <span class="exturl" data-url="aHR0cHM6Ly9ibG9nLmNzZG4ubmV0L2xpX3dlbjAxL2FydGljbGUvZGV0YWlscy84MjY1OTQwNg==" title="https://blog.csdn.net/li_wen01/article/details/82659406">Linux 软中断机制分析<i class="fa fa-external-link"></i></span><br>[26] <span class="exturl" data-url="aHR0cHM6Ly9ibG9nLmNzZG4ubmV0L0RMVVRCcnVjZVpoYW5nL2FydGljbGUvZGV0YWlscy85OTE5NDUz" title="https://blog.csdn.net/DLUTBruceZhang/article/details/9919453">对 jiffies 溢出、回绕及 time_after 宏的理解<i class="fa fa-external-link"></i></span><br>[27] <span class="exturl" data-url="aHR0cHM6Ly9naXRodWIuY29tL2NhaXNhbi9teWJsb2cvYmxvYi9tYXN0ZXIvbGVhcm4tbGludXgtbmV0d29yay1uYW1lc3BhY2UubWQ=" title="https://github.com/caisan/myblog/blob/master/learn-linux-network-namespace.md">learn-linux-network-namespace<i class="fa fa-external-link"></i></span><br>[28] <span class="exturl" data-url="aHR0cHM6Ly96aC53aWtpcGVkaWEub3JnL3dpa2kvJUU2JTk4JUJFJUU1JUJDJThGJUU2JThCJUE1JUU1JUExJTlFJUU5JTgwJTlBJUU3JTlGJUE1" title="https://zh.wikipedia.org/wiki/%E6%98%BE%E5%BC%8F%E6%8B%A5%E5%A1%9E%E9%80%9A%E7%9F%A5">显式拥塞通知<i class="fa fa-external-link"></i></span><br>[29] <span class="exturl" data-url="aHR0cHM6Ly93d3cuY25raXJpdG8ubW9lL3RjcC10YWxrLw==" title="https://www.cnkirito.moe/tcp-talk/">聊聊 TCP 长连接和心跳那些事<i class="fa fa-external-link"></i></span><br>[30] <span class="exturl" data-url="aHR0cHM6Ly9qdWVqaW4uaW0vcG9zdC81OThiYTFkMDZmYjlhMDNjNGQ2NDY0YWI=" title="https://juejin.im/post/598ba1d06fb9a03c4d6464ab">关于 TCP/IP，必知必会的十个问题<i class="fa fa-external-link"></i></span><br>[31] <span class="exturl" data-url="aHR0cHM6Ly9ibG9nLmNzZG4ubmV0L2Z3MDEyNC9hcnRpY2xlL2RldGFpbHMvNzQ1MjY5NQ==" title="https://blog.csdn.net/fw0124/article/details/7452695">TCP协议三次握手连接四次握手断开和DOS攻击<i class="fa fa-external-link"></i></span><br>[32] <span class="exturl" data-url="aHR0cHM6Ly9jb29sc2hlbGwuY24vYXJ0aWNsZXMvMTE1NjQuaHRtbA==" title="https://coolshell.cn/articles/11564.html">TCP 的那些事儿（上）<i class="fa fa-external-link"></i></span><br>[33] <span class="exturl" data-url="aHR0cHM6Ly9jb29sc2hlbGwuY24vYXJ0aWNsZXMvMTE2MDkuaHRtbA==" title="https://coolshell.cn/articles/11609.html">TCP 的那些事儿（下）<i class="fa fa-external-link"></i></span></p>
+
+    </div>
+
+    
+    
+    
+
+      
+        <div id="wechat_subscriber" style="display: block; padding: 10px 0; margin: 20px auto; width: 100%; text-align: center">
+  <img id="wechat_subscriber_qcode" src="/images/qrcode_for_wechat.jpg" alt="贝克街的流浪猫 wechat" style="width: 400px; max-width: 100%;">
+  <div></div>
+</div>
+
+      
+        <div class="reward-container">
+  <div>您的打赏将鼓励我继续分享!</div>
+  <button disable="enable" onclick="var qr = document.getElementById(&quot;qr&quot;); qr.style.display = (qr.style.display === 'none') ? 'block' : 'none';">
+    打赏
+  </button>
+  <div id="qr" style="display: none;">
+      
+      <div style="display: inline-block;">
+        <img src="/images/wechat.jpg" alt="贝克街的流浪猫 微信支付">
+        <p>微信支付</p>
+      </div>
+      
+      <div style="display: inline-block;">
+        <img src="/images/alipay.jpg" alt="贝克街的流浪猫 支付宝">
+        <p>支付宝</p>
+      </div>
+
+  </div>
+</div>
+
+        
+
+<div>
+<ul class="post-copyright">
+  <li class="post-copyright-author">
+    <strong>本文作者： </strong>贝克街的流浪猫
+  </li>
+  <li class="post-copyright-link">
+    <strong>本文链接：</strong>
+    <a href="https://www.beikejiedeliulangmao.top/linux/process-and-schedule/" title="Linux 进程管理与调度">https://www.beikejiedeliulangmao.top/linux/process-and-schedule/</a>
+  </li>
+  <li class="post-copyright-license">
+    <strong>版权声明： </strong>本博客所有文章除特别声明外，均采用 <span class="exturl" data-url="aHR0cHM6Ly9jcmVhdGl2ZWNvbW1vbnMub3JnL2xpY2Vuc2VzL2J5LW5jLXNhLzQuMC9udWxs"><i class="fa fa-fw fa-creative-commons"></i>BY-NC-SA</span> 许可协议，转载请注明出处！
+  </li>
+  <li class="post-copyright-license">
+    <strong>创作声明： </strong>本文基于上述所有参考内容进行创作，其中可能涉及复制、修改或者转换，图片均来自网络，如有侵权请联系我，我会第一时间进行删除。
+  </li>
+</ul>
+</div>
+
+
+      <footer class="post-footer">
+          <div class="post-tags">
+              <a href="/tags/OperatingSystem/" rel="tag"># OperatingSystem</a>
+              <a href="/tags/Unix/" rel="tag"># Unix</a>
+              <a href="/tags/Linux/" rel="tag"># Linux</a>
+              <a href="/tags/Kernel/" rel="tag"># Kernel</a>
+              <a href="/tags/Interrupt/" rel="tag"># Interrupt</a>
+              <a href="/tags/Process/" rel="tag"># Process</a>
+              <a href="/tags/Schedule/" rel="tag"># Schedule</a>
+          </div>
+
+        
+
+          <div class="post-nav">
+            <div class="post-nav-next post-nav-item">
+                <a href="/linux/memory-management/" rel="next" title="Linux 内存管理">
+                  <i class="fa fa-chevron-left"></i> Linux 内存管理
+                </a>
+            </div>
+
+            <span class="post-nav-divider"></span>
+
+            <div class="post-nav-prev post-nav-item">
+                <a href="/linux/introduction/" rel="prev" title="Linux 简介">
+                  Linux 简介 <i class="fa fa-chevron-right"></i>
+                </a>
+            </div>
+          </div>
+      </footer>
+    
+  </article>
+  
+  
+  
+
+  </div>
+
+
+          </div>
+          
+    <div class="comments" id="gitalk-container"></div>
+
+        </div>
+          
+  
+  <div class="toggle sidebar-toggle">
+    <span class="toggle-line toggle-line-first"></span>
+    <span class="toggle-line toggle-line-middle"></span>
+    <span class="toggle-line toggle-line-last"></span>
+  </div>
+
+  <aside class="sidebar">
+    <div class="sidebar-inner">
+
+      <ul class="sidebar-nav motion-element">
+        <li class="sidebar-nav-toc">
+          文章目录
+        </li>
+        <li class="sidebar-nav-overview">
+          站点概览
+        </li>
+      </ul>
+
+      <!--noindex-->
+      <div class="post-toc-wrap sidebar-panel">
+          <div class="post-toc motion-element"><ol class="nav"><li class="nav-item nav-level-2"><a class="nav-link" href="#%E5%BC%95%E8%A8%80"><span class="nav-number">1.</span> <span class="nav-text">引言</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E8%BF%9B%E7%A8%8B%E7%AE%A1%E7%90%86%E4%B8%8E%E8%B0%83%E5%BA%A6"><span class="nav-number">2.</span> <span class="nav-text">进程管理与调度</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#%E8%BF%9B%E7%A8%8B%E4%BC%98%E5%85%88%E7%BA%A7"><span class="nav-number">2.1.</span> <span class="nav-text">进程优先级</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E8%BF%9B%E7%A8%8B%E7%9A%84%E7%94%9F%E5%91%BD%E5%91%A8%E6%9C%9F"><span class="nav-number">2.2.</span> <span class="nav-text">进程的生命周期</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E8%BF%9B%E7%A8%8B%E8%A1%A8%E7%A4%BA"><span class="nav-number">2.3.</span> <span class="nav-text">进程表示</span></a><ol class="nav-child"><li class="nav-item nav-level-4"><a class="nav-link" href="#%E8%BF%9B%E7%A8%8B%E4%B8%8E%E7%BA%BF%E7%A8%8B"><span class="nav-number">2.3.1.</span> <span class="nav-text">进程与线程</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#%E5%91%BD%E5%90%8D%E7%A9%BA%E9%97%B4"><span class="nav-number">2.3.2.</span> <span class="nav-text">命名空间</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#%E8%BF%9B%E7%A8%8B-ID-%E5%8F%B7"><span class="nav-number">2.3.3.</span> <span class="nav-text">进程 ID 号</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#%E8%BF%9B%E7%A8%8B%E5%85%B3%E7%B3%BB"><span class="nav-number">2.3.4.</span> <span class="nav-text">进程关系</span></a></li></ol></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E8%B0%83%E5%BA%A6%E5%99%A8%E5%AE%9E%E7%8E%B0"><span class="nav-number">2.4.</span> <span class="nav-text">调度器实现</span></a><ol class="nav-child"><li class="nav-item nav-level-4"><a class="nav-link" href="#%E8%BF%9B%E7%A8%8B%E4%BC%98%E5%85%88%E7%BA%A7%E8%AE%A1%E7%AE%97"><span class="nav-number">2.4.1.</span> <span class="nav-text">进程优先级计算</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#%E8%B0%83%E5%BA%A6%E5%99%A8"><span class="nav-number">2.4.2.</span> <span class="nav-text">调度器</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#%E8%B0%83%E5%BA%A6%E5%99%A8%E7%B1%BB"><span class="nav-number">2.4.3.</span> <span class="nav-text">调度器类</span></a><ol class="nav-child"><li class="nav-item nav-level-5"><a class="nav-link" href="#%E5%AE%8C%E5%85%A8%E5%85%AC%E5%B9%B3%E8%B0%83%E5%BA%A6%E5%99%A8%E7%B1%BB"><span class="nav-number">2.4.3.1.</span> <span class="nav-text">完全公平调度器类</span></a></li><li class="nav-item nav-level-5"><a class="nav-link" href="#%E5%AE%9E%E6%97%B6%E8%B0%83%E5%BA%A6%E5%99%A8%E7%B1%BB"><span class="nav-number">2.4.3.2.</span> <span class="nav-text">实时调度器类</span></a></li></ol></li></ol></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E8%B0%83%E5%BA%A6%E5%99%A8%E5%A2%9E%E5%BC%BA"><span class="nav-number">2.5.</span> <span class="nav-text">调度器增强</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E5%8F%82%E8%80%83%E5%86%85%E5%AE%B9"><span class="nav-number">3.</span> <span class="nav-text">参考内容</span></a></li></ol></div>
+      </div>
+      <!--/noindex-->
+
+      <div class="site-overview-wrap sidebar-panel">
+        <div class="site-author motion-element" itemprop="author" itemscope="" itemtype="http://schema.org/Person">
+    <img class="site-author-image" itemprop="image" alt="贝克街的流浪猫" src="/images/avatar.jpg">
+  <p class="site-author-name" itemprop="name">贝克街的流浪猫</p>
+  <div class="site-description" itemprop="description">贝贝猫</div>
+</div>
+<div class="site-state-wrap motion-element">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+          <a href="/archives/">
+        
+          <span class="site-state-item-count">120</span>
+          <span class="site-state-item-name">日志</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-categories">
+            <a href="/categories/">
+          
+        <span class="site-state-item-count">24</span>
+        <span class="site-state-item-name">分类</span></a>
+      </div>
+      <div class="site-state-item site-state-tags">
+            <a href="/tags/">
+          
+        <span class="site-state-item-count">158</span>
+        <span class="site-state-item-name">标签</span></a>
+      </div>
+  </nav>
+</div>
+  <div class="feed-link motion-element">
+    <a href="/atom.xml" rel="alternate">
+      <i class="fa fa-rss"></i>RSS
+    </a>
+  </div>
+  <div class="links-of-author motion-element">
+      <span class="links-of-author-item">
+        <span class="exturl" data-url="aHR0cHM6Ly9naXRodWIuY29tL0JlaUtlSmllRGVMaXVMYW5nTWFv" title="GitHub → https://github.com/BeiKeJieDeLiuLangMao"><i class="fa fa-fw fa-github"></i></span>
+      </span>
+      <span class="links-of-author-item">
+        <span class="exturl" data-url="aHR0cHM6Ly96aHVhbmxhbi56aGlodS5jb20vY18xMTY3NDI5NTg4NzExMzM3OTg1" title="知乎 → https://zhuanlan.zhihu.com/c_1167429588711337985"><i class="fa fa-fw fa-book"></i></span>
+      </span>
+      <span class="links-of-author-item">
+        <span class="exturl" data-url="bWFpbHRvOjUxNzM3NTY4NUBxcS5jb20=" title="E-Mail → mailto:517375685@qq.com"><i class="fa fa-fw fa-envelope"></i></span>
+      </span>
+      <span class="links-of-author-item">
+        <span class="exturl" data-url="aHR0cHM6Ly9zdGFja292ZXJmbG93LmNvbS91c2Vycy84NzgyOTY0L3lhbmctY2hlbj90YWI9cHJvZmlsZQ==" title="StackOverflow → https://stackoverflow.com/users/8782964/yang-chen?tab=profile"><i class="fa fa-fw fa-stack-overflow"></i></span>
+      </span>
+  </div>
+
+
+
+      </div>
+        <div class="back-to-top motion-element">
+          <i class="fa fa-arrow-up"></i>
+          <span>0%</span>
+        </div>
+
+    </div>
+  </aside>
+  <div id="sidebar-dimmer"></div>
+
+
+      </div>
+    </main>
+
+    <footer class="footer">
+      <div class="footer-inner">
+        
+  <div class="beian"><span class="exturl" data-url="aHR0cDovL3d3dy5iZWlhbi5taWl0Lmdvdi5jbg==">辽ICP备19017854号 </span>
+  </div>
+
+<div class="copyright">
+  
+  © 2019 – 
+  <span itemprop="copyrightYear">2021</span>
+  <span class="with-love">
+    <i class="fa fa-heart"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">贝克街的流浪猫</span>
+    <span class="post-meta-divider">|</span>
+    <span class="post-meta-item-icon">
+      <i class="fa fa-area-chart"></i>
+    </span>
+      <span class="post-meta-item-text">站点总字数：</span>
+    <span title="站点总字数">1.5m</span>
+    <span class="post-meta-divider">|</span>
+    <span class="post-meta-item-icon">
+      <i class="fa fa-coffee"></i>
+    </span>
+      <span class="post-meta-item-text">站点阅读时长 ≈</span>
+    <span title="站点阅读时长">22:36</span>
+</div>
+
+        
+<div class="busuanzi-count">
+  <script async="" src="https://busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js"></script>
+    <span class="post-meta-item" id="busuanzi_container_site_uv" style="display: none;">
+      <span class="post-meta-item-icon">
+        <i class="fa fa-user"></i>
+      </span>
+      <span class="site-uv" title="总访客量">
+        贝贝猫有
+        <span id="busuanzi_value_site_uv"></span>
+        位同学
+      </span>
+    </span>
+    <span class="post-meta-divider">|</span>
+    <span class="post-meta-item" id="busuanzi_container_site_pv" style="display: none;">
+      <span class="post-meta-item-icon">
+        <i class="fa fa-eye"></i>
+      </span>
+      <span class="site-pv" title="总访问量">
+        笔记被翻阅
+        <span id="busuanzi_value_site_pv"></span>
+        次
+      </span>
+    </span>
+</div>
+
+
+
+
+
+
+  
+
+
+
+
+
+
+        
+      </div>
+    </footer>
+  </div>
+
+  
+  
+  <script src="//cdn.jsdelivr.net/npm/medium-zoom@1/dist/medium-zoom.min.js"></script>
+  <script src="//cdn.jsdelivr.net/npm/pangu@4/dist/browser/pangu.min.js"></script>
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+
+
+
+
+  
+
+<script src="//cdn.jsdelivr.net/npm/instantsearch.js@2/dist/instantsearch.min.js"></script>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+  
+  <script src="//cdn.jsdelivr.net/npm/quicklink@1/dist/quicklink.umd.js"></script>
+  
+
+
+
+
+
+
+
+<script type="text/javascript" src="/bundle.js"></script><script type="text/javascript">function leancloudSelector(url) {
+    return document.getElementById(url).querySelector('.leancloud-visitors-count');
+  }
+  if (CONFIG.page.isPost) {
+    function addCount(Counter) {
+      var visitors = document.querySelector('.leancloud_visitors');
+      var url = visitors.getAttribute('id').trim();
+      var title = visitors.getAttribute('data-flag-title').trim();
+
+      Counter('get', `/classes/Counter?where=${JSON.stringify({ url })}`)
+        .then(response => response.json())
+        .then(({ results }) => {
+          if (results.length > 0) {
+            var counter = results[0];
+              leancloudSelector(url).innerText = counter.time + 1;
+            Counter('put', '/classes/Counter/' + counter.objectId, { time: { '__op': 'Increment', 'amount': 1 } })
+              .then(response => response.json())
+              .catch(error => {
+                console.log('Failed to save visitor count', error);
+              })
+          } else {
+              leancloudSelector(url).innerText = 'Counter not initialized! More info at console err msg.';
+              console.error('ATTENTION! LeanCloud counter has security bug, see how to solve it here: https://github.com/theme-next/hexo-leancloud-counter-security. \n However, you can still use LeanCloud without security, by setting `security` option to `false`.');
+            
+          }
+        })
+        .catch(error => {
+          console.log('LeanCloud Counter Error', error);
+        });
+    }
+  } else {
+    function showTime(Counter) {
+      var visitors = document.querySelectorAll('.leancloud_visitors');
+      var entries = [...visitors].map(element => {
+        return element.getAttribute('id').trim();
+      });
+
+      Counter('get', `/classes/Counter?where=${JSON.stringify({ url: { '$in': entries } })}`)
+        .then(response => response.json())
+        .then(({ results }) => {
+          if (results.length === 0) {
+            document.querySelectorAll('.leancloud_visitors .leancloud-visitors-count').forEach(element => {
+              element.innerText = 0;
+            });
+            return;
+          }
+          for (var i = 0; i < results.length; i++) {
+            var item = results[i];
+            var url = item.url;
+            var time = item.time;
+            leancloudSelector(url).innerText = time;
+          }
+          for (var i = 0; i < entries.length; i++) {
+            var url = entries[i];
+            var element = leancloudSelector(url);
+            if (element.innerText == '') {
+              element.innerText = 0;
+            }
+          }
+        })
+        .catch(error => {
+          console.log('LeanCloud Counter Error', error);
+        });
+    }
+  }
+
+  fetch('https://app-router.leancloud.cn/2/route?appId=gmT3IkYtHVMymcwAjbwHhtiv-gzGzoHsz')
+    .then(response => response.json())
+    .then(({ api_server }) => {
+      var Counter = (method, url, data) => {
+        return fetch(`https://${api_server}/1.1${url}`, {
+          method: method,
+          headers: {
+            'X-LC-Id': 'gmT3IkYtHVMymcwAjbwHhtiv-gzGzoHsz',
+            'X-LC-Key': 'co6tpmcyS9za2D1uqQyMFtnN',
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(data)
+        });
+      };
+      if (CONFIG.page.isPost) {
+        const localhost = /http:\/\/(localhost|127.0.0.1|0.0.0.0)/;
+        if (localhost.test(document.URL)) return;
+        addCount(Counter);
+      } else if (document.querySelectorAll('.post-title-link').length >= 1) {
+        showTime(Counter);
+      }
+    });;(function(){
+      var bp = document.createElement('script');
+      var curProtocol = window.location.protocol.split(':')[0];
+      bp.src = (curProtocol === 'https') ? 'https://zz.bdstatic.com/linksubmit/push.js' : 'http://push.zhanzhang.baidu.com/push.js';
+      var s = document.getElementsByTagName("script")[0];
+      s.parentNode.insertBefore(bp, s);
+    })();;if (document.querySelectorAll('pre.mermaid').length) {
+  NexT.utils.getScript('//cdn.jsdelivr.net/npm/mermaid@8/dist/mermaid.min.js', () => {
+    mermaid.initialize({
+      theme: 'forest',
+      logLevel: 3,
+      flowchart: { curve: 'linear' },
+      gantt: { axisFormat: '%m/%d/%Y' },
+      sequence: { actorMargin: 50 }
+    });
+  }, window.mermaid);
+};window.addEventListener('load', () => {
+      quicklink({
+        timeout: 3000,
+        priority: true,
+        ignores: [uri => uri.includes('#'),uri => uri == 'https://www.beikejiedeliulangmao.top/linux/process-and-schedule/',]
+      });
+      });;NexT.utils.getScript('//cdn.jsdelivr.net/npm/gitalk@1/dist/gitalk.min.js', () => {
+    var gitalk = new Gitalk({
+      clientID: '6201d1cc2825a93aa161',
+      clientSecret: '71c60f650595a3eedba64b844f811b90acac3798',
+      repo: 'HexoBlogComment',
+      owner: 'BeiKeJieDeLiuLangMao',
+      admin: ['BeiKeJieDeLiuLangMao'],
+      id: '41129e96102b45d61bf254c5f83c4c8b',
+        language: 'zh-CN',
+      distractionFreeMode: 'true'
+    });
+    gitalk.render('gitalk-container');
+  }, window.Gitalk);;window.imageLazyLoadSetting = {
+                isSPA: false,
+                processImages: null,
+            };;window.addEventListener("load",function(){var t=/\.(gif|jpg|jpeg|tiff|png)$/i,r=/^data:image\/[a-z]+;base64,/;Array.prototype.slice.call(document.querySelectorAll("img[data-original]")).forEach(function(a){var e=a.parentNode;"A"===e.tagName&&(e.href.match(t)||e.href.match(r))&&(e.href=a.dataset.original)})});;!function(n){n.imageLazyLoadSetting.processImages=o;var i=n.imageLazyLoadSetting.isSPA,l=Array.prototype.slice.call(document.querySelectorAll("img[data-original]"));function o(){i&&(l=Array.prototype.slice.call(document.querySelectorAll("img[data-original]")));for(var r=0;r<l.length;r++)t=l[r],void 0,0<=(e=t.getBoundingClientRect()).bottom&&0<=e.left&&e.top<=(n.innerHeight||document.documentElement.clientHeight)&&function(t){var e,n,i,o,a=l[r];e=a,n=function(){l=l.filter(function(t){return a!==t})},i=new Image,o=e.getAttribute("data-original"),i.onload=function(){e.src=o,n&&n()},i.src=o}();var t,e}o(),n.addEventListener("scroll",function(){var t,e;t=o,e=n,clearTimeout(t.tId),t.tId=setTimeout(function(){t.call(e)},500)})}(this);</script></body></html>

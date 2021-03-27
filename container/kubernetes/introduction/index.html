@@ -1,0 +1,3864 @@
+<!DOCTYPE html><html lang="zh-CN"><head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 5.1.1">
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/avatar.jpg">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/avatar.jpg">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/avatar.jpg">
+  <link rel="mask-icon" href="/images/avatar.jpg" color="#222">
+  <link rel="alternate" href="/atom.xml" title="贝克街的流浪猫" type="application/atom+xml">
+  <meta http-equiv="Cache-Control" content="no-transform">
+  <meta http-equiv="Cache-Control" content="no-siteapp">
+  <meta name="google-site-verification" content="PB8pKbwvyCztAdFAxM1AdLMfqXY7wDk6xWZIy3BYn0M">
+  <meta name="baidu-site-verification" content="lHxDkbImj8">
+
+
+
+
+
+  
+  
+
+
+<script id="hexo-configurations">
+  var NexT = window.NexT || {};
+  var CONFIG = {
+    root: '/',
+    scheme: 'Gemini',
+    version: '7.5.0',
+    exturl: true,
+    sidebar: {"position":"left","display":"post","offset":12,"onmobile":false},
+    copycode: {"enable":true,"show_result":true,"style":null},
+    back2top: {"enable":true,"sidebar":true,"scrollpercent":true},
+    bookmark: {"enable":false,"color":"#222","save":"auto"},
+    fancybox: false,
+    mediumzoom: true,
+    lazyload: false,
+    pangu: true,
+    algolia: {
+      appID: 'XKULKGLQCN',
+      apiKey: '59d463bff59108a7719f93aa31f249f3',
+      indexName: 'Hexo Blog',
+      hits: {"per_page":10},
+      labels: {"input_placeholder":"文章查询","hits_empty":"很抱歉，贝贝猫没有发表关于 \"${query}\" 的文章","hits_stats":"找到了 ${hits} 篇文章，耗时 ${time} 毫秒"}
+    },
+    localsearch: {"enable":false,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false},
+    path: '',
+    motion: {"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},
+    sidebarPadding: 40
+  };
+</script>
+
+  <meta name="description" content="引言月初公司内云计算团队组织了一次 Workshop，介绍了一下如何使用他们的 Kubernetes 产品，并带着我们实践了一下。感觉 Kubernetes 相较于我们现在使用的部署模式，方便了很多，虽然我们现在的系统使用场景并不适合使用 Kubernetes，但是说不定以后就能用到它了，所以我就深入的研究了一下 Kubernetes 的使用和实现机理，希望能给大家带来帮助。本文作为 Kubern">
+<meta property="og:type" content="article">
+<meta property="og:title" content="Kubernetes 简介">
+<meta property="og:url" content="https://www.beikejiedeliulangmao.top/container/kubernetes/introduction/index.html">
+<meta property="og:site_name" content="贝克街的流浪猫">
+<meta property="og:description" content="引言月初公司内云计算团队组织了一次 Workshop，介绍了一下如何使用他们的 Kubernetes 产品，并带着我们实践了一下。感觉 Kubernetes 相较于我们现在使用的部署模式，方便了很多，虽然我们现在的系统使用场景并不适合使用 Kubernetes，但是说不定以后就能用到它了，所以我就深入的研究了一下 Kubernetes 的使用和实现机理，希望能给大家带来帮助。本文作为 Kubern">
+<meta property="og:locale" content="zh_CN">
+<meta property="og:image" content="https://www.beikejiedeliulangmao.top/images/loading-cat.gif">
+<meta property="og:image" content="https://www.beikejiedeliulangmao.top/images/loading-cat.gif">
+<meta property="og:image" content="https://www.beikejiedeliulangmao.top/images/loading-cat.gif">
+<meta property="og:image" content="https://www.beikejiedeliulangmao.top/images/loading-cat.gif">
+<meta property="og:image" content="https://www.beikejiedeliulangmao.top/images/loading-cat.gif">
+<meta property="og:image" content="https://www.beikejiedeliulangmao.top/images/loading-cat.gif">
+<meta property="og:image" content="https://www.beikejiedeliulangmao.top/images/loading-cat.gif">
+<meta property="og:image" content="https://www.beikejiedeliulangmao.top/images/loading-cat.gif">
+<meta property="og:image" content="https://www.beikejiedeliulangmao.top/images/loading-cat.gif">
+<meta property="og:image" content="https://www.beikejiedeliulangmao.top/images/loading-cat.gif">
+<meta property="og:image" content="https://www.beikejiedeliulangmao.top/images/loading-cat.gif">
+<meta property="og:image" content="https://www.beikejiedeliulangmao.top/images/loading-cat.gif">
+<meta property="og:image" content="https://www.beikejiedeliulangmao.top/images/loading-cat.gif">
+<meta property="og:image" content="https://www.beikejiedeliulangmao.top/images/loading-cat.gif">
+<meta property="og:image" content="https://www.beikejiedeliulangmao.top/images/loading-cat.gif">
+<meta property="og:image" content="https://www.beikejiedeliulangmao.top/images/loading-cat.gif">
+<meta property="article:published_time" content="2019-09-20T03:11:52.000Z">
+<meta property="article:modified_time" content="2021-01-17T04:25:40.551Z">
+<meta property="article:author" content="贝克街的流浪猫">
+<meta property="article:tag" content="Distributed">
+<meta property="article:tag" content="MicroService">
+<meta property="article:tag" content="Network">
+<meta property="article:tag" content="Kubernetes">
+<meta property="article:tag" content="Docker">
+<meta property="article:tag" content="k8s">
+<meta property="article:tag" content="etcd">
+<meta property="article:tag" content="Containers">
+<meta property="article:tag" content="CNCF">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="https://www.beikejiedeliulangmao.top/images/loading-cat.gif">
+
+<link rel="canonical" href="https://www.beikejiedeliulangmao.top/container/kubernetes/introduction/">
+
+
+<script id="page-configurations">
+  // https://hexo.io/docs/variables.html
+  CONFIG.page = {
+    sidebar: "",
+    isHome: false,
+    isPost: true,
+    isPage: false,
+    isArchive: false
+  };
+</script>
+
+  <title>Kubernetes 简介 | 贝克街的流浪猫</title>
+  
+    <script>
+      function sendPageView() {
+        var host = window.location.hostname;
+        if (host == "localhost" && true) return;
+        var uid = localStorage.getItem('uid') || (Math.random() + '.' + Math.random());
+        localStorage.setItem('uid', uid);
+        navigator.sendBeacon('https://www.google-analytics.com/collect', new URLSearchParams({
+          v  : 1,
+          tid: 'UA-146830566-1',
+          cid: uid,
+          t  : 'pageview',
+          dp : encodeURIComponent(location.pathname)
+        }));
+      }
+      document.addEventListener('pjax:complete', sendPageView);
+      sendPageView();
+    </script>
+
+
+  <script>
+    var _hmt = _hmt || [];
+    (function() {
+      var hm = document.createElement("script");
+      hm.src = "https://hm.baidu.com/hm.js?818a8e6061ff2bd0b5531a739f216601";
+      var s = document.getElementsByTagName("script")[0];
+      s.parentNode.insertBefore(hm, s);
+    })();
+  </script>
+
+
+
+
+  <style>body {
+  background-image: url("https://www.beikejiedeliulangmao.top/images/background.jpeg") !important;
+  background-attachment: fixed !important;
+  background-repeat: no-repeat !important;
+  background-size: 100% 100% !important;
+}
+.bg_content {
+  position: fixed;
+  top: 0;
+  z-index: -1;
+  width: 100%;
+  height: 100%;
+}
+.copyright {
+  color: #000;
+}
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+  background-color: #fff;
+}
+::-webkit-scrollbar-button {
+  width: 0;
+  height: 0;
+}
+::-webkit-scrollbar-button:start:increment,
+::-webkit-scrollbar-button:end:decrement {
+  display: none;
+}
+::-webkit-scrollbar-corner {
+  display: block;
+}
+::-webkit-scrollbar-thumb {
+  border-radius: 6px;
+  background-color: rgba(0,0,0,0.4);
+}
+::-webkit-scrollbar-thumb:hover {
+  border-radius: 6px;
+  background-color: rgba(0,0,0,0.6);
+}
+::-webkit-scrollbar-track,
+::-webkit-scrollbar-thumb {
+  border-right: 1px solid transparent;
+  border-left: 1px solid transparent;
+}
+::-webkit-scrollbar-button:start {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-button:end {
+  width: 6px;
+  height: 6px;
+}
+html {
+  line-height: 1.15; 
+  -webkit-text-size-adjust: 100%; 
+}
+body {
+  margin: 0;
+}
+main {
+  display: block;
+}
+h1 {
+  font-size: 2em;
+  margin: 0.67em 0;
+}
+hr {
+  box-sizing: content-box; 
+  height: 0; 
+  overflow: visible; 
+}
+pre {
+  font-family: monospace, monospace; 
+  font-size: 1em; 
+}
+a {
+  background: transparent;
+}
+abbr[title] {
+  border-bottom: none; 
+  text-decoration: underline; 
+  text-decoration: underline dotted; 
+}
+b,
+strong {
+  font-weight: bolder;
+}
+code,
+kbd,
+samp {
+  font-family: monospace, monospace; 
+  font-size: 1em; 
+}
+small {
+  font-size: 80%;
+}
+sub,
+sup {
+  font-size: 75%;
+  line-height: 0;
+  position: relative;
+  vertical-align: baseline;
+}
+sub {
+  bottom: -0.25em;
+}
+sup {
+  top: -0.5em;
+}
+img {
+  border-style: none;
+}
+button,
+input,
+optgroup,
+select,
+textarea {
+  font-family: inherit; 
+  font-size: 100%; 
+  line-height: 1.15; 
+  margin: 0; 
+}
+button,
+input {
+
+  overflow: visible;
+}
+button,
+select {
+
+  text-transform: none;
+}
+button,
+[type='button'],
+[type='reset'],
+[type='submit'] {
+  -webkit-appearance: button;
+}
+button::-moz-focus-inner,
+[type='button']::-moz-focus-inner,
+[type='reset']::-moz-focus-inner,
+[type='submit']::-moz-focus-inner {
+  border-style: none;
+  padding: 0;
+}
+button:-moz-focusring,
+[type='button']:-moz-focusring,
+[type='reset']:-moz-focusring,
+[type='submit']:-moz-focusring {
+  outline: 1px dotted ButtonText;
+}
+fieldset {
+  padding: 0.35em 0.75em 0.625em;
+}
+legend {
+  box-sizing: border-box; 
+  color: inherit; 
+  display: table; 
+  max-width: 100%; 
+  padding: 0; 
+  white-space: normal; 
+}
+progress {
+  vertical-align: baseline;
+}
+textarea {
+  overflow: auto;
+}
+[type='checkbox'],
+[type='radio'] {
+  box-sizing: border-box; 
+  padding: 0; 
+}
+[type='number']::-webkit-inner-spin-button,
+[type='number']::-webkit-outer-spin-button {
+  height: auto;
+}
+[type='search'] {
+  outline-offset: -2px; 
+  -webkit-appearance: textfield; 
+}
+[type='search']::-webkit-search-decoration {
+  -webkit-appearance: none;
+}
+::-webkit-file-upload-button {
+  font: inherit; 
+  -webkit-appearance: button; 
+}
+details {
+  display: block;
+}
+summary {
+  display: list-item;
+}
+template {
+  display: none;
+}
+[hidden] {
+  display: none;
+}
+::selection {
+  background: #262a30;
+  color: #fff;
+}
+html,
+body {
+  height: 100%;
+}
+body {
+  background: #eee;
+  color: #555;
+  font-family: 'Monda', "PingFang SC", "Microsoft YaHei", sans-serif;
+  font-size: 1em;
+  line-height: 2;
+}
+@media (max-width: 991px) {
+  body {
+    padding-left: 0 !important;
+    padding-right: 0 !important;
+  }
+}
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+  font-family: 'Roboto Slab', 'Monda', "PingFang SC", "Microsoft YaHei", sans-serif;
+  font-weight: bold;
+  line-height: 1.5;
+  margin: 20px 0 15px;
+  padding: 0;
+}
+h1 {
+  font-size: 1.5em;
+}
+h2 {
+  font-size: 1.375em;
+}
+h3 {
+  font-size: 1.25em;
+}
+h4 {
+  font-size: 1.125em;
+}
+h5 {
+  font-size: 1em;
+}
+h6 {
+  font-size: 0.875em;
+}
+p {
+  margin: 0 0 20px 0;
+}
+a,
+span.exturl {
+  border-bottom: 1px solid #999;
+  color: #555;
+  outline: 0;
+  text-decoration: none;
+  overflow-wrap: break-word;
+  word-wrap: break-word;
+  cursor: pointer;
+}
+a:hover,
+span.exturl:hover {
+  border-bottom-color: #222;
+  color: #222;
+}
+iframe,
+img,
+video {
+  display: block;
+  margin-left: auto;
+  margin-right: auto;
+  max-width: 100%;
+}
+hr {
+  background-color: #ddd;
+  background-image: repeating-linear-gradient(-45deg, #fff, #fff 4px, transparent 4px, transparent 8px);
+  border: 0;
+  height: 3px;
+  margin: 40px 0;
+}
+blockquote {
+  border-left: 4px solid #ddd;
+  color: #666;
+  margin: 0;
+  padding: 0 15px;
+}
+blockquote cite::before {
+  content: '-';
+  padding: 0 5px;
+}
+dt {
+  font-weight: 700;
+}
+dd {
+  margin: 0;
+  padding: 0;
+}
+kbd {
+  background-color: #f5f5f5;
+  background-image: linear-gradient(#eee, #fff, #eee);
+  border: 1px solid #ccc;
+  border-radius: 0.2em;
+  box-shadow: 0.1em 0.1em 0.2em rgba(0,0,0,0.1);
+  font-family: inherit;
+  padding: 0.1em 0.3em;
+  white-space: nowrap;
+}
+.table-container {
+  -webkit-overflow-scrolling: touch;
+  overflow: auto;
+}
+table {
+  border-collapse: collapse;
+  border-spacing: 0;
+  font-size: 0.875em;
+  margin: 0 0 20px 0;
+  width: 100%;
+}
+tbody tr:nth-of-type(odd) {
+  background: #f9f9f9;
+}
+tbody tr:hover {
+  background: #f5f5f5;
+}
+caption,
+th,
+td {
+  font-weight: normal;
+  padding: 8px;
+  text-align: left;
+  vertical-align: middle;
+}
+th,
+td {
+  border: 1px solid #ddd;
+  border-bottom: 3px solid #ddd;
+}
+th {
+  font-weight: 700;
+  padding-bottom: 10px;
+}
+td {
+  border-bottom-width: 1px;
+}
+.btn {
+  background: #fff;
+  border: 2px solid #555;
+  border-radius: 2px;
+  color: #555;
+  display: inline-block;
+  font-size: 0.875em;
+  line-height: 2;
+  padding: 0 20px;
+  text-decoration: none;
+  transition-property: background-color;
+  transition-delay: 0s;
+  transition-duration: 0.2s;
+  transition-timing-function: ease-in-out;
+}
+.btn:hover {
+  background: #222;
+  border-color: #222;
+  color: #fff;
+}
+.btn + .btn {
+  margin: 0 0 8px 8px;
+}
+.btn .fa-fw {
+  text-align: left;
+  width: 1.285714285714286em;
+}
+.toggle {
+  line-height: 0;
+}
+.toggle .toggle-line {
+  background: #fff;
+  display: inline-block;
+  height: 2px;
+  left: 0;
+  position: relative;
+  top: 0;
+  transition: all 0.4s;
+  vertical-align: top;
+  width: 100%;
+}
+.toggle .toggle-line:not(:first-child) {
+  margin-top: 3px;
+}
+.toggle.toggle-arrow .toggle-line-first {
+  left: 50%;
+  top: 2px;
+  transform: rotate(45deg);
+  width: 50%;
+}
+.toggle.toggle-arrow .toggle-line-middle {
+  left: 2px;
+  width: 90%;
+}
+.toggle.toggle-arrow .toggle-line-last {
+  left: 50%;
+  top: -2px;
+  transform: rotate(-45deg);
+  width: 50%;
+}
+.toggle.toggle-close .toggle-line-first {
+  transform: rotate(-45deg);
+  top: 5px;
+}
+.toggle.toggle-close .toggle-line-middle {
+  opacity: 0;
+}
+.toggle.toggle-close .toggle-line-last {
+  transform: rotate(45deg);
+  top: -5px;
+}
+.highlight-container {
+  position: relative;
+}
+.highlight-container:hover .copy-btn,
+.highlight-container .copy-btn:focus {
+  opacity: 1;
+}
+.copy-btn {
+  color: #333;
+  cursor: pointer;
+  display: inline-block;
+  font-weight: 700;
+  line-height: 1.6;
+  opacity: 0;
+  outline: 0;
+  padding: 2px 6px;
+  position: absolute;
+  transition: opacity 0.3s ease-in-out;
+  vertical-align: middle;
+  white-space: nowrap;
+  -moz-user-select: none;
+  -ms-user-select: none;
+  -webkit-user-select: none;
+  user-select: none;
+  background-color: #eee;
+  background-image: linear-gradient(#fcfcfc, #eee);
+  border: 1px solid #d5d5d5;
+  border-radius: 3px;
+  font-size: 0.8125em;
+  right: 4px;
+  top: 8px;
+}
+.highlight,
+pre {
+  background: #f7f7f7;
+  color: #4d4d4c;
+  line-height: 1.6;
+  margin: 0 auto 20px;
+}
+pre,
+code {
+  font-family: 'PT Mono', consolas, Menlo, monospace, "PingFang SC", "Microsoft YaHei";
+}
+code {
+  background: #eee;
+  border-radius: 3px;
+  color: #555;
+  padding: 2px 4px;
+  overflow-wrap: break-word;
+  word-wrap: break-word;
+}
+.highlight *::selection {
+  background: #d6d6d6;
+}
+.highlight pre {
+  border: 0;
+  margin: 0;
+  padding: 0;
+}
+.highlight table {
+  border: 0;
+  margin: 0;
+  width: auto;
+}
+.highlight tr:first-child pre {
+  padding-top: 10px;
+}
+.highlight tr:last-child pre {
+  padding-bottom: 10px;
+}
+.highlight td {
+  border: 0;
+  padding: 0;
+}
+.highlight figcaption {
+  background: #eee;
+  color: #4d4d4c;
+  font-size: 0.875em;
+  line-height: 1.2;
+  padding: 0.5em;
+}
+.highlight figcaption::before,
+.highlight figcaption::after {
+  content: ' ';
+  display: table;
+}
+.highlight figcaption::after {
+  clear: both;
+}
+.highlight figcaption a {
+  color: #4d4d4c;
+  float: right;
+}
+.highlight figcaption a:hover {
+  border-bottom-color: #4d4d4c;
+}
+.highlight .gutter pre {
+  background: #eff2f3;
+  color: #869194;
+  padding-left: 10px;
+  padding-right: 10px;
+  text-align: right;
+  -moz-user-select: none;
+  -ms-user-select: none;
+  -webkit-user-select: none;
+  user-select: none;
+}
+.highlight .code pre {
+  background: #f7f7f7;
+  padding-left: 10px;
+  width: 100%;
+}
+.gist table {
+  width: auto;
+}
+.gist table td {
+  border: 0;
+}
+pre {
+  overflow: auto;
+  padding: 10px;
+}
+pre code {
+  background: none;
+  color: #4d4d4c;
+  font-size: 0.875em;
+  padding: 0;
+  text-shadow: none;
+}
+pre .deletion {
+  background: #fdd;
+}
+pre .addition {
+  background: #dfd;
+}
+pre .meta {
+  color: #eab700;
+  -moz-user-select: none;
+  -ms-user-select: none;
+  -webkit-user-select: none;
+  user-select: none;
+}
+pre .comment {
+  color: #8e908c;
+}
+pre .variable,
+pre .attribute,
+pre .tag,
+pre .name,
+pre .regexp,
+pre .ruby .constant,
+pre .xml .tag .title,
+pre .xml .pi,
+pre .xml .doctype,
+pre .html .doctype,
+pre .css .id,
+pre .css .class,
+pre .css .pseudo {
+  color: #c82829;
+}
+pre .number,
+pre .preprocessor,
+pre .built_in,
+pre .builtin-name,
+pre .literal,
+pre .params,
+pre .constant,
+pre .command {
+  color: #f5871f;
+}
+pre .ruby .class .title,
+pre .css .rules .attribute,
+pre .string,
+pre .symbol,
+pre .value,
+pre .inheritance,
+pre .header,
+pre .ruby .symbol,
+pre .xml .cdata,
+pre .special,
+pre .formula {
+  color: #718c00;
+}
+pre .title,
+pre .css .hexcolor {
+  color: #3e999f;
+}
+pre .function,
+pre .python .decorator,
+pre .python .title,
+pre .ruby .function .title,
+pre .ruby .title .keyword,
+pre .perl .sub,
+pre .javascript .title,
+pre .coffeescript .title {
+  color: #4271ae;
+}
+pre .keyword,
+pre .javascript .function {
+  color: #8959a8;
+}
+.blockquote-center {
+  border-left: none;
+  margin: 40px 0;
+  padding: 0;
+  position: relative;
+  text-align: center;
+}
+.blockquote-center::before,
+.blockquote-center::after {
+  background-repeat: no-repeat;
+  background-size: 22px 22px;
+  content: ' ';
+  display: block;
+  height: 24px;
+  opacity: 0.2;
+  position: absolute;
+  width: 100%;
+}
+.blockquote-center::before {
+  background-image: url("../images/quote-l.svg");
+  background-position: 0 -6px;
+  border-top: 1px solid #ccc;
+  top: -20px;
+}
+.blockquote-center::after {
+  background-image: url("../images/quote-r.svg");
+  background-position: 100% 8px;
+  border-bottom: 1px solid #ccc;
+  bottom: -20px;
+}
+.blockquote-center p,
+.blockquote-center div {
+  text-align: center;
+}
+.post-body .group-picture img {
+  border: 0;
+  margin: 0 auto;
+  padding: 0 3px;
+}
+.group-picture-row {
+  margin-bottom: 6px;
+  overflow: hidden;
+}
+.group-picture-column {
+  float: left;
+  margin-bottom: 10px;
+}
+.post-body .label {
+  display: inline;
+  padding: 0 2px;
+}
+.post-body .label.default {
+  background: #f0f0f0;
+}
+.post-body .label.primary {
+  background: #efe6f7;
+}
+.post-body .label.info {
+  background: #e5f2f8;
+}
+.post-body .label.success {
+  background: #e7f4e9;
+}
+.post-body .label.warning {
+  background: #fcf6e1;
+}
+.post-body .label.danger {
+  background: #fae8eb;
+}
+.post-body .tabs {
+  margin-bottom: 20px;
+}
+.post-body .tabs,
+.tabs-comment {
+  display: block;
+  padding-top: 10px;
+  position: relative;
+}
+.post-body .tabs ul.nav-tabs,
+.tabs-comment ul.nav-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  margin: 0;
+  margin-bottom: -1px;
+  padding: 0;
+}
+@media (max-width: 413px) {
+  .post-body .tabs ul.nav-tabs,
+  .tabs-comment ul.nav-tabs {
+    display: block;
+    margin-bottom: 5px;
+  }
+}
+.post-body .tabs ul.nav-tabs li.tab,
+.tabs-comment ul.nav-tabs li.tab {
+  background: #fff;
+  border-bottom: 1px solid #ddd;
+  border-left: 1px solid transparent;
+  border-right: 1px solid transparent;
+  border-top: 3px solid transparent;
+  flex-grow: 1;
+  list-style-type: none;
+}
+@media (max-width: 413px) {
+  .post-body .tabs ul.nav-tabs li.tab,
+  .tabs-comment ul.nav-tabs li.tab {
+    border-bottom: 1px solid transparent;
+    border-left: 3px solid transparent;
+    border-right: 1px solid transparent;
+    border-top: 1px solid transparent;
+  }
+}
+.post-body .tabs ul.nav-tabs li.tab a,
+.tabs-comment ul.nav-tabs li.tab a {
+  border-bottom: initial;
+  display: block;
+  line-height: 1.8;
+  outline: 0;
+  padding: 0.25em 0.75em;
+  text-align: center;
+  transition-delay: 0s;
+  transition-duration: 0.2s;
+  transition-timing-function: ease-out;
+}
+.post-body .tabs ul.nav-tabs li.tab a i,
+.tabs-comment ul.nav-tabs li.tab a i {
+  width: 1.285714285714286em;
+}
+.post-body .tabs ul.nav-tabs li.tab.active,
+.tabs-comment ul.nav-tabs li.tab.active {
+  border-bottom: 1px solid transparent;
+  border-left: 1px solid #ddd;
+  border-right: 1px solid #ddd;
+  border-top: 3px solid #fc6423;
+}
+@media (max-width: 413px) {
+  .post-body .tabs ul.nav-tabs li.tab.active,
+  .tabs-comment ul.nav-tabs li.tab.active {
+    border-bottom: 1px solid #ddd;
+    border-left: 3px solid #fc6423;
+    border-right: 1px solid #ddd;
+    border-top: 1px solid #ddd;
+  }
+}
+.post-body .tabs ul.nav-tabs li.tab.active a,
+.tabs-comment ul.nav-tabs li.tab.active a {
+  color: #555;
+  cursor: default;
+}
+.post-body .tabs .tab-content .tab-pane,
+.tabs-comment .tab-content .tab-pane {
+  border: 1px solid #ddd;
+  padding: 20px 20px 0 20px;
+}
+.post-body .tabs .tab-content .tab-pane:not(.active),
+.tabs-comment .tab-content .tab-pane:not(.active) {
+  display: none;
+}
+.post-body .tabs .tab-content .tab-pane.active,
+.tabs-comment .tab-content .tab-pane.active {
+  display: block;
+}
+.post-body .note {
+  margin-bottom: 20px;
+  padding: 15px;
+  position: relative;
+  border: 1px solid #eee;
+  border-left-width: 5px;
+  border-radius: 3px;
+}
+.post-body .note h2,
+.post-body .note h3,
+.post-body .note h4,
+.post-body .note h5,
+.post-body .note h6 {
+  margin-top: 0;
+  border-bottom: initial;
+  margin-bottom: 0;
+  padding-top: 0;
+}
+.post-body .note p:first-child,
+.post-body .note ul:first-child,
+.post-body .note ol:first-child,
+.post-body .note table:first-child,
+.post-body .note pre:first-child,
+.post-body .note blockquote:first-child,
+.post-body .note img:first-child {
+  margin-top: 0;
+}
+.post-body .note p:last-child,
+.post-body .note ul:last-child,
+.post-body .note ol:last-child,
+.post-body .note table:last-child,
+.post-body .note pre:last-child,
+.post-body .note blockquote:last-child,
+.post-body .note img:last-child {
+  margin-bottom: 0;
+}
+.post-body .note.default {
+  border-left-color: #777;
+}
+.post-body .note.default h2,
+.post-body .note.default h3,
+.post-body .note.default h4,
+.post-body .note.default h5,
+.post-body .note.default h6 {
+  color: #777;
+}
+.post-body .note.primary {
+  border-left-color: #6f42c1;
+}
+.post-body .note.primary h2,
+.post-body .note.primary h3,
+.post-body .note.primary h4,
+.post-body .note.primary h5,
+.post-body .note.primary h6 {
+  color: #6f42c1;
+}
+.post-body .note.info {
+  border-left-color: #428bca;
+}
+.post-body .note.info h2,
+.post-body .note.info h3,
+.post-body .note.info h4,
+.post-body .note.info h5,
+.post-body .note.info h6 {
+  color: #428bca;
+}
+.post-body .note.success {
+  border-left-color: #5cb85c;
+}
+.post-body .note.success h2,
+.post-body .note.success h3,
+.post-body .note.success h4,
+.post-body .note.success h5,
+.post-body .note.success h6 {
+  color: #5cb85c;
+}
+.post-body .note.warning {
+  border-left-color: #f0ad4e;
+}
+.post-body .note.warning h2,
+.post-body .note.warning h3,
+.post-body .note.warning h4,
+.post-body .note.warning h5,
+.post-body .note.warning h6 {
+  color: #f0ad4e;
+}
+.post-body .note.danger {
+  border-left-color: #d9534f;
+}
+.post-body .note.danger h2,
+.post-body .note.danger h3,
+.post-body .note.danger h4,
+.post-body .note.danger h5,
+.post-body .note.danger h6 {
+  color: #d9534f;
+}
+.pagination .prev,
+.pagination .next,
+.pagination .page-number,
+.pagination .space {
+  display: inline-block;
+  margin: 0 10px;
+  padding: 0 11px;
+  position: relative;
+  top: -1px;
+}
+@media (max-width: 767px) {
+  .pagination .prev,
+  .pagination .next,
+  .pagination .page-number,
+  .pagination .space {
+    margin: 0 5px;
+  }
+}
+.pagination {
+  border-top: 1px solid #eee;
+  margin: 120px 0 0;
+  text-align: center;
+}
+.pagination .prev,
+.pagination .next,
+.pagination .page-number {
+  border-bottom: 0;
+  border-top: 1px solid #eee;
+  transition-property: border-color;
+  transition-delay: 0s;
+  transition-duration: 0.2s;
+  transition-timing-function: ease-in-out;
+}
+.pagination .prev:hover,
+.pagination .next:hover,
+.pagination .page-number:hover {
+  border-top-color: #222;
+}
+.pagination .space {
+  margin: 0;
+  padding: 0;
+}
+.pagination .prev {
+  margin-left: 0;
+}
+.pagination .next {
+  margin-right: 0;
+}
+.pagination .page-number.current,
+.algolia-pagination .current .page-number {
+  background: #ccc;
+  border-top-color: #ccc;
+  color: #fff;
+}
+@media (max-width: 767px) {
+  .pagination {
+    border-top: none;
+  }
+  .pagination .prev,
+  .pagination .next,
+  .pagination .page-number {
+    border-bottom: 1px solid #eee;
+    border-top: 0;
+    margin-bottom: 10px;
+    padding: 0 10px;
+  }
+  .pagination .prev:hover,
+  .pagination .next:hover,
+  .pagination .page-number:hover {
+    border-bottom-color: #222;
+  }
+}
+.comments {
+  margin: 60px 20px 0;
+  overflow: hidden;
+}
+.comment-button-group {
+  display: flex;
+  flex-wrap: wrap-reverse;
+  justify-content: center;
+  margin: 1em 0;
+}
+.comment-button-group .comment-button {
+  margin: 0.1em 0.2em;
+}
+.comment-button-group .comment-button.active {
+  background: #222;
+  border-color: #222;
+  color: #fff;
+}
+.comment-position {
+  display: none;
+}
+.comment-position.active {
+  display: block;
+}
+.tabs-comment {
+  background: #fff;
+  margin-top: 4em;
+  padding-top: 0;
+}
+.tabs-comment .comments {
+  border: 0;
+  box-shadow: none;
+  margin-top: 0;
+  padding-top: 0;
+}
+.container {
+  min-height: 100%;
+  position: relative;
+}
+.main-inner {
+  margin: 0 auto;
+  width: calc(100% - 20px);
+}
+@media (min-width: 1200px) {
+  .main-inner {
+    width: 1160px;
+  }
+}
+@media (min-width: 1600px) {
+  .main-inner {
+    width: 73%;
+  }
+}
+.header {
+  background: transparent;
+}
+.header-inner {
+  margin: 0 auto;
+  position: relative;
+  width: calc(100% - 20px);
+}
+@media (min-width: 1200px) {
+  .header-inner {
+    width: 1160px;
+  }
+}
+@media (min-width: 1600px) {
+  .header-inner {
+    width: 73%;
+  }
+}
+.headband {
+  background: #222;
+  height: 3px;
+}
+.site-meta {
+  margin: 0;
+  text-align: center;
+}
+@media (max-width: 767px) {
+  .site-meta {
+    text-align: center;
+  }
+}
+.brand {
+  background: #222;
+  border-bottom: none;
+  color: #fff;
+  display: inline-block;
+  line-height: 1.375em;
+  padding: 0 40px;
+  position: relative;
+}
+.brand:hover {
+  color: #fff;
+}
+.site-title {
+  display: inline-block;
+  font-family: 'Monda', "PingFang SC", "Microsoft YaHei", sans-serif;
+  font-size: 1.375em;
+  font-weight: normal;
+  line-height: 1.5;
+  vertical-align: top;
+}
+.site-subtitle {
+  color: #ddd;
+  font-size: 0.8125em;
+  margin-top: 10px;
+}
+.use-motion .brand {
+  opacity: 0;
+}
+.use-motion .site-title,
+.use-motion .site-subtitle,
+.use-motion .custom-logo-image {
+  opacity: 0;
+  position: relative;
+  top: -10px;
+}
+.site-nav-toggle {
+  display: none;
+  left: 10px;
+  position: absolute;
+}
+@media (max-width: 767px) {
+  .site-nav-toggle {
+    display: block;
+  }
+}
+.site-nav-toggle .toggle {
+  background: transparent;
+  border: 0;
+  margin-top: 2px;
+  padding: 10px;
+  width: 22px;
+}
+.site-nav-toggle .toggle .toggle-line {
+  background: #555;
+  border-radius: 1px;
+}
+.site-nav {
+  display: block;
+}
+@media (max-width: 767px) {
+  .site-nav {
+    border-top: 1px solid #ddd;
+    clear: both;
+    display: none;
+    margin: 0 -10px;
+    padding: 0 10px;
+  }
+}
+.site-nav.site-nav-on {
+  display: block;
+}
+.menu {
+  margin-top: 20px;
+  padding-left: 0;
+  text-align: center;
+}
+.menu-item {
+  display: inline-block;
+  list-style: none;
+  margin: 0 10px;
+}
+@media (max-width: 767px) {
+  .menu-item {
+    margin-top: 10px;
+  }
+}
+.menu-item a,
+.menu-item span.exturl {
+  border-bottom: 0;
+  display: block;
+  font-size: 0.8125em;
+  transition-property: border-color;
+  transition-delay: 0s;
+  transition-duration: 0.2s;
+  transition-timing-function: ease-in-out;
+}
+@media (hover: none) {
+  .menu-item a:hover,
+  .menu-item span.exturl:hover {
+    border-bottom-color: transparent !important;
+  }
+}
+.menu-item .fa {
+  margin-right: 8px;
+}
+.menu-item .badge {
+  display: inline-block;
+  font-weight: 700;
+  line-height: 1;
+  margin-left: 0.35em;
+  margin-top: 0.35em;
+  text-align: center;
+  white-space: nowrap;
+}
+@media (max-width: 767px) {
+  .menu-item .badge {
+    float: right;
+    margin-left: 0;
+  }
+}
+.use-motion .menu-item {
+  opacity: 0;
+}
+.github-corner :hover .octo-arm {
+  animation: octocat-wave 560ms ease-in-out;
+}
+.github-corner svg {
+  border: 0;
+  color: #fff;
+  fill: #222;
+  position: absolute;
+  right: 0;
+  top: 0;
+  z-index: 1000;
+}
+@media (max-width: 991px) {
+  .github-corner svg {
+    color: #222;
+    fill: #fff;
+  }
+  .github-corner .github-corner:hover .octo-arm {
+    animation: none;
+  }
+  .github-corner .github-corner .octo-arm {
+    animation: octocat-wave 560ms ease-in-out;
+  }
+}
+@-moz-keyframes octocat-wave {
+  0%, 100% {
+    transform: rotate(0);
+  }
+  20%, 60% {
+    transform: rotate(-25deg);
+  }
+  40%, 80% {
+    transform: rotate(10deg);
+  }
+}
+@-webkit-keyframes octocat-wave {
+  0%, 100% {
+    transform: rotate(0);
+  }
+  20%, 60% {
+    transform: rotate(-25deg);
+  }
+  40%, 80% {
+    transform: rotate(10deg);
+  }
+}
+@-o-keyframes octocat-wave {
+  0%, 100% {
+    transform: rotate(0);
+  }
+  20%, 60% {
+    transform: rotate(-25deg);
+  }
+  40%, 80% {
+    transform: rotate(10deg);
+  }
+}
+@keyframes octocat-wave {
+  0%, 100% {
+    transform: rotate(0);
+  }
+  20%, 60% {
+    transform: rotate(-25deg);
+  }
+  40%, 80% {
+    transform: rotate(10deg);
+  }
+}
+.sidebar {
+  background: #222;
+  bottom: 0;
+  box-shadow: inset 0 2px 6px #000;
+  position: fixed;
+  top: 0;
+  z-index: 1200;
+}
+.sidebar a,
+.sidebar span.exturl {
+  border-bottom-color: #555;
+  color: #999;
+}
+.sidebar a:hover,
+.sidebar span.exturl:hover {
+  border-bottom-color: #eee;
+  color: #eee;
+}
+@media (max-width: 991px) {
+  .sidebar {
+    display: none;
+  }
+}
+.sidebar-inner {
+  color: #999;
+  padding: 20px 10px;
+  text-align: center;
+}
+.site-overview-wrap {
+  overflow-x: hidden;
+  overflow-y: auto;
+}
+.cc-license {
+  margin-top: 10px;
+  text-align: center;
+}
+.cc-license .cc-opacity {
+  border-bottom: none;
+  opacity: 0.7;
+}
+.cc-license .cc-opacity:hover {
+  opacity: 0.9;
+}
+.cc-license img {
+  display: inline-block;
+}
+.site-author-image {
+  border: 1px solid #eee;
+  display: block;
+  height: auto;
+  margin: 0 auto;
+  max-width: 120px;
+  padding: 2px;
+  border-radius: 50%;
+}
+.site-author-name {
+  color: #222;
+  font-weight: 600;
+  margin: 0;
+  text-align: center;
+}
+.site-description {
+  color: #999;
+  font-size: 0.8125em;
+  margin-top: 0;
+  text-align: center;
+}
+.links-of-author {
+  margin-top: 15px;
+}
+.links-of-author a,
+.links-of-author span.exturl {
+  border-bottom-color: #555;
+  display: inline-block;
+  font-size: 0.8125em;
+  margin-bottom: 10px;
+  margin-right: 10px;
+  vertical-align: middle;
+  transition-delay: 0s;
+  transition-duration: 0.2s;
+  transition-timing-function: ease-in-out;
+}
+.links-of-author a::before,
+.links-of-author span.exturl::before {
+  background: #0ab5cd;
+  border-radius: 50%;
+  content: ' ';
+  display: inline-block;
+  height: 4px;
+  margin-right: 3px;
+  vertical-align: middle;
+  width: 4px;
+}
+.feed-link,
+.chat {
+  margin-top: 15px;
+}
+.feed-link a,
+.chat a {
+  border: 1px solid #fc6423;
+  border-radius: 4px;
+  color: #fc6423;
+  display: inline-block;
+  padding: 0 15px;
+}
+.feed-link a .fa,
+.chat a .fa {
+  margin-right: 5px;
+}
+.feed-link a:hover,
+.chat a:hover {
+  background: #fc6423;
+  border: 1px solid #fc6423;
+  color: #fff;
+}
+.feed-link a:hover .fa,
+.chat a:hover .fa {
+  color: #fff;
+}
+.links-of-blogroll {
+  font-size: 0.8125em;
+  margin-top: 10px;
+}
+.links-of-blogroll-title {
+  font-size: 0.875em;
+  font-weight: 600;
+  margin-top: 0;
+}
+.links-of-blogroll-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.links-of-blogroll-item {
+  padding: 2px 10px;
+}
+.links-of-blogroll-item a,
+.links-of-blogroll-item span.exturl {
+  box-sizing: border-box;
+  display: inline-block;
+  max-width: 280px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+#sidebar-dimmer {
+  display: none;
+}
+@media (max-width: 767px) {
+  #sidebar-dimmer {
+    background: #000;
+    display: block;
+    height: 100%;
+    left: 100%;
+    opacity: 0;
+    position: fixed;
+    top: 0;
+    width: 100%;
+    z-index: 1100;
+  }
+  .sidebar-active + #sidebar-dimmer {
+    opacity: 0.7;
+    transform: translateX(-100%);
+    transition: opacity 0.5s;
+  }
+}
+.sidebar-nav {
+  margin: 0;
+  padding-bottom: 20px;
+  padding-left: 0;
+}
+.sidebar-nav li {
+  border-bottom: 1px solid transparent;
+  color: #555;
+  cursor: pointer;
+  display: inline-block;
+  font-size: 0.875em;
+}
+.sidebar-nav li.sidebar-nav-overview {
+  margin-left: 10px;
+}
+.sidebar-nav li:hover {
+  color: #fc6423;
+}
+.sidebar-nav .sidebar-nav-active {
+  border-bottom-color: #fc6423;
+  color: #fc6423;
+}
+.sidebar-nav .sidebar-nav-active:hover {
+  color: #fc6423;
+}
+.sidebar-panel {
+  display: none;
+}
+.sidebar-panel-active {
+  display: block;
+}
+.sidebar-toggle {
+  background: #222;
+  bottom: 45px;
+  cursor: pointer;
+  height: 14px;
+  left: 30px;
+  padding: 5px;
+  position: fixed;
+  width: 14px;
+  z-index: 1300;
+}
+@media (max-width: 991px) {
+  .sidebar-toggle {
+    left: 20px;
+    opacity: 0.8;
+    display: none;
+  }
+}
+.sidebar-toggle:hover .toggle-line {
+  background: #fc6423;
+}
+.post-toc-wrap {
+  overflow-x: hidden;
+  overflow-y: auto;
+}
+.post-toc {
+  font-size: 0.875em;
+}
+.post-toc ol {
+  list-style: none;
+  margin: 0;
+  padding: 0 2px 5px 10px;
+  text-align: left;
+}
+.post-toc ol > ol {
+  padding-left: 0;
+}
+.post-toc ol a {
+  border-bottom-color: #ccc;
+  color: #666;
+  transition-property: all;
+  transition-delay: 0s;
+  transition-duration: 0.2s;
+  transition-timing-function: ease-in-out;
+}
+.post-toc ol a:hover {
+  border-bottom-color: #000;
+  color: #000;
+}
+.post-toc .nav-item {
+  line-height: 1.8;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.post-toc .nav .nav-child {
+  display: none;
+}
+.post-toc .nav .active > .nav-child {
+  display: block;
+}
+.post-toc .nav .active-current > .nav-child {
+  display: block;
+}
+.post-toc .nav .active-current > .nav-child > .nav-item {
+  display: block;
+}
+.post-toc .nav .active > a {
+  border-bottom-color: #fc6423;
+  color: #fc6423;
+}
+.post-toc .nav .active-current > a {
+  color: #fc6423;
+}
+.post-toc .nav .active-current > a:hover {
+  color: #fc6423;
+}
+.site-state {
+  display: flex;
+  justify-content: center;
+  line-height: 1.4;
+  margin-top: 10px;
+  overflow: hidden;
+  text-align: center;
+  white-space: nowrap;
+}
+.site-state-item {
+  padding: 0 15px;
+}
+.site-state-item:not(:first-child) {
+  border-left: 1px solid #eee;
+}
+.site-state-item a {
+  border-bottom: none;
+}
+.site-state-item-count {
+  color: inherit;
+  display: block;
+  font-size: 1em;
+  font-weight: 600;
+  text-align: center;
+}
+.site-state-item-name {
+  color: #999;
+  font-size: 0.8125em;
+}
+.footer {
+  color: #999;
+  font-size: 0.875em;
+  padding: 20px 0;
+}
+.footer.footer-fixed {
+  bottom: 0;
+  left: 0;
+  position: absolute;
+  right: 0;
+}
+.footer img {
+  border: 0;
+}
+.footer-inner {
+  box-sizing: border-box;
+  margin: 0 auto;
+  text-align: center;
+  width: calc(100% - 20px);
+}
+@media (min-width: 1200px) {
+  .footer-inner {
+    width: 1160px;
+  }
+}
+@media (min-width: 1600px) {
+  .footer-inner {
+    width: 73%;
+  }
+}
+.with-love {
+  color: red;
+  display: inline-block;
+  margin: 0 5px;
+  animation: iconAnimate 1.33s ease-in-out infinite;
+}
+.powered-by,
+.theme-info {
+  display: inline-block;
+}
+@-moz-keyframes iconAnimate {
+  0%, 100% {
+    transform: scale(1);
+  }
+  10%, 30% {
+    transform: scale(0.9);
+  }
+  20%, 40%, 60%, 80% {
+    transform: scale(1.1);
+  }
+  50%, 70% {
+    transform: scale(1.1);
+  }
+}
+@-webkit-keyframes iconAnimate {
+  0%, 100% {
+    transform: scale(1);
+  }
+  10%, 30% {
+    transform: scale(0.9);
+  }
+  20%, 40%, 60%, 80% {
+    transform: scale(1.1);
+  }
+  50%, 70% {
+    transform: scale(1.1);
+  }
+}
+@-o-keyframes iconAnimate {
+  0%, 100% {
+    transform: scale(1);
+  }
+  10%, 30% {
+    transform: scale(0.9);
+  }
+  20%, 40%, 60%, 80% {
+    transform: scale(1.1);
+  }
+  50%, 70% {
+    transform: scale(1.1);
+  }
+}
+@keyframes iconAnimate {
+  0%, 100% {
+    transform: scale(1);
+  }
+  10%, 30% {
+    transform: scale(0.9);
+  }
+  20%, 40%, 60%, 80% {
+    transform: scale(1.1);
+  }
+  50%, 70% {
+    transform: scale(1.1);
+  }
+}
+.back-to-top {
+  background: #eee;
+  font-size: 12px;
+  margin: 8px -10px -20px;
+  opacity: 0;
+  text-align: center;
+  transition-delay: 0s;
+  transition-duration: 0.2s;
+  transition-timing-function: ease-in-out;
+}
+.back-to-top.back-to-top-on {
+  cursor: pointer;
+  opacity: 0.6;
+}
+.back-to-top.back-to-top-on:hover {
+  opacity: 0.8;
+}
+.post-body {
+  font-family: 'Monda', "PingFang SC", "Microsoft YaHei", sans-serif;
+  overflow-wrap: break-word;
+  word-wrap: break-word;
+}
+@media (min-width: 1200px) {
+  .post-body {
+    font-size: 1.125em;
+  }
+}
+.post-body span.exturl .fa {
+  font-size: 0.875em;
+  margin-left: 4px;
+}
+.post-body .image-caption,
+.post-body .figure .caption {
+  color: #999;
+  font-size: 0.875em;
+  font-weight: bold;
+  line-height: 1;
+  margin: -20px auto 15px;
+  text-align: center;
+}
+.post-sticky-flag {
+  display: inline-block;
+  transform: rotate(30deg);
+}
+.post-button {
+  margin-top: 40px;
+  text-align: center;
+}
+.use-motion .post-block,
+.use-motion .pagination,
+.use-motion .comments {
+  opacity: 0;
+}
+.use-motion .post-header {
+  opacity: 0;
+}
+.use-motion .post-body {
+  opacity: 0;
+}
+.use-motion .collection-header {
+  opacity: 0;
+}
+.posts-collapse {
+  margin-left: 55px;
+  position: relative;
+}
+@media (max-width: 767px) {
+  .posts-collapse {
+    margin-left: 20px;
+    margin-right: 20px;
+  }
+}
+.posts-collapse .collection-title {
+  font-size: 1.125em;
+  position: relative;
+}
+.posts-collapse .collection-title::before {
+  background: #999;
+  border: 1px solid #fff;
+  border-radius: 50%;
+  content: ' ';
+  height: 10px;
+  left: 0;
+  margin-left: -6px;
+  margin-top: -4px;
+  position: absolute;
+  top: 50%;
+  width: 10px;
+}
+.posts-collapse .collection-year {
+  margin: 60px 0;
+  position: relative;
+}
+.posts-collapse .collection-year::before {
+  background: #bbb;
+  border-radius: 50%;
+  content: ' ';
+  height: 8px;
+  left: 0;
+  margin-left: -4px;
+  margin-top: -4px;
+  position: absolute;
+  top: 50%;
+  width: 8px;
+}
+.posts-collapse .collection-header {
+  display: inline-block;
+  margin: 0 0 0 20px;
+}
+.posts-collapse .collection-header small {
+  color: #bbb;
+  margin-left: 5px;
+}
+.posts-collapse .post-header {
+  border-bottom: 1px dashed #ccc;
+  margin: 30px 0;
+  padding-left: 15px;
+  position: relative;
+  transition-property: border;
+  transition-delay: 0s;
+  transition-duration: 0.2s;
+  transition-timing-function: ease-in-out;
+}
+.posts-collapse .post-header::before {
+  background: #bbb;
+  border: 1px solid #fff;
+  border-radius: 50%;
+  content: ' ';
+  height: 6px;
+  left: 0;
+  margin-left: -4px;
+  position: absolute;
+  top: 0.75em;
+  transition-property: background;
+  width: 6px;
+  transition-delay: 0s;
+  transition-duration: 0.2s;
+  transition-timing-function: ease-in-out;
+}
+.posts-collapse .post-header:hover {
+  border-bottom-color: #666;
+}
+.posts-collapse .post-header:hover::before {
+  background: #222;
+}
+.posts-collapse .post-meta {
+  display: inline;
+  font-size: 0.75em;
+  margin-right: 10px;
+}
+.posts-collapse .post-title {
+  display: inline;
+  font-size: 1em;
+  font-weight: normal;
+  margin-bottom: 0;
+  margin-top: 0;
+}
+.posts-collapse .post-title a,
+.posts-collapse .post-title span.exturl {
+  border-bottom: none;
+  color: #666;
+}
+.posts-collapse::before {
+  background: #f5f5f5;
+  content: ' ';
+  height: 100%;
+  left: 0;
+  margin-left: -2px;
+  position: absolute;
+  top: 1.25em;
+  width: 4px;
+}
+.posts-collapse .fa-external-link {
+  font-size: 0.875em;
+  margin-left: 5px;
+}
+.post-eof {
+  background: #ccc;
+  height: 1px;
+  margin: 80px auto 60px;
+  text-align: center;
+  width: 8%;
+}
+.post-block:last-child .post-eof {
+  display: none;
+}
+.posts-expand {
+  padding-top: 40px;
+}
+@media (max-width: 767px) {
+  .posts-expand {
+    margin: 0 20px;
+  }
+}
+@media (min-width: 992px) {
+  .post-body {
+    text-align: left;
+  }
+}
+@media (max-width: 991px) {
+  .post-body {
+    text-align: left;
+  }
+}
+.post-body h2,
+.post-body h3,
+.post-body h4,
+.post-body h5,
+.post-body h6 {
+  padding-top: 10px;
+}
+.post-body h2 .header-anchor,
+.post-body h3 .header-anchor,
+.post-body h4 .header-anchor,
+.post-body h5 .header-anchor,
+.post-body h6 .header-anchor {
+  border-bottom-style: none;
+  color: #ccc;
+  float: right;
+  margin-left: 10px;
+  visibility: hidden;
+}
+.post-body h2 .header-anchor:hover,
+.post-body h3 .header-anchor:hover,
+.post-body h4 .header-anchor:hover,
+.post-body h5 .header-anchor:hover,
+.post-body h6 .header-anchor:hover {
+  color: inherit;
+}
+.post-body h2:hover .header-anchor,
+.post-body h3:hover .header-anchor,
+.post-body h4:hover .header-anchor,
+.post-body h5:hover .header-anchor,
+.post-body h6:hover .header-anchor {
+  visibility: visible;
+}
+.post-body img {
+  border: 1px solid #ddd;
+  box-sizing: border-box;
+  padding: 3px;
+}
+@media (max-width: 767px) {
+  .post-body img {
+    padding: initial;
+  }
+}
+.post-body iframe,
+.post-body img,
+.post-body video {
+  margin-bottom: 20px;
+}
+.post-body .video-container {
+  height: 0;
+  margin-bottom: 20px;
+  overflow: hidden;
+  padding-top: 75%;
+  position: relative;
+  width: 100%;
+}
+.post-body .video-container iframe,
+.post-body .video-container object,
+.post-body .video-container embed {
+  height: 100%;
+  left: 0;
+  margin: 0;
+  position: absolute;
+  top: 0;
+  width: 100%;
+}
+.post-gallery {
+  border-collapse: separate;
+  display: table;
+  table-layout: fixed;
+  width: 100%;
+}
+.post-gallery .post-gallery-img {
+  border: 0;
+  display: table-cell;
+  text-align: center;
+  vertical-align: middle;
+}
+.post-gallery .post-gallery-img img {
+  border: 0;
+  max-height: 100%;
+  max-width: 100%;
+}
+.post-gallery-row {
+  display: table-row;
+}
+.posts-expand .post-header {
+  font-size: 1.125em;
+}
+.posts-expand .post-title {
+  font-weight: 400;
+  margin: initial;
+  text-align: center;
+  overflow-wrap: break-word;
+  word-wrap: break-word;
+}
+.posts-expand .post-title-link {
+  border-bottom: none;
+  color: #555;
+  display: inline-block;
+  position: relative;
+  vertical-align: top;
+}
+.posts-expand .post-title-link::before {
+  background: #000;
+  bottom: 0;
+  content: '';
+  height: 2px;
+  left: 0;
+  position: absolute;
+  transform: scaleX(0);
+  visibility: hidden;
+  width: 100%;
+  transition-delay: 0s;
+  transition-duration: 0.2s;
+  transition-timing-function: ease-in-out;
+}
+.posts-expand .post-title-link:hover::before {
+  transform: scaleX(1);
+  visibility: visible;
+}
+.posts-expand .post-title-link .fa {
+  font-size: 0.875em;
+  margin-left: 5px;
+}
+.posts-expand .post-meta {
+  color: #999;
+  font-family: 'Monda', "PingFang SC", "Microsoft YaHei", sans-serif;
+  font-size: 0.75em;
+  margin: 3px 0 60px 0;
+  text-align: center;
+}
+.posts-expand .post-meta .post-description {
+  font-size: 0.875em;
+  margin-top: 2px;
+}
+.posts-expand .post-meta time {
+  border-bottom: 1px dashed #999;
+  cursor: pointer;
+}
+.post-meta .post-meta-item + .post-meta-item::before {
+  content: '|';
+  margin: 0 0.5em;
+}
+.post-meta-divider {
+  margin: 0 0.5em;
+}
+.post-meta-item-icon {
+  margin-right: 3px;
+}
+@media (max-width: 991px) {
+  .post-meta-item-icon {
+    display: inline-block;
+  }
+}
+@media (max-width: 991px) {
+  .post-meta-item-text {
+    display: none;
+  }
+}
+.post-nav {
+  border-top: 1px solid #eee;
+  display: table;
+  margin-top: 15px;
+  width: 100%;
+}
+.post-nav-divider {
+  display: table-cell;
+  width: 10%;
+}
+.post-nav-item {
+  display: table-cell;
+  padding: 10px 0 0 0;
+  vertical-align: top;
+  width: 45%;
+}
+.post-nav-item a {
+  border-bottom: none;
+  color: #555;
+  display: block;
+  font-size: 0.875em;
+  line-height: 1.6;
+  position: relative;
+}
+.post-nav-item a:hover {
+  border-bottom: none;
+  color: #222;
+}
+.post-nav-item a:active {
+  top: 2px;
+}
+.post-nav-item .fa {
+  font-size: 0.75em;
+  margin-right: 5px;
+}
+.post-nav-next a {
+  padding-left: 5px;
+}
+.post-nav-prev {
+  text-align: right;
+}
+.post-nav-prev a {
+  padding-right: 5px;
+}
+.post-nav-prev .fa {
+  margin-left: 5px;
+}
+.rtl.post-body p,
+.rtl.post-body a,
+.rtl.post-body h1,
+.rtl.post-body h2,
+.rtl.post-body h3,
+.rtl.post-body h4,
+.rtl.post-body h5,
+.rtl.post-body h6,
+.rtl.post-body li,
+.rtl.post-body ul,
+.rtl.post-body ol {
+  direction: rtl;
+  font-family: UKIJ Ekran;
+}
+.rtl.post-title {
+  font-family: UKIJ Ekran;
+}
+.post-tags {
+  margin-top: 40px;
+  text-align: center;
+}
+.post-tags a {
+  display: inline-block;
+  font-size: 0.8125em;
+}
+.post-tags a:not(:last-child) {
+  margin-right: 10px;
+}
+.post-widgets {
+  border-top: 1px solid #eee;
+  margin-top: 15px;
+  text-align: center;
+}
+.wp_rating {
+  height: 20px;
+  line-height: 20px;
+  margin-top: 10px;
+  padding-top: 6px;
+  text-align: center;
+}
+.social-like {
+  display: flex;
+  font-size: 0.875em;
+  justify-content: center;
+  text-align: center;
+}
+.reward-container {
+  margin: 20px auto;
+  padding: 10px 0;
+  text-align: center;
+  width: 90%;
+}
+.reward-container button {
+  background: #ff2a2a;
+  border: 0;
+  border-radius: 5px;
+  color: #fff;
+  cursor: pointer;
+  line-height: 2;
+  outline: 0;
+  padding: 0 15px;
+  vertical-align: text-top;
+}
+.reward-container button:hover {
+  background: #f55;
+}
+#qr {
+  padding-top: 20px;
+}
+#qr a {
+  border: 0;
+}
+#qr img {
+  display: inline-block;
+  margin: 0.8em 2em 0 2em;
+  max-width: 100%;
+  width: 180px;
+}
+#qr p {
+  text-align: center;
+}
+.post-copyright {
+  background: #f5f5f5;
+  border-left: 3px solid #ff2a2a;
+  list-style: none;
+  margin: 2em 0 0;
+  padding: 0.5em 1em;
+}
+.category-all-page .category-all-title {
+  text-align: center;
+}
+.category-all-page .category-all {
+  margin-top: 20px;
+}
+.category-all-page .category-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.category-all-page .category-list-item {
+  margin: 5px 10px;
+}
+.category-all-page .category-list-count {
+  color: #bbb;
+}
+.category-all-page .category-list-count::before {
+  content: ' (';
+  display: inline;
+}
+.category-all-page .category-list-count::after {
+  content: ') ';
+  display: inline;
+}
+.category-all-page .category-list-child {
+  padding-left: 10px;
+}
+.event-list {
+  padding: 0;
+}
+.event-list hr {
+  background: #222;
+  margin: 20px 0 45px 0;
+}
+.event-list hr::after {
+  background: #222;
+  color: #fff;
+  content: 'NOW';
+  display: inline-block;
+  font-weight: bold;
+  padding: 0 5px;
+  text-align: right;
+}
+.event-list .event {
+  background: #222;
+  margin: 20px 0;
+  min-height: 40px;
+  padding: 15px 0 15px 10px;
+}
+.event-list .event .event-summary {
+  color: #fff;
+  margin: 0;
+  padding-bottom: 3px;
+}
+.event-list .event .event-summary::before {
+  animation: dot-flash 1s alternate infinite ease-in-out;
+  color: #fff;
+  content: '\f111';
+  display: inline-block;
+  font-family: 'FontAwesome';
+  font-size: 10px;
+  margin-right: 25px;
+  vertical-align: middle;
+}
+.event-list .event .event-relative-time {
+  color: #bbb;
+  display: inline-block;
+  font-size: 12px;
+  font-weight: 400;
+  padding-left: 12px;
+}
+.event-list .event .event-details {
+  color: #fff;
+  display: block;
+  line-height: 18px;
+  margin-left: 56px;
+  padding-bottom: 6px;
+  padding-top: 3px;
+  text-indent: -24px;
+}
+.event-list .event .event-details::before {
+  color: #fff;
+  display: inline-block;
+  font-family: 'FontAwesome';
+  margin-right: 9px;
+  text-align: center;
+  text-indent: 0;
+  width: 14px;
+}
+.event-list .event .event-details.event-location::before {
+  content: '\f041';
+}
+.event-list .event .event-details.event-duration::before {
+  content: '\f017';
+}
+.event-list .event-past {
+  background: #f5f5f5;
+}
+.event-list .event-past .event-summary,
+.event-list .event-past .event-details {
+  color: #bbb;
+  opacity: 0.9;
+}
+.event-list .event-past .event-summary::before,
+.event-list .event-past .event-details::before {
+  animation: none;
+  color: #bbb;
+}
+@-moz-keyframes dot-flash {
+  from {
+    opacity: 1;
+    transform: scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: scale(0.8);
+  }
+}
+@-webkit-keyframes dot-flash {
+  from {
+    opacity: 1;
+    transform: scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: scale(0.8);
+  }
+}
+@-o-keyframes dot-flash {
+  from {
+    opacity: 1;
+    transform: scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: scale(0.8);
+  }
+}
+@keyframes dot-flash {
+  from {
+    opacity: 1;
+    transform: scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: scale(0.8);
+  }
+}
+ul.breadcrumb {
+  font-size: 0.75em;
+  list-style: none;
+  margin: 1em 0;
+  padding: 0 2em;
+  text-align: center;
+}
+ul.breadcrumb li {
+  display: inline;
+}
+ul.breadcrumb li + li::before {
+  content: '/\00a0';
+  font-weight: normal;
+  padding: 0.5em;
+}
+ul.breadcrumb li + li:last-child {
+  font-weight: bold;
+}
+.tag-cloud {
+  text-align: center;
+}
+.tag-cloud a {
+  display: inline-block;
+  margin: 10px;
+}
+.tag-cloud a:hover {
+  color: #222 !important;
+}
+.gt-header a,
+.gt-comments a,
+.gt-popup a {
+  border-bottom: none;
+}
+.gt-container .gt-popup .gt-action.is--active::before {
+  top: 0.7em;
+}
+.search-pop-overlay {
+  background: rgba(0,0,0,0.3);
+  display: none;
+  height: 100%;
+  left: 0;
+  overflow: hidden;
+  position: fixed;
+  top: 0;
+  width: 100%;
+  z-index: 1400;
+}
+.search-popup {
+  background: #fff;
+  border-radius: 5px;
+  color: #333;
+  display: none;
+  height: 80%;
+  left: 50%;
+  margin-left: -350px;
+  padding: 0;
+  position: fixed;
+  top: 10%;
+  width: 700px;
+  z-index: 1500;
+}
+@media (max-width: 767px) {
+  .search-popup {
+    border-radius: 0;
+    height: 100%;
+    left: 0;
+    margin: 0;
+    padding: 0;
+    top: 0;
+    width: 100%;
+  }
+}
+.search-popup .search-icon,
+.search-popup .popup-btn-close {
+  color: #999;
+  display: inline-block;
+  font-size: 18px;
+  height: 36px;
+  padding-left: 10px;
+  padding-right: 10px;
+  width: 18px;
+}
+.search-popup .popup-btn-close {
+  border-left: 1px solid #eee;
+  cursor: pointer;
+  float: right;
+}
+.search-popup .popup-btn-close:hover .fa {
+  color: #222;
+}
+.search-popup .search-header {
+  background: #f5f5f5;
+  border-top-left-radius: 5px;
+  border-top-right-radius: 5px;
+  padding: 5px;
+}
+.search-input {
+  display: inline-block;
+  width: calc(90% - 30px);
+}
+.search-input input {
+  background: transparent;
+  border: 0;
+  outline: 0;
+  padding: 5px 0;
+  width: 100%;
+}
+.search-input .ais-search-box--magnifier svg,
+.search-input .ais-search-box--reset svg {
+  display: none;
+}
+.algolia-powered {
+  float: right;
+}
+.algolia-powered img {
+  display: inline-block;
+  height: 18px;
+  vertical-align: middle;
+}
+.algolia-results {
+  height: calc(100% - 55px);
+  overflow: auto;
+  padding: 5px 30px;
+  position: relative;
+}
+.algolia-results hr {
+  margin: 10px 0;
+}
+.algolia-results .highlight {
+  color: #f00;
+  font-size: inherit;
+  font-style: normal;
+  margin: 0;
+  padding: 0 2px;
+}
+.algolia-hits {
+  margin-top: 20px;
+}
+.algolia-hit-item {
+  margin: 15px 0;
+}
+.algolia-hit-item-link {
+  border-bottom: 1px dashed #ccc;
+  display: block;
+  transition-delay: 0s;
+  transition-duration: 0.2s;
+  transition-timing-function: ease-in-out;
+}
+.algolia-pagination .pagination {
+  border-top: none;
+  margin: 40px 0;
+  opacity: 1;
+  padding: 0;
+}
+.algolia-pagination .pagination-item {
+  display: inline-block;
+}
+.algolia-pagination .page-number {
+  border-top: none;
+}
+.algolia-pagination .page-number:hover {
+  border-bottom: 1px solid #222;
+}
+.algolia-pagination .disabled-item {
+  visibility: hidden;
+}
+.header {
+  margin: 0 auto;
+  position: relative;
+  width: calc(100% - 20px);
+}
+@media (min-width: 1200px) {
+  .header {
+    width: 1160px;
+  }
+}
+@media (min-width: 1600px) {
+  .header {
+    width: 73%;
+  }
+}
+@media (max-width: 991px) {
+  .header {
+    width: auto;
+  }
+}
+.header-inner {
+  background: #fff;
+  border-radius: initial;
+  box-shadow: 0 2px 2px 0 rgba(0,0,0,0.12), 0 3px 1px -2px rgba(0,0,0,0.06), 0 1px 5px 0 rgba(0,0,0,0.12);
+  overflow: hidden;
+  padding: 0;
+  position: absolute;
+  top: 0;
+  width: 240px;
+}
+@media (min-width: 1200px) {
+  .header-inner {
+    width: 240px;
+  }
+}
+@media (max-width: 991px) {
+  .header-inner {
+    border-radius: initial;
+    position: relative;
+    width: auto;
+  }
+}
+.main::before,
+.main::after {
+  content: ' ';
+  display: table;
+}
+.main::after {
+  clear: both;
+}
+@media (max-width: 991px) {
+  .main-inner {
+    width: auto;
+  }
+}
+.content-wrap {
+  background: #fff;
+  border-radius: initial;
+  box-shadow: 0 2px 2px 0 rgba(0,0,0,0.12), 0 3px 1px -2px rgba(0,0,0,0.06), 0 1px 5px 0 rgba(0,0,0,0.12);
+  box-sizing: border-box;
+  float: right;
+  padding: 40px;
+  width: calc(100% - 252px);
+}
+@media (max-width: 991px) {
+  .content-wrap {
+    border-radius: initial;
+    padding: 20px;
+    width: 100%;
+  }
+}
+.sidebar {
+  background: #eee;
+  box-shadow: none;
+  float: left;
+  position: static;
+  width: 240px;
+}
+@media (max-width: 991px) {
+  .sidebar {
+    display: none;
+  }
+}
+.sidebar-toggle {
+  display: none;
+}
+.footer-inner {
+  padding-left: 260px;
+}
+.back-to-top {
+  left: auto;
+  right: 30px;
+}
+@media (max-width: 991px) {
+  .back-to-top {
+    right: 20px;
+  }
+}
+@media (max-width: 991px) {
+  .footer-inner {
+    padding-left: 0;
+    padding-right: 0;
+    width: auto;
+  }
+}
+.site-brand-container {
+  position: relative;
+}
+.site-meta {
+  background: #222;
+  color: #fff;
+  padding: 20px 0;
+}
+@media (max-width: 991px) {
+  .site-meta {
+    box-shadow: 0 0 16px rgba(0,0,0,0.5);
+  }
+}
+.brand {
+  background: none;
+  padding: 0;
+}
+.brand:hover {
+  color: #fff;
+}
+.site-subtitle {
+  font-weight: initial;
+  margin: 10px 10px 0;
+}
+.custom-logo-image {
+  margin-top: 20px;
+}
+@media (max-width: 991px) {
+  .custom-logo-image {
+    display: none;
+  }
+}
+.site-nav-toggle {
+  left: 20px;
+  top: 50%;
+  transform: translateY(-50%);
+}
+@media (min-width: 768px) and (max-width: 991px) {
+  .site-nav-toggle {
+    display: block;
+  }
+}
+.site-nav-toggle .toggle .toggle-line {
+  background: #fff;
+}
+.site-nav {
+  border-top: none;
+}
+@media (min-width: 768px) and (max-width: 991px) {
+  .site-nav {
+    display: none;
+  }
+}
+.menu-item-active a,
+.menu .menu-item a:hover,
+.menu .menu-item span.exturl:hover {
+  background: #f5f5f5;
+}
+.menu-item-active a::after,
+.menu .menu-item a:hover::after,
+.menu .menu-item span.exturl:hover::after {
+  background: #bbb;
+  border-radius: 50%;
+  content: ' ';
+  height: 6px;
+  margin-top: -3px;
+  position: absolute;
+  right: 15px;
+  top: 50%;
+  width: 6px;
+}
+.menu .menu-item {
+  display: block;
+  margin: 0;
+}
+.menu .menu-item a,
+.menu .menu-item span.exturl {
+  padding: 5px 20px;
+  position: relative;
+  text-align: left;
+  transition-property: background-color;
+}
+.menu .menu-item .badge {
+  background: #ccc;
+  border-radius: 10px;
+  color: #fff;
+  float: right;
+  padding: 2px 5px;
+  text-shadow: 1px 1px 0 rgba(0,0,0,0.1);
+  vertical-align: middle;
+}
+.sub-menu {
+  background: #fff;
+  border-bottom: 1px solid #ddd;
+  margin: 0;
+  padding: 6px 0;
+}
+.sub-menu .menu-item {
+  display: inline-block;
+}
+.sub-menu .menu-item a,
+.sub-menu .menu-item span.exturl {
+  margin: 5px 10px;
+  padding: initial;
+}
+.sub-menu .menu-item a:hover,
+.sub-menu .menu-item span.exturl:hover {
+  background: initial;
+  color: #fc6423;
+}
+.sub-menu .menu-item a::after,
+.sub-menu .menu-item span.exturl::after {
+  content: initial !important;
+}
+.sub-menu .menu-item-active a {
+  background: #fff;
+  border-bottom-color: #fc6423;
+  color: #fc6423;
+}
+.sub-menu .menu-item-active a:hover {
+  background: #fff;
+  border-bottom-color: #fc6423;
+}
+.sidebar {
+  bottom: auto;
+  right: auto;
+}
+.sidebar a,
+.sidebar span.exturl {
+  color: #555;
+}
+.sidebar a:hover,
+.sidebar span.exturl:hover {
+  border-bottom-color: #222;
+  color: #222;
+}
+.sidebar-inner {
+  background: #fff;
+  border-radius: initial;
+  box-shadow: 0 2px 2px 0 rgba(0,0,0,0.12), 0 3px 1px -2px rgba(0,0,0,0.06), 0 1px 5px 0 rgba(0,0,0,0.12), 0 -1px 0.5px 0 rgba(0,0,0,0.09);
+  box-sizing: border-box;
+  color: #555;
+  width: 240px;
+  opacity: 0;
+}
+.sidebar-inner.affix {
+  position: fixed;
+  top: 12px;
+}
+.sidebar-inner.affix-bottom {
+  position: absolute;
+}
+.site-state-item {
+  padding: 0 10px;
+}
+.feed-link,
+.chat {
+  border-bottom: 1px dotted #ccc;
+  border-top: 1px dotted #ccc;
+  margin-top: 10px;
+  text-align: center;
+}
+.feed-link a,
+.chat a {
+  border: 0;
+  color: #fc6423;
+  display: block;
+}
+.feed-link a:hover,
+.chat a:hover {
+  background: none;
+  border: 0;
+  color: #e34603;
+}
+.feed-link a:hover .fa,
+.chat a:hover .fa {
+  color: #e34603;
+}
+.links-of-author {
+  display: flex;
+  flex-wrap: wrap;
+  margin-top: 10px;
+  justify-content: center;
+}
+.links-of-author-item {
+  margin: 5px 0 0;
+}
+.links-of-author-item a,
+.links-of-author-item span.exturl {
+  box-sizing: border-box;
+  display: inline-block;
+  margin-bottom: 0;
+  margin-right: 0;
+  max-width: 216px;
+  overflow: hidden;
+  padding: 0 5px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.links-of-author-item a,
+.links-of-author-item span.exturl {
+  border-bottom: none;
+  display: block;
+  text-decoration: none;
+}
+.links-of-author-item a::before,
+.links-of-author-item span.exturl::before {
+  display: none;
+}
+.links-of-author-item a:hover,
+.links-of-author-item span.exturl:hover {
+  background: #eee;
+  border-radius: 4px;
+}
+.links-of-author-item .fa {
+  margin-right: 2px;
+}
+.links-of-blogroll-item {
+  padding: 0;
+}
+.content-wrap {
+  background: initial;
+  box-shadow: initial;
+  padding: initial;
+}
+.post-block {
+  background: #fff;
+  border-radius: initial;
+  box-shadow: 0 2px 2px 0 rgba(0,0,0,0.12), 0 3px 1px -2px rgba(0,0,0,0.06), 0 1px 5px 0 rgba(0,0,0,0.12);
+  padding: 40px;
+}
+.post-block + .post-block {
+  border-radius: initial;
+  box-shadow: 0 2px 2px 0 rgba(0,0,0,0.12), 0 3px 1px -2px rgba(0,0,0,0.06), 0 1px 5px 0 rgba(0,0,0,0.12), 0 -1px 0.5px 0 rgba(0,0,0,0.09);
+  margin-top: 12px;
+}
+.comments {
+  background: #fff;
+  border-radius: initial;
+  box-shadow: 0 2px 2px 0 rgba(0,0,0,0.12), 0 3px 1px -2px rgba(0,0,0,0.06), 0 1px 5px 0 rgba(0,0,0,0.12), 0 -1px 0.5px 0 rgba(0,0,0,0.09);
+  margin: auto;
+  margin-top: 12px;
+  padding: 40px;
+}
+.tabs-comment {
+  margin-top: 1em;
+}
+.posts-expand {
+  padding-top: initial;
+}
+.post-nav-divider {
+  width: 4%;
+}
+.post-nav-item {
+  width: 48%;
+}
+.post-eof {
+  display: none;
+}
+.pagination {
+  background: #fff;
+  border-radius: initial;
+  border-top: initial;
+  box-shadow: 0 2px 2px 0 rgba(0,0,0,0.12), 0 3px 1px -2px rgba(0,0,0,0.06), 0 1px 5px 0 rgba(0,0,0,0.12), 0 -1px 0.5px 0 rgba(0,0,0,0.09);
+  margin: 12px 0 0;
+  padding: 10px 0 10px;
+}
+.pagination .prev,
+.pagination .next,
+.pagination .page-number {
+  margin-bottom: initial;
+  top: initial;
+}
+.main {
+  padding-bottom: initial;
+}
+.footer {
+  bottom: auto;
+}
+.sub-menu {
+  border-bottom: initial;
+  box-shadow: 0 2px 2px 0 rgba(0,0,0,0.12), 0 3px 1px -2px rgba(0,0,0,0.06), 0 1px 5px 0 rgba(0,0,0,0.12);
+}
+.sub-menu + .content .post-block {
+  box-shadow: 0 2px 2px 0 rgba(0,0,0,0.12), 0 3px 1px -2px rgba(0,0,0,0.06), 0 1px 5px 0 rgba(0,0,0,0.12), 0 -1px 0.5px 0 rgba(0,0,0,0.09);
+  margin-top: 12px;
+}
+@media (min-width: 768px) and (max-width: 991px) {
+  .sub-menu + .content .post-block {
+    margin-top: 10px;
+  }
+}
+@media (max-width: 767px) {
+  .sub-menu + .content .post-block {
+    margin-top: 8px;
+  }
+}
+.post-body h1,
+.post-body h2 {
+  border-bottom: 1px solid #eee;
+}
+.post-body h3 {
+  border-bottom: 1px solid #eee;
+}
+.post-body h4 {
+  border-bottom: 1px dotted #eee;
+}
+@media (min-width: 768px) and (max-width: 991px) {
+  .content-wrap {
+    padding: 10px;
+  }
+  .posts-expand {
+    margin: initial;
+  }
+  .posts-expand .post-button {
+    margin-top: 20px;
+  }
+  .post-block {
+    border-radius: initial;
+    box-shadow: 0 2px 2px 0 rgba(0,0,0,0.12), 0 3px 1px -2px rgba(0,0,0,0.06), 0 1px 5px 0 rgba(0,0,0,0.12), 0 -1px 0.5px 0 rgba(0,0,0,0.09);
+    padding: 20px;
+  }
+  .post-block + .post-block {
+    margin-top: 10px;
+  }
+  .comments {
+    margin-top: 10px;
+    padding: 10px 20px;
+  }
+  .pagination {
+    margin: 10px 0 0;
+  }
+}
+@media (max-width: 767px) {
+  .content-wrap {
+    padding: 8px;
+  }
+  .posts-expand {
+    margin: initial;
+  }
+  .posts-expand .post-button {
+    margin: 12px 0;
+  }
+  .post-block {
+    border-radius: initial;
+    box-shadow: 0 2px 2px 0 rgba(0,0,0,0.12), 0 3px 1px -2px rgba(0,0,0,0.06), 0 1px 5px 0 rgba(0,0,0,0.12), 0 -1px 0.5px 0 rgba(0,0,0,0.09);
+    min-height: auto;
+    padding: 12px;
+  }
+  .post-block + .post-block {
+    margin-top: 8px;
+  }
+  .comments {
+    margin-top: 8px;
+    padding: 10px 12px;
+  }
+  .pagination {
+    margin: 8px 0 0;
+  }
+}</style><noscript>
+  <style>
+  .use-motion .brand,
+  .use-motion .menu-item,
+  .sidebar-inner,
+  .use-motion .post-block,
+  .use-motion .pagination,
+  .use-motion .comments,
+  .use-motion .post-header,
+  .use-motion .post-body,
+  .use-motion .collection-header { opacity: initial; }
+
+  .use-motion .site-title,
+  .use-motion .site-subtitle {
+    opacity: initial;
+    top: initial;
+  }
+
+  .use-motion .logo-line-before i { left: initial; }
+  .use-motion .logo-line-after i { right: initial; }
+  </style>
+</noscript>
+
+<script>function loadCss(l){var d=document,h=d.head,s=d.createElement('link');s.rel='stylesheet';s.href=l;!function e(f){if (d.body)return f();setTimeout(function(){e(f)})}(function(){h.appendChild(s);});}loadCss('/style.css');loadCss('//fonts.googleapis.com/css?family=Monda:300,300italic,400,400italic,700,700italic|Roboto Slab:300,300italic,400,400italic,700,700italic|PT Mono:300,300italic,400,400italic,700,700italic&display=swap&subset=latin,latin-ext');loadCss('//cdn.jsdelivr.net/npm/instantsearch.js@2/dist/instantsearch.min.css');loadCss('//cdn.jsdelivr.net/npm/gitalk@1/dist/gitalk.min.css');</script><noscript><link rel="stylesheet" href="/style.css"><link rel="stylesheet" href="//fonts.googleapis.com/css?family=Monda:300,300italic,400,400italic,700,700italic|Roboto Slab:300,300italic,400,400italic,700,700italic|PT Mono:300,300italic,400,400italic,700,700italic&amp;display=swap&amp;subset=latin,latin-ext"><link rel="stylesheet" href="//cdn.jsdelivr.net/npm/instantsearch.js@2/dist/instantsearch.min.css"><link rel="stylesheet" href="//cdn.jsdelivr.net/npm/gitalk@1/dist/gitalk.min.css"></noscript></head>
+
+<body itemscope="" itemtype="http://schema.org/WebPage">
+  <div class="container use-motion">
+    <div class="headband"></div>
+
+    <header class="header" itemscope="" itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-container">
+  <div class="site-meta">
+
+    <div>
+      <a href="/" class="brand" rel="start">
+        <span class="logo-line-before"><i></i></span>
+        <span class="site-title">贝克街的流浪猫</span>
+        <span class="logo-line-after"><i></i></span>
+      </a>
+    </div>
+        <h1 class="site-subtitle" itemprop="description">技术博客</h1>
+      
+  </div>
+
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="切换导航栏">
+      <span class="toggle-line toggle-line-first"></span>
+      <span class="toggle-line toggle-line-middle"></span>
+      <span class="toggle-line toggle-line-last"></span>
+    </div>
+  </div>
+</div>
+
+
+<nav class="site-nav">
+  
+  <ul id="menu" class="menu">
+        <li class="menu-item menu-item-home">
+
+    <a href="/" rel="section"><i class="fa fa-fw fa-home"></i>首页</a>
+
+  </li>
+        <li class="menu-item menu-item-tags">
+
+    <a href="/tags/" rel="section"><i class="fa fa-fw fa-tags"></i>标签</a>
+
+  </li>
+        <li class="menu-item menu-item-categories">
+
+    <a href="/categories/" rel="section"><i class="fa fa-fw fa-th"></i>分类</a>
+
+  </li>
+        <li class="menu-item menu-item-archives">
+
+    <a href="/archives/" rel="section"><i class="fa fa-fw fa-archive"></i>归档</a>
+
+  </li>
+        <li class="menu-item menu-item-about">
+
+    <a href="/about/" rel="section"><i class="fa fa-fw fa-user"></i>关于</a>
+
+  </li>
+      <li class="menu-item menu-item-search">
+        <a role="button" class="popup-trigger"><i class="fa fa-search fa-fw"></i>搜索
+        </a>
+      </li>
+  </ul>
+
+</nav>
+  <div class="site-search">
+    <div class="popup search-popup">
+    <div class="search-header">
+  <span class="search-icon">
+    <i class="fa fa-search"></i>
+  </span>
+  <div class="search-input" id="search-input"></div>
+  <span class="popup-btn-close">
+    <i class="fa fa-times-circle"></i>
+  </span>
+</div>
+<div class="algolia-results">
+  <div id="algolia-stats"></div>
+  <div id="algolia-hits"></div>
+  <div id="algolia-pagination" class="algolia-pagination"></div>
+</div>
+
+  
+</div>
+<div class="search-pop-overlay"></div>
+
+  </div>
+</div>
+    </header>
+
+    
+
+  <span class="exturl github-corner" data-url="aHR0cHM6Ly9naXRodWIuY29tL0JlaUtlSmllRGVMaXVMYW5nTWFv" title="欢迎关注我的 GitHub" aria-label="欢迎关注我的 GitHub"><svg width="80" height="80" viewBox="0 0 250 250" aria-hidden="true"><path d="M0,0 L115,115 L130,115 L142,142 L250,250 L250,0 Z"></path><path d="M128.3,109.0 C113.8,99.7 119.0,89.6 119.0,89.6 C122.0,82.7 120.5,78.6 120.5,78.6 C119.2,72.0 123.4,76.3 123.4,76.3 C127.3,80.9 125.5,87.3 125.5,87.3 C122.9,97.6 130.6,101.9 134.4,103.2" fill="currentColor" style="transform-origin: 130px 106px;" class="octo-arm"></path><path d="M115.0,115.0 C114.9,115.1 118.7,116.5 119.8,115.4 L133.7,101.6 C136.9,99.2 139.9,98.4 142.2,98.6 C133.8,88.0 127.5,74.4 143.8,58.0 C148.5,53.4 154.0,51.2 159.7,51.0 C160.3,49.4 163.2,43.6 171.4,40.1 C171.4,40.1 176.1,42.5 178.8,56.2 C183.1,58.6 187.2,61.8 190.9,65.4 C194.5,69.0 197.7,73.2 200.1,77.6 C213.8,80.2 216.3,84.9 216.3,84.9 C212.7,93.1 206.9,96.0 205.4,96.6 C205.1,102.4 203.0,107.8 198.3,112.5 C181.9,128.9 168.3,122.5 157.7,114.1 C157.9,116.9 156.7,120.9 152.7,124.9 L141.0,136.5 C139.8,137.7 141.6,141.9 141.8,141.8 Z" fill="currentColor" class="octo-body"></path></svg></span>
+
+
+    <main class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          
+
+          <div class="content">
+            
+
+  <div class="posts-expand">
+      
+  
+  
+  <article itemscope="" itemtype="http://schema.org/Article" class="post-block " lang="zh-CN">
+    <link itemprop="mainEntityOfPage" href="https://www.beikejiedeliulangmao.top/container/kubernetes/introduction/">
+
+    <span hidden="" itemprop="author" itemscope="" itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.jpg">
+      <meta itemprop="name" content="贝克街的流浪猫">
+      <meta itemprop="description" content="贝贝猫">
+    </span>
+
+    <span hidden="" itemprop="publisher" itemscope="" itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="贝克街的流浪猫">
+    </span>
+      <header class="post-header">
+        <h2 class="post-title" itemprop="name headline">
+          Kubernetes 简介
+        </h2>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="fa fa-calendar-o"></i>
+              </span>
+              <span class="post-meta-item-text">发表于</span>
+
+              <time title="创建时间：2019-09-20 11:11:52" itemprop="dateCreated datePublished" datetime="2019-09-20T11:11:52+08:00">2019-09-20</time>
+            </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="fa fa-folder-o"></i>
+              </span>
+              <span class="post-meta-item-text">分类于</span>
+                <span itemprop="about" itemscope="" itemtype="http://schema.org/Thing">
+                  <a href="/categories/Container/" itemprop="url" rel="index">
+                    <span itemprop="name">Container</span>
+                  </a>
+                </span>
+                  ，
+                <span itemprop="about" itemscope="" itemtype="http://schema.org/Thing">
+                  <a href="/categories/Container/Kubernetes/" itemprop="url" rel="index">
+                    <span itemprop="name">Kubernetes</span>
+                  </a>
+                </span>
+            </span>
+
+          
+            <span id="/container/kubernetes/introduction/" class="post-meta-item leancloud_visitors" data-flag-title="Kubernetes 简介" title="阅读次数">
+              <span class="post-meta-item-icon">
+                <i class="fa fa-eye"></i>
+              </span>
+              <span class="post-meta-item-text">阅读次数：</span>
+              <span class="leancloud-visitors-count"></span>
+            </span><br>
+            <span class="post-meta-item" title="本文字数">
+              <span class="post-meta-item-icon">
+                <i class="fa fa-file-word-o"></i>
+              </span>
+                <span class="post-meta-item-text">本文字数：</span>
+              <span>22k</span>
+            </span>
+            <span class="post-meta-item" title="阅读时长">
+              <span class="post-meta-item-icon">
+                <i class="fa fa-clock-o"></i>
+              </span>
+                <span class="post-meta-item-text">阅读时长 ≈</span>
+              <span>20 分钟</span>
+            </span>
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+        <h2 id="引言"><a href="#引言" class="headerlink" title="引言"></a>引言</h2><p>月初公司内云计算团队组织了一次 Workshop，介绍了一下如何使用他们的 Kubernetes 产品，并带着我们实践了一下。感觉 Kubernetes 相较于我们现在使用的部署模式，方便了很多，虽然我们现在的系统使用场景并不适合使用 Kubernetes，但是说不定以后就能用到它了，所以我就深入的研究了一下 Kubernetes 的使用和实现机理，希望能给大家带来帮助。本文作为 Kubernetes 系列文章的开篇，着重介绍一下 Kubernetes 是什么以及简单的使用方式，更多关于 Kubernetes 的介绍均收录于<a href="https://www.beikejiedeliulangmao.top/categories/Container/Kubernetes">&lt;Kubernetes系列文章&gt;</a>中。</p>
+<a id="more"></a>
+
+<h2 id="介绍"><a href="#介绍" class="headerlink" title="介绍"></a>介绍</h2><h3 id="背景"><a href="#背景" class="headerlink" title="背景"></a>背景</h3><p>在过去，多数的应用都是大型单体应用，以单个进程或几个进程的方式，运行于几台服务器之上。这些应用的发布周期长，而且迭代也不频繁。每个发布周期结束前，开发者会把应用程序打包后交付给运维团队，运维人员再处理部署、监控事件，并且在硬件发生故障时手动迁移应用。<br><img src="/images/loading-cat.gif" data-original="https://bbm-hexo.oss-accelerate.aliyuncs.com/images/kubernetes/single-2-microservice.png" alt="single-2-microservice"><br>今天，大型单体应用正被逐渐分解成小的、可独立运行的组件，我们称之为微服务。微服务彼此之间解耦，所以它们可以被独立开发、部署、升级、伸缩。这使得我们可以对每一个微服务实现快速迭代，并且迭代的速度可以和市场需求变化的速度保持一致。</p>
+<p>但是，随着部署组件的增多和数据中心的增长，配置、管理并保持系统的正常运行变得越来越困难。如果我们想要获得足够高的资源利用率并降低硬件成本，把组件部署在什么地方变得越来越难以决策。手动做所有的事情，显然不太可行。我们需要一些自动化的措施，包括自动调度、配置、监管和故障处理。这正是 Kubernetes 的用武之地。</p>
+<p>Kubernetes 使开发者可以自主部署应用，并且控制部署的频率，完全脱离运维团队的帮助。Kubernetes 同时能让运维团队监控整个系统，并且在硬件故障时重新调度应用。系统管理员的工作重心，从监管应用转移到了监管 Kubernetes，以及剩余的系统资源，因为 Kubernetes 会帮助监管所有的应用。</p>
+<p>正如己经提到的，一个微服务架构中的组件不仅被独立部署，也被独立开发。因为它们的独立性，出现不同的团队开发不同的组件是很正常的事实，每个团队都有可能使用不同的库并在需求升级时替换它们。如图所示，因为组件之间依赖的差异性，应用程序需要同一个库的不同版本是不可避免的。<br><img src="/images/loading-cat.gif" data-original="https://bbm-hexo.oss-accelerate.aliyuncs.com/images/kubernetes/lib-different.png" alt="lib-different"><br>部署动态链接的应用需要不同版本的共享库，或者需要其他特殊环境，在生产服务器部署并管理这种应用很快会成为运维团队的噩梦。需要在同一个主机上部署的组件数量越大，满足这些组件的所有需求就越难。为了减少这种问题，最理想的做法是让应用在开发和生产阶段可以运行在完全一样的环境下，它们有完全一样的操作系统、库、系统配置、网络环境和其他所有的条件。你也不想让这个环境随着时间推移而改变。如果可能，你想要确保在一台服务器上部署新的应用时，不会影响到机器上已有的应用。</p>
+<p>在最近几年中，我们看到了应用在开发流程和生产运维流程中的变化。在过去，开发团队的任务是创建应用并交付给运维团队，然后运维团队部署应用并使它运行。但是现在，公司都意识到，让同一个团队参与应用的开发、部署、运维的整个生命周期更好。这意味着开发者、QA 和运维团队彼此之间的合作需要贯穿整个流程。这种实践被称为 DevOps。</p>
+<p>正如你所看到的，Kubernetes 能让我们实现所有这些想法。通过对实际硬件做抽象，然后将自身暴露成一个平台，用于部署和运行应用程序。它允许开发者自己配置和部署应用程序，而不需要系统管理员的任何帮助，让系统管理员聚焦于保持底层基础设施运转正常的同时，不需要关注实际运行在平台上的应用程序。</p>
+<h3 id="容器"><a href="#容器" class="headerlink" title="容器"></a>容器</h3><p>Kubernetes 使用 Linux 容器技术来提供应用的隔离，所以在钻研 Kubernetes 之前，需要通过熟悉容器的基本知识来更加深入地理解 Kubernetes, 包括认识到存在的容器技术分支，诸如 Docker 或者 rkt。</p>
+<p>在前面我们看到在同一台机器上运行的不同组件需要不同的、可能存在冲突的依赖库版本，或者是其他的不同环境需求。</p>
+<p>当一个应用程序仅由较少数量的大组件构成时，完全可以接受给每个组件分配专用的虚拟机，以及通过给每个组件提供自己的操作系统实例来隔离它们的环境。但是当这些组件开始变小且数量开始增长时，如果你不想浪费硬件资源，又想持续压低硬件成本，那就不能给每个组件配置一个虚拟机了。但是这还不仅仅是浪费硬件资源，因为每个虚拟机都需要被单独配置和管理，所以增加虚拟机的数量也就导致了人力资源的浪费，因为这增加了系统管理员的工作负担。</p>
+<p>开发者不是使用虚拟机来隔离每个微服务环境，而是正在转向 Linux 容器技术。容器允许你在同一台机器上运行多个服务，不仅提供不同的环境给每个服务，而且将它们互相隔离。容器类似虚拟机，但开销小很多。它允许在相同的硬件上运行更多数量的组件。主要是因为每个虚拟机需要运行自己的一组系统进程，这就产生了除组件进程消耗以外的额外计算资源损耗。从另一方面说，一个容器仅仅是运行在宿主机上被隔离的单个进程，仅消耗应用容器消耗的资源，不会有其他进程的开销。<br><img src="/images/loading-cat.gif" data-original="https://bbm-hexo.oss-accelerate.aliyuncs.com/images/kubernetes/vm-container.png" alt="vm-container"><br>当你在一台主机上运行三个虚拟机的时候，你拥有了三个完全分离的操作系统，它们运行并共享一台裸机。在那些虚拟机之下是宿主机的操作系统与一个管理程序，它将物理硬件资源分成较小部分的虚拟硬件资源，从而被每个虚拟机里的操作系统使用。运行在那些虚拟机里的应用程序会执行虚拟机操作系统的系统调用，然后虚拟机内核会通过管理程序在宿主机上的物理 CPU 来执行 x86 指令。<br><img src="/images/loading-cat.gif" data-original="https://bbm-hexo.oss-accelerate.aliyuncs.com/images/kubernetes/vm-arch.png" alt="vm-arch"><br>多个容器则会完全执行运行在宿主机上的同一个内核的系统调用，此内核是唯一一个在宿主操作系统上执行 x86 指令的内核。 CPU 也不需要做任何对虚拟机能做那样的虚拟化。<br><img src="/images/loading-cat.gif" data-original="https://bbm-hexo.oss-accelerate.aliyuncs.com/images/kubernetes/container-arch.png" alt="container-arch"><br>虚拟机的主要好处是它们提供完全隔离的环境，因为每个虚拟机运行在它自己的 Linux 内核上，而容器都是调用同一个内核，这自然会有安全隐患。但是，为了在同一台机器上运行大量被隔离的进程，容器因它的低消耗而成为一个更好的选择。记住，每个虚拟机运行它自己的一组系统服务，而容器则不会，因为它们都运行在同一个操作系统上。那也就意味着运行一个容器不用像虚拟机那样要开机，它的进程可以很快被启动。</p>
+<p>那么，容器技术是如何在同一个操作系统上隔离各个进程的呢。有两个机制可用:第一个是 Linux 命名空间，它使每个进程只看到它自己的系统视图(文件、进程、网络接口、主机名等);第二个是 Linux 控制组(cgroups), 它限制了进程能使用的资源量(CPU、 内存、 网络带宽等)。</p>
+<h3 id="Kubernetes"><a href="#Kubernetes" class="headerlink" title="Kubernetes"></a>Kubernetes</h3><p>Kubernetes 是一个软件系统，它允许你在其上很容易地部署和管理容器化的应用。它依赖于 Linux 容器的特性来运行异构应用，而无须知道这些应用的内部详情，也不需要手动将这些应用部署到每台机器。Kubernetes 使你在数以千计的电脑节点上运行软件时就像所有这些节点是单个大节点一样。它将底层基础设施抽象，这样做同时简化了应用的开发、部署，以及对开发和运维团队的管理。</p>
+<p>下图展示了一幅最简单的 Kubernetes 系统图。整个系统由 一个主节点和若干个工作节点组成。 开发者把一个应用列表提交到主节点，Kubernetes 会将它们部署到集群的工作节点。组件被部署在哪个节点对于开发者和系统管理员来说都不用关心。<br><img src="/images/loading-cat.gif" data-original="https://bbm-hexo.oss-accelerate.aliyuncs.com/images/kubernetes/sample-k8s-arch.png" alt="sample-k8s-arch"><br>开发者能指定一些应用必须一起运行，Kubernetes 将会在一个工作节点上部署它们。其他的将被分散部署到集群中，但是不管部署在哪儿，它们都能以相同的方式互相通信。</p>
+<p>Kubernetes 可以被当作集群的一个操作系统来看待。它降低了开发者不得不在他们的应用里实现一些和基础设施相关服务的心智负担。他们现在依赖于 Kubernetes 来提供这些服务，包括服务发现、扩容、负载均衡、自恢复，甚至领导者的选举。Kubernetes 还能在任何时间迁移应用并通过混合和匹配应用来获得比手动调度高很多的资源利用率。</p>
+<p>我们已经知道了 Kubernetes 的工作方式，现在让我们近距离看一下 Kubernetes 集群的组成。在硬件层面，Kubernetes 集群由两种节点组成：</p>
+<ul>
+<li>主节点：它承载着 Kubernetes 控制和管理整个集群系统的控制面板</li>
+<li>工作节点：它们运行用户实际部署的应用</li>
+</ul>
+<p><img src="/images/loading-cat.gif" data-original="https://bbm-hexo.oss-accelerate.aliyuncs.com/images/kubernetes/k8s-nodes.png" alt="k8s-nodes"><br>控制面板用于控制集群并使它工作。它包含多个组件，组件可以运行在单个主节点上或者通过副本分别部署在多个主节点以确保高可用性。这些组件是:</p>
+<ul>
+<li>Kubernetes API 服务器：你和其他控制面板组件都要和它通信</li>
+<li>Scheduler：它调度你的应用(为应用的每个可部署组件分配一个工作节点〕</li>
+<li>Controller Manager：它执行集群级别的功能，如复制组件、持续跟踪工作节点、处理节点失败等</li>
+<li>etcd：一个可靠的分布式数据存储，它能持久化存储集群配置</li>
+</ul>
+<p>控制面板的组件持有并控制集群状态，但是它们不运行你的应用程序。这是由工作节点完成的。工作节点是运行容器化应用的机器。运行、监控和管理应用服务的任务是由以下组件完成的:</p>
+<ul>
+<li>容器：Docker、rtk 或其他的容器</li>
+<li>Kubelet：它与 API 服务器通信，并管理它所在节点的容器</li>
+<li>Kubernetes Service Proxy (kube-proxy)，它负责组件之间的负载均衡网络流量</li>
+</ul>
+<p>为了在 Kubernetes 中运行应用，首先需要将应用打包进一个或多个容器镜像，再将那些镜像推送到镜像仓库，然后将应用的描述发布到 Kubernetes API 服务器。</p>
+<p>该描述包括诸如容器镜像或者包含应用程序组件的容器镜像、这些组件如何相互关联，以及哪些组件需要同时运行在同一个节点上和哪些组件不需要同时运行等信息。此外，该描述还包括哪些组件为内部或外部客户提供服务且应该通过单个 IP 地址暴露，并使其他组件可以发现。</p>
+<p>当 API 服务器处理应用的描述时，调度器调度指定组（Pod）的容器到可用的工作节点上，调度是基于每组（Pod）所需的计算资源，以及调度时每个节点未分配的资源。然后，那些节点上的 Kubelet 指示容器运行时(例如 Docker)拉取所需的镜像并运行容器。这里提到的”组”概念，在 Kubernetes 中被称为 Pod，同一个 Pod 可以包含多个镜像，但是同一个 Pod 中的所有进程就如同运行在同一个物理机一样相互可以看见，它们之间未做隔离。</p>
+<p>一旦应用程序运行起来，Kubernetes 就会不断地确认应用程序的部署状态始终与你提供的描述相匹配。例如，如果你指出你需要运行五个 web 服务器实例，那么 Kubernetes 总是保持正好运行五个实例。如果实例之一停止了正常工作，比如当进程崩溃或停止响应时，Kubernetes 将自动重启它。<br><img src="/images/loading-cat.gif" data-original="https://bbm-hexo.oss-accelerate.aliyuncs.com/images/kubernetes/k8s-work.png" alt="k8s-work"><br>当应用程序运行时，可以决定要增加或减少副本量，而 Kubernetes 将分别增加附加的或停止多余的副本。甚至可以把决定最佳副本数目的工作交给 Kubernetes。它可以根据实时指标(如 CPU 负载、内存消耗、每秒查询或应用程序公开的任何其他指标)自动调整副本数。</p>
+<p>我们已经说过，Kubernetes 中的容器可能是动态的，它随时可能从一台机器上被销毁，然后在另一台机器上重新启动。那么当容器在集群内频繁调度时，它们该如何正确使用这个容器?当这些容器被复制并分布在整个集群中时，客户端如何连接到提供服务的容器呢?</p>
+<p>为了让客户能够轻松地找到提供特定服务的容器，可以告诉 Kubernetes 哪些容 器提供相同的服务，而 Kubernetes 将通过一个静态 IP 地址暴露所有容器，并将该地址暴露给集群中运行的所有应用程序。您可以通过环境变量或者 DNS 服务来共享服务 IP。kube-proxy 将确保到服务能连接到对应的容器上。</p>
+<p>Kubernetes 的优点：</p>
+<ul>
+<li>简化应用程序部署</li>
+<li>更好地利用硬件</li>
+<li>健康检查和自修复</li>
+<li>自动扩容</li>
+</ul>
+<h2 id="试玩环节"><a href="#试玩环节" class="headerlink" title="试玩环节"></a>试玩环节</h2><p>在深入学习 Kubernetes 的概念之前，先来看看如何创建一个简单的应用，把它打包成容器镜像并在远端的 Kubernetes 集群中运行。这会对整个 Kubernetes 体系有较好的了解，并且会让接下来几个章节对 Kubernetes 基本概念的学习变得简单。</p>
+<h3 id="Docker"><a href="#Docker" class="headerlink" title="Docker"></a>Docker</h3><p>正如在之前章节所介绍的，在 Kubernetes 中运行应用需要打包好的容器镜像。本节将会对 Docker 的使用做简单的介绍。接下来将会介绍:</p>
+<ol>
+<li>安装 Docker 并运行第一个 “Hello world” 容器</li>
+<li>创建一个简单的 Node.js 应用并部署在 Docker 中</li>
+<li>把应用打包成可以独立运行的容器镜像</li>
+<li>基于镜像运行容器</li>
+<li>把镜像推送到 DockerHub，这样任何人在任何地方都可以使用</li>
+</ol>
+<p>首先，我们需要在 Linux 主机上安装 Docker，我使用了公司内部的云平台，申请了一台虚拟机，因为之后打算用它来做 Kubernetes 集群的节点（Kubernetes 的 master 节点需要至少 2 核 cpu），所以我选用的虚拟机配置如下：</p>
+<ul>
+<li>CPU：4 核</li>
+<li>内存：4G</li>
+<li>硬盘：60 GB SSD</li>
+<li>系统：CentOS 7.6</li>
+</ul>
+<p>第一步，安装并启动 Docker，并运行一个 busybox 的 “Hello world” 容器：</p>
+<figure class="highlight bash"><table><tbody><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># 使用 yum 安装 docker</span></span><br><span class="line">sudo yum install docker-1.13.1</span><br><span class="line"><span class="comment"># 启动 docker</span></span><br><span class="line">sudo systemctl start docker</span><br><span class="line"><span class="comment"># 修改本地 docker 监听的文件的权限</span></span><br><span class="line">sudo chmod 777 /var/run/docker.sock</span><br><span class="line"><span class="comment"># 运行 busybox 容器</span></span><br><span class="line">docker run busybox <span class="built_in">echo</span> <span class="string">"Hello world"</span></span><br></pre></td></tr></tbody></table></figure>
+
+<p>busybox 是一个单一可执行文件，包含多种标准 UNIX 命令行工具，如: echo、ls、 gzip 等。在这一步中，我们仅通过一条命令，就下载运行了一个完整的”应用”，而不用做其他事情。其背后的原理是：首先，Docker会检查 busybox:latest 镜像是否己经存在于本机。如果没有，Docker 会从 <code>http://docker.io</code> 的 Docker 镜像中心拉取镜像。镜像下载到本机之后，Docker 基于这个镜像创建一个容器并在容器中运行命令。echo 命令打印文字到标准输出流，然后进程终止，容器停止运行。<br><img src="/images/loading-cat.gif" data-original="https://bbm-hexo.oss-accelerate.aliyuncs.com/images/kubernetes/run-docker-busybox.png" alt="run-docker-busybox"><br>运行其他容器镜像和上述过程是一样的，您只需要执行<code>docker run &lt;image&gt;</code>即可。Docker 使用 tag 来表示同一个镜像的不同版本，默认情况下会使用最新的镜像，当您想要执行指定版本的镜像时，可以执行<code>docker run &lt;image&gt;:&lt;tag&gt;</code>。</p>
+<p>接下来，创建一个简单的 Node.js 应用并打包部署在 Docker 中：</p>
+<p>该应用会将自己的主机名作为 HTTP 请求的响应内容。</p>
+<figure class="highlight javascript"><table><tbody><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// app.js</span></span><br><span class="line"><span class="keyword">const</span> http = <span class="built_in">require</span>(<span class="string">'http'</span>);</span><br><span class="line"><span class="keyword">const</span> os = <span class="built_in">require</span> (<span class="string">'os'</span>);</span><br><span class="line"><span class="built_in">console</span>.log(<span class="string">"Kubi a server starting ... "</span>);</span><br><span class="line"><span class="keyword">var</span> handler = <span class="function"><span class="keyword">function</span>(<span class="params">request, response</span>) </span>{</span><br><span class="line">  <span class="built_in">console</span>.log(<span class="string">"Recei ved request from "</span> + request.connection.remoteAddress);</span><br><span class="line">  response.writeHead(<span class="number">200</span>);</span><br><span class="line">  response.end(<span class="string">"You've hit "</span> + os.hostname() + <span class="string">"\n"</span>);</span><br><span class="line">};</span><br><span class="line"><span class="keyword">var</span> www = http.createServer(handler);</span><br><span class="line">www.listen(<span class="number">8080</span>);</span><br></pre></td></tr></tbody></table></figure>
+
+<p>为了将上述的 node 应用打包成镜像，我们还需要在 app.js 的相同路径下创建一个 Dockerfile 文件，它包含了构建镜像的指令：</p>
+<figure class="highlight dockerfile"><table><tbody><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">FROM</span> node:<span class="number">7</span></span><br><span class="line"><span class="keyword">ADD</span><span class="bash"> app.js /app.js</span></span><br><span class="line"><span class="keyword">ENTRYPOINT</span><span class="bash"> [<span class="string">"node"</span>, <span class="string">"app.js"</span>]</span></span><br></pre></td></tr></tbody></table></figure>
+
+<p>From 行定义了镜像的起始内容(构建所基于的基础镜像)。是 node 镜像的 tag 7 版本。第二行中把 app.js 文件从本地文件夹添加到镜像的根目录，保持 app.js 这个文件名。最后一行定义了当镜像被运行时需要被执行的命令，这个例子中，命令是 <code>node app.js</code>。</p>
+<p>构建好 app.js 和 Dockerfile 后，只需要执行<code>docker build -t kubia .</code>，Docker 就会自动帮我们把镜像创建出来。<br><img src="/images/loading-cat.gif" data-original="https://bbm-hexo.oss-accelerate.aliyuncs.com/images/kubernetes/docker-build.png" alt="docker-build"><br>镜像不是一个大的二进制块，而是由多层组成的，不同镜像可能会共享分层，这会让存储和传输变得更加高效。你或许会认为每个 Dockerfile 只创建一个新层，但是并不是这样的。构建镜像时，Dockerfile 中每一条单独的指令都会创建一个新层。下图就展示了 Docker 的分层思想，其中也展示了一个名 other:last 的镜像，它就和我们正在构建的镜像共享了部分分层。<br><img src="/images/loading-cat.gif" data-original="https://bbm-hexo.oss-accelerate.aliyuncs.com/images/kubernetes/docker-build-level.png" alt="docker-build-level"><br>构建完成后，新的镜像会存储在本地，我们可以使用<code>docker images</code>查看刚才构建好的镜像, 可以通过如下命令运行刚才构建出来的镜像：</p>
+<figure class="highlight bash"><table><tbody><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line">docker run --name kubia-container -p 8080:8080 -d kubia</span><br><span class="line"><span class="comment"># 返回 container id</span></span><br><span class="line">curl http://localhost:8080</span><br><span class="line"><span class="comment"># 查看运行中的容器</span></span><br><span class="line">docker ps</span><br><span class="line"><span class="comment"># 查看更详细的容器描述</span></span><br><span class="line">docker inspect kubia-container</span><br></pre></td></tr></tbody></table></figure>
+
+<p>这条命令告知 Docker 基于 kubia 镜像创建一个叫 kubia-container 的新容器。这个容器与命令行分离(-d 标志)，这意味着在后台运行。本机上的 8080 端口会被映射到容器内的 8080 端口(-p 8080:8080)，所以可以通过 <code>http://localhost:8080</code> 访问这个应用。通过执行<code>docker ps</code>我们可以发现，容器内的主机名实际上就是容器 ID。</p>
+<p>我们可以通过如下命令进入到容器内部，该命令中 -i 确保准输入流保持开放。需要在 shell 中输入命令。-t, 分配一个伪终端(TTY)。</p>
+<figure class="highlight bash"><table><tbody><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># 进入容器内部</span></span><br><span class="line">docker <span class="built_in">exec</span> -it kubia-container bash</span><br><span class="line"><span class="comment"># 查看容器内进程</span></span><br><span class="line">ps -aux</span><br><span class="line"><span class="comment"># 查看容器内文件系统</span></span><br><span class="line">ls</span><br><span class="line"><span class="comment"># 退出容器 shell</span></span><br><span class="line"><span class="built_in">exit</span></span><br><span class="line"><span class="comment"># 查看宿主机是否存在容器内的进程</span></span><br><span class="line">ps -aux|grep app.js</span><br><span class="line"><span class="comment"># 停止容器</span></span><br><span class="line">docker stop kubia-container</span><br><span class="line"><span class="comment"># 删除容器</span></span><br><span class="line">docker rm kubia-container</span><br></pre></td></tr></tbody></table></figure>
+
+<p>通过对比容器内的进程和宿主机进程，你就可以证明运行在容器中的进程是运行在主机操作系统上的。如果你足够敏锐，会发现进程的 ID 在容器中与主机上不同。容器使用独立的 PID Linux 命名空间并且有着独立的系列号，完全独立于宿主机进程树。正如拥有独立的进程树一样，每个容器也拥有独立的文件系统。在容器内列出根目录的内容，只会展示容器内的文件，包括镜像内的所有文件，再加上容器运行时创建的任何文件。</p>
+<p>最后，我们试一试将镜像推送到镜像仓库中：</p>
+<figure class="highlight bash"><table><tbody><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># 定义镜像的新 tag，&lt;docker hub id&gt;/kubia</span></span><br><span class="line">docker tag kubia beikejiedeliulangmao/kubia</span><br><span class="line"><span class="comment"># 登录 docker hub io，并输入账号密码</span></span><br><span class="line">docker login</span><br><span class="line"><span class="comment"># 推送本地镜像到 docker 镜像仓库中</span></span><br><span class="line">docker push beikejiedeliulangmao/kubia</span><br></pre></td></tr></tbody></table></figure>
+
+<p>如果您和我一样上述操作都执行成功的话，应该就能在 docker hub 中看到刚才提交的镜像了，最后我们确认一下直接从仓库下载并运行镜像的流程是否通畅：</p>
+<figure class="highlight bash"><table><tbody><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># 先删除本地的镜像，确保后面的指令从镜像仓库下载镜像，dcb98c6ae282 是我这里的镜像 id</span></span><br><span class="line">docker image rm dcb98c6ae282 -f</span><br><span class="line"><span class="comment"># 运行 docker 仓库中的镜像</span></span><br><span class="line">docker run -p 8080:8080 -d beikejiedeliulangmao/kubia</span><br><span class="line"><span class="comment"># 测试</span></span><br><span class="line">curl http://localhost:8080</span><br></pre></td></tr></tbody></table></figure>
+
+<p>很棒，一切都运转正常，以后应用无论在哪运行，都能确保在完全一致的环境中。我们不用再关心主机是否安装了应用下层依赖的库（Node.js），因为当应用启动后，只会使用镜像内部的 Node。上述的流程，就会是日后使用 Kubernetes 发布应用的例行工作，开发完成-&gt; 构建新的镜像 -&gt; 提交到镜像仓库 -&gt; 使用 Kubernetes 发布最新镜像中的应用。</p>
+<h3 id="Kubernetes-集群"><a href="#Kubernetes-集群" class="headerlink" title="Kubernetes 集群"></a>Kubernetes 集群</h3><p>现在，应用被打包在一个容器镜像中，并通过 Docker Hub 给 Kubernetes 使用。但是，我们还没有自己的 Kubernetes 集群，所以，在进行 Kubernetes 发布应用的试玩环节前，我们先构建一个自己的 Kubernetes 集群。为了让本文更具实际指导意义，我们将构建一个多节点的 Kubernetes 集群，而不是使用第三方云平台的工具或者 Minikube 这样的单机构建工具。</p>
+<p>我们的目标集群规模如下：</p>
+<ul>
+<li>Master： 3 台</li>
+<li>Etcd：3 台</li>
+<li>Worker： 3 台</li>
+</ul>
+<p>为了达到本节的试玩目标，我又申请了 8 台虚拟机，它们的配置都和 Docker 试玩时使用的虚拟机配置相同。因为我们的云服务并不提供服务器镜像功能，所以准备好机器后，我分别在每台机器上执行了如下准备命令：</p>
+<figure class="highlight bash"><table><tbody><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># 切换到 root 身份</span></span><br><span class="line">sudo -i</span><br><span class="line"><span class="comment"># 临时性地禁用 SELinux，因为开着它会出现一些权限问题，解决起来很麻烦，所以指导手册上都建议关闭</span></span><br><span class="line">setenforce 0</span><br><span class="line"><span class="comment"># 修改系统配置文件永久禁用 SELinux, 修改 SeLinux 配置为 SELINUX=permissive, 因为我们的虚拟机默认都是关闭该组件，所以我这里跳过该过程</span></span><br><span class="line">sed -i <span class="string">'s/^SELINUX=enforcing$/SELINUX=permissive/'</span> /etc/selinux/config</span><br><span class="line"><span class="comment"># 为了避免遇到防火墙相关问题，禁用防火墙</span></span><br><span class="line">systemctl <span class="built_in">disable</span> firewalld &amp;&amp; systemctl stop firewalld</span><br><span class="line"><span class="comment"># 在 yum 仓库中添加 Kubernetes</span></span><br><span class="line">cat &lt;&lt;EOF &gt; /etc/yum.repos.d/kubernetes.repo</span><br><span class="line">[kubernetes]</span><br><span class="line">name=Kubernetes</span><br><span class="line">baseurl=https://packages.cloud.google.com/yum/repos/kubernetes-el7-x86_64</span><br><span class="line">enabled=1</span><br><span class="line">gpgcheck=1</span><br><span class="line">repo_gpgcheck=1</span><br><span class="line">gpgkey=https://packages.cloud.google.com/yum/doc/yum-key.gpg https://packages.cloud.google.com/yum/doc/rpm-package-key.gpg</span><br><span class="line">EOF</span><br><span class="line"><span class="comment"># 安装各种组件：容器运行时，Kubernetes 节点代理，集群管理工具，交互式命令行工具，网络接口插件</span></span><br><span class="line">yum install -y docker-1.13.1 kubelet-1.16.0 kubeadm-1.16.0 kubectl-1.16.0 kubernetes-cni-0.7.5</span><br><span class="line"><span class="comment"># 开启 docker</span></span><br><span class="line">systemctl <span class="built_in">enable</span> docker &amp;&amp; systemctl start docker</span><br><span class="line"><span class="comment"># 开启节点代理</span></span><br><span class="line">systemctl <span class="built_in">enable</span> kubelet &amp;&amp; systemctl start kubelet</span><br><span class="line"><span class="comment"># 为了确保 iptable 的使用设置相关参数</span></span><br><span class="line">cat &lt;&lt;EOF &gt;  /etc/sysctl.d/k8s.conf</span><br><span class="line">net.bridge.bridge-nf-call-ip6tables = 1</span><br><span class="line">net.ipv4.ip_forward                 = 1</span><br><span class="line">net.bridge.bridge-nf-call-iptables = 1</span><br><span class="line">EOF</span><br><span class="line">sysctl --system</span><br><span class="line"><span class="comment"># 禁用交换分区</span></span><br><span class="line">swapoff -a &amp;&amp; sed -i <span class="string">'/swap/s/^/#/'</span> /etc/fstab</span><br></pre></td></tr></tbody></table></figure>
+
+<p>因为默认 Kubernetes 集群的 etcd 是和控制节点运行在一起的，这样当任意一台控制节点宕机时，也就意味着一个 etcd 节点也会宕机，为了让整个集群更加高可用，所以本例中，我们配置并搭设独立的 etcd 集群，这两种方案的对比可以参考<span class="exturl" data-url="aHR0cHM6Ly9rdWJlcm5ldGVzLmlvL2RvY3Mvc2V0dXAvcHJvZHVjdGlvbi1lbnZpcm9ubWVudC90b29scy9rdWJlYWRtL2hhLXRvcG9sb2d5LyM=" title="https://kubernetes.io/docs/setup/production-environment/tools/kubeadm/ha-topology/#">官方文档<i class="fa fa-external-link"></i></span>。不过好在 kubeadm 中包含了搭建 etcd 集群的基本工具，我们可以快速的构建起独立的 etcd 集群。</p>
+<h4 id="搭建-etcd-集群"><a href="#搭建-etcd-集群" class="headerlink" title="搭建 etcd 集群"></a>搭建 etcd 集群</h4><p>为了搭建独立的 etcd 集群，我们需要重新配置 kubelet 的参数:</p>
+<figure class="highlight bash"><table><tbody><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line">mkdir /etc/systemd/system/kubelet.service.d/</span><br><span class="line">cat &lt;&lt; EOF &gt; /etc/systemd/system/kubelet.service.d/20-etcd-service-manager.conf</span><br><span class="line">[Service]</span><br><span class="line">ExecStart=</span><br><span class="line"><span class="comment">#  Replace "systemd" with the cgroup driver of your container runtime. The default value in the kubelet is "cgroupfs".</span></span><br><span class="line">ExecStart=/usr/bin/kubelet --address=127.0.0.1 --pod-manifest-path=/etc/kubernetes/manifests --cgroup-driver=systemd</span><br><span class="line">Restart=always</span><br><span class="line">EOF</span><br><span class="line"></span><br><span class="line">systemctl daemon-reload</span><br><span class="line">systemctl restart kubelet</span><br></pre></td></tr></tbody></table></figure>
+
+<p>然后，我们使用如下脚本给 kubeadm 创建配置文件：</p>
+<figure class="highlight bash"><table><tbody><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># 直接在命令行执行即可不需要放入脚本文件执行</span></span><br><span class="line"><span class="comment"># Update HOST0, HOST1, and HOST2 with the IPs or resolvable names of your hosts</span></span><br><span class="line"><span class="built_in">export</span> HOST0=10.x.x.x</span><br><span class="line"><span class="built_in">export</span> HOST1=10.x.x.x</span><br><span class="line"><span class="built_in">export</span> HOST2=10.x.x.x</span><br><span class="line"></span><br><span class="line"><span class="comment"># Create temp directories to store files that will end up on other hosts.</span></span><br><span class="line">mkdir -p /tmp/<span class="variable">${HOST0}</span>/ /tmp/<span class="variable">${HOST1}</span>/ /tmp/<span class="variable">${HOST2}</span>/</span><br><span class="line"></span><br><span class="line">ETCDHOSTS=(<span class="variable">${HOST0}</span> <span class="variable">${HOST1}</span> <span class="variable">${HOST2}</span>)</span><br><span class="line">NAMES=(<span class="string">"infra0"</span> <span class="string">"infra1"</span> <span class="string">"infra2"</span>)</span><br><span class="line"></span><br><span class="line"><span class="keyword">for</span> i <span class="keyword">in</span> <span class="string">"<span class="variable">${!ETCDHOSTS[@]}</span>"</span>; <span class="keyword">do</span></span><br><span class="line">HOST=<span class="variable">${ETCDHOSTS[$i]}</span></span><br><span class="line">NAME=<span class="variable">${NAMES[$i]}</span></span><br><span class="line">cat &lt;&lt; EOF &gt; /tmp/<span class="variable">${HOST}</span>/kubeadmcfg.yaml</span><br><span class="line">apiVersion: <span class="string">"kubeadm.k8s.io/v1beta2"</span></span><br><span class="line">kind: ClusterConfiguration</span><br><span class="line">etcd:</span><br><span class="line">    <span class="built_in">local</span>:</span><br><span class="line">        serverCertSANs:</span><br><span class="line">        - <span class="string">"<span class="variable">${HOST}</span>"</span></span><br><span class="line">        peerCertSANs:</span><br><span class="line">        - <span class="string">"<span class="variable">${HOST}</span>"</span></span><br><span class="line">        extraArgs:</span><br><span class="line">            initial-cluster: <span class="variable">${NAMES[0]}</span>=https://<span class="variable">${ETCDHOSTS[0]}</span>:2380,<span class="variable">${NAMES[1]}</span>=https://<span class="variable">${ETCDHOSTS[1]}</span>:2380,<span class="variable">${NAMES[2]}</span>=https://<span class="variable">${ETCDHOSTS[2]}</span>:2380</span><br><span class="line">            initial-cluster-state: new</span><br><span class="line">            name: <span class="variable">${NAME}</span></span><br><span class="line">            listen-peer-urls: https://<span class="variable">${HOST}</span>:2380</span><br><span class="line">            listen-client-urls: https://<span class="variable">${HOST}</span>:2379</span><br><span class="line">            advertise-client-urls: https://<span class="variable">${HOST}</span>:2379</span><br><span class="line">            initial-advertise-peer-urls: https://<span class="variable">${HOST}</span>:2380</span><br><span class="line">EOF</span><br><span class="line"><span class="keyword">done</span></span><br></pre></td></tr></tbody></table></figure>
+
+<p>如果您没有现成的身份认证秘钥对，就需要像我一样自己给 etcd 集群创建秘钥，我们可以在任意 etcd 节点上通过 kubeadm 创建，命令为<code>kubeadm init phase certs etcd-ca</code>，它会自动创建如下两个秘钥对：</p>
+<ul>
+<li>/etc/kubernetes/pki/etcd/ca.crt</li>
+<li>/etc/kubernetes/pki/etcd/ca.key</li>
+</ul>
+<p>接下来，我们需要将该秘钥拷贝到其他 etcd 节点上去，因为内部服务器不能直接使用 scp 拷贝文件，所以我手动将生成的秘钥对文件分别复制到了另外两台机器的相同路径。</p>
+<p>准备就绪后，我们要在这三台机器上分别启动 etcd。</p>
+<figure class="highlight bash"><table><tbody><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># 机器 1</span></span><br><span class="line">kubeadm init phase certs etcd-server --config=/tmp/<span class="variable">${HOST0}</span>/kubeadmcfg.yaml</span><br><span class="line">kubeadm init phase certs etcd-peer --config=/tmp/<span class="variable">${HOST0}</span>/kubeadmcfg.yaml</span><br><span class="line">kubeadm init phase certs etcd-healthcheck-client --config=/tmp/<span class="variable">${HOST0}</span>/kubeadmcfg.yaml</span><br><span class="line">kubeadm init phase certs apiserver-etcd-client --config=/tmp/<span class="variable">${HOST0}</span>/kubeadmcfg.yaml</span><br><span class="line"><span class="comment"># 机器 2</span></span><br><span class="line">kubeadm init phase certs etcd-server --config=/tmp/<span class="variable">${HOST1}</span>/kubeadmcfg.yaml</span><br><span class="line">kubeadm init phase certs etcd-peer --config=/tmp/<span class="variable">${HOST1}</span>/kubeadmcfg.yaml</span><br><span class="line">kubeadm init phase certs etcd-healthcheck-client --config=/tmp/<span class="variable">${HOST1}</span>/kubeadmcfg.yaml</span><br><span class="line">kubeadm init phase certs apiserver-etcd-client --config=/tmp/<span class="variable">${HOST1}</span>/kubeadmcfg.yaml</span><br><span class="line"><span class="comment"># 机器 3</span></span><br><span class="line">kubeadm init phase certs etcd-server --config=/tmp/<span class="variable">${HOST2}</span>/kubeadmcfg.yaml</span><br><span class="line">kubeadm init phase certs etcd-peer --config=/tmp/<span class="variable">${HOST2}</span>/kubeadmcfg.yaml</span><br><span class="line">kubeadm init phase certs etcd-healthcheck-client --config=/tmp/<span class="variable">${HOST2}</span>/kubeadmcfg.yaml</span><br><span class="line">kubeadm init phase certs apiserver-etcd-client --config=/tmp/<span class="variable">${HOST2}</span>/kubeadmcfg.yaml</span><br></pre></td></tr></tbody></table></figure>
+
+<p>当上述操作都顺利执行完毕后，确认一下各个 etcd 节点上的文件是否都型如下图，其中 HOST0 在每个机器上应该对应为该机器的 IP 地址：<br><img src="/images/loading-cat.gif" data-original="https://bbm-hexo.oss-accelerate.aliyuncs.com/images/kubernetes/etcd-files.png" alt="etcd-files"><br>最后，在每台机器上生成静态 pod 清单：</p>
+<figure class="highlight bash"><table><tbody><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># 机器 1，HOST0 是机器 1 的 ip 地址，下同</span></span><br><span class="line">kubeadm init phase etcd <span class="built_in">local</span> --config=/tmp/<span class="variable">${HOST0}</span>/kubeadmcfg.yaml</span><br><span class="line"><span class="comment">#机器 2</span></span><br><span class="line">kubeadm init phase etcd <span class="built_in">local</span> --config=/tmp/<span class="variable">${HOST1}</span>/kubeadmcfg.yaml</span><br><span class="line"><span class="comment"># 机器 3</span></span><br><span class="line">kubeadm init phase etcd <span class="built_in">local</span> --config=/tmp/<span class="variable">${HOST2}</span>/kubeadmcfg.yaml</span><br></pre></td></tr></tbody></table></figure>
+
+<p>这里大家可能会不太懂这个静态 pod 清单的意义。实际上，当 Kubernetes 的 kubelet 组件启动后，会监视本机的所有静态 pod 清单，并自动启动这些静态 pod 对应的容器，换言之，这些 etcd 节点上的 etcd 进程实际上是由 Kubernetes 托管的，它会保证每个节点上的 etcd 正常的在容器中运行，当前节点的 etcd 意外关闭时，kubelet 会自动恢复它。你可以大胆的通过 <code>docker stop</code>来关闭任意节点上的 etcd 容器，当你再执行 <code>docker ps</code>时，你就会发现当前节点的 etcd 实例已经被自动重启了。</p>
+<p>此外，我们还可以通过 etcdctl 来测试 etcd 的可用性：</p>
+<figure class="highlight bash"><table><tbody><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># 下面的 HOST0 需要修改为准备执行下列脚本的机器 IP</span></span><br><span class="line">docker run --rm -it \</span><br><span class="line">--net host \</span><br><span class="line">-v /etc/kubernetes:/etc/kubernetes quay.io/coreos/etcd:v3.2.24 etcdctl \</span><br><span class="line">--cert-file /etc/kubernetes/pki/etcd/peer.crt \</span><br><span class="line">--key-file /etc/kubernetes/pki/etcd/peer.key \</span><br><span class="line">--ca-file /etc/kubernetes/pki/etcd/ca.crt \</span><br><span class="line">--endpoints https://<span class="variable">${HOST0}</span>:2379 cluster-health</span><br><span class="line"><span class="comment"># 当集群启动后，您可以通过如下命令确认 Kubernetes 都在 etcd 中存储了什么内容</span></span><br><span class="line">docker run --rm -it -e <span class="string">"ETCDCTL_API=3"</span> \</span><br><span class="line">--net host  \</span><br><span class="line">-v /etc/kubernetes:/etc/kubernetes quay.io/coreos/etcd:v3.2.24 etcdctl  \</span><br><span class="line">--cert=/etc/kubernetes/pki/etcd/peer.crt  \</span><br><span class="line">--key=/etc/kubernetes/pki/etcd/peer.key  \</span><br><span class="line">--cacert=/etc/kubernetes/pki/etcd/ca.crt  \</span><br><span class="line">--endpoints=[https://<span class="variable">${HOST0}</span>:2379]  get / --prefix --keys-only</span><br></pre></td></tr></tbody></table></figure>
+
+<p>如果上述过程都正常完成的话，就说明 etcd 集群已经搭建好了，接下来我们搭建 Kubernetes 集群。</p>
+<h4 id="搭建控制节点"><a href="#搭建控制节点" class="headerlink" title="搭建控制节点"></a>搭建控制节点</h4><p>在这一步，我们得先把 etcd 服务的证书和 etcd 接口通讯的证书和秘钥拷贝到其中一个控制节点上，拷贝到一台就够了，其他控制节点在加入集群时会自动获取。要拷贝的文件列表如下：</p>
+<ul>
+<li>etcd 服务证书：/etc/kubernetes/pki/etcd/ca.crt</li>
+<li>etcd 接口证书：/etc/kubernetes/pki/apiserver-etcd-client.crt</li>
+<li>etcd 接口秘钥：/etc/kubernetes/pki/apiserver-etcd-client.key</li>
+</ul>
+<p>证书和秘钥准备完毕后，我们需要创建如下配置文件 kubeadm-config.yaml：</p>
+<figure class="highlight yaml"><table><tbody><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># 配置文件中 LOAD_BALANCER_DNS 和 LOAD_BALANCER_PORT 需要修改为您为控制节点申请的 DNS（dns 包含所有控制节点的 ip）和各个控制节点 api server 使用的端口（默认：6443），ETCD_X_IP 改为 etcd 节点的 ip</span></span><br><span class="line"><span class="attr">apiVersion:</span> <span class="string">kubeadm.k8s.io/v1beta2</span></span><br><span class="line"><span class="attr">kind:</span> <span class="string">ClusterConfiguration</span></span><br><span class="line"><span class="attr">kubernetesVersion:</span> <span class="string">stable</span></span><br><span class="line"><span class="attr">controlPlaneEndpoint:</span> <span class="string">"LOAD_BALANCER_DNS:LOAD_BALANCER_PORT"</span></span><br><span class="line"><span class="attr">etcd:</span></span><br><span class="line">    <span class="attr">external:</span></span><br><span class="line">        <span class="attr">endpoints:</span></span><br><span class="line">        <span class="bullet">-</span> <span class="string">https://ETCD_0_IP:2379</span></span><br><span class="line">        <span class="bullet">-</span> <span class="string">https://ETCD_1_IP:2379</span></span><br><span class="line">        <span class="bullet">-</span> <span class="string">https://ETCD_2_IP:2379</span></span><br><span class="line">        <span class="attr">caFile:</span> <span class="string">/etc/kubernetes/pki/etcd/ca.crt</span></span><br><span class="line">        <span class="attr">certFile:</span> <span class="string">/etc/kubernetes/pki/apiserver-etcd-client.crt</span></span><br><span class="line">        <span class="attr">keyFile:</span> <span class="string">/etc/kubernetes/pki/apiserver-etcd-client.key</span></span><br><span class="line"><span class="comment"># 填写 `podSubnet` 和 `serviceSubnet` 时一定要注意避开节点的 host ip 域(我这是 10.0.0.0/8，如果不避开该域会导致无法登陆主机) 和 docker 的 ip 域（172.17.0.1/16）,同时它们之间也要互不冲突</span></span><br><span class="line"><span class="attr">networking:</span></span><br><span class="line">    <span class="attr">serviceSubnet:</span> <span class="string">"YOUR_SERVICE_SUBNET"</span></span><br><span class="line">    <span class="attr">podSubnet:</span> <span class="string">"YOUR_POD_SUBNET"</span></span><br></pre></td></tr></tbody></table></figure>
+
+<p>修改好配置文件之后，我们通过 kubeadm 的初始化命令<code>kubeadm init --config kubeadm-config.yaml --upload-certs</code>启动首个控制节点。在该命令的返回日志中，会包含命令行工具的验证文件，其他控制节点加入集群的命令，以及工作节点加入集群的命令，您需要将这些命令保存起来方便以后使用，它们的格式大致如下：</p>
+<figure class="highlight bash"><table><tbody><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># 命令行工具验证文件配置</span></span><br><span class="line">mkdir -p <span class="variable">$HOME</span>/.kube</span><br><span class="line">sudo cp -i /etc/kubernetes/admin.conf <span class="variable">$HOME</span>/.kube/config</span><br><span class="line">sudo chown $(id -u):$(id -g) <span class="variable">$HOME</span>/.kube/config</span><br><span class="line"><span class="comment"># 控制节点接入命令，需要在其他控制节点执行</span></span><br><span class="line">kubeadm join &lt;LOAD_BALANCER_DNS&gt;:&lt;LOAD_BALANCER_PORT&gt; --token 0ur873.o4zl4fldg7ewrce0 \</span><br><span class="line">    --discovery-token-ca-cert-hash sha256:7bc51f3ec0f250f3e1e0d812fe61fe9a0a3d94abd66a4971f780ca2a6cbf88bb \</span><br><span class="line">    --control-plane --certificate-key 28806632940988ed0ed67c68c763485c9a5bb4df43e7860849702419cec71c48</span><br><span class="line"><span class="comment"># 工作节点接入命令，需要在所有工作节点执行</span></span><br><span class="line">kubeadm join &lt;LOAD_BALANCER_DNS&gt;:&lt;LOAD_BALANCER_PORT&gt; --token 0ur873.o4zl4fldg7ewrce0 \</span><br><span class="line">    --discovery-token-ca-cert-hash sha256:7bc51f3ec0f250f3e1e0d812fe61fe9a0a3d94abd66a4971f780ca2a6cbf88bb</span><br></pre></td></tr></tbody></table></figure>
+
+<p>配置好命令行工具的验证文件后，还需要在首个控制节点应用网络插件，您可以通过如下命令做到：</p>
+<figure class="highlight bash"><table><tbody><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># 先下载网络插件（flannel）的配置文件</span></span><br><span class="line">wget https://raw.githubusercontent.com/coreos/flannel/b30e6895ef6429d47eaee1a72047ca349b3b5de3/Documentation/kube-flannel.yml</span><br><span class="line"><span class="comment"># 修改插件配置文件，加入 cniVersion 的描述，如果不加的话会导致网络插件启动报错</span></span><br><span class="line">sed -i <span class="string">'/"name": "cbr0"/s/$/\n      "cniVersion":"0.3.1",/'</span> kube-flannel.yml</span><br><span class="line"><span class="comment"># 除了 cniVersion 之外还要将插件配置文件中 net-conf.json 的 Network 改成您之前设置的 podSubnet(别忘了用\转义'/')，否则在 pod 内部无法访问其他 pod</span></span><br><span class="line">sed -i <span class="string">'s/"Network": "10.244.0.0\/16"/"Network": "&lt;YOUR_POD_SUBNET&gt;"/g'</span> kube-flannel.yml</span><br><span class="line"><span class="comment"># 应用插件配置</span></span><br><span class="line">kubectl create -f kube-flannel.yml</span><br></pre></td></tr></tbody></table></figure>
+
+<p>配置好网络插件后，你就可以在其他节点上按照前面保存的接入命令分别进行节点接入，最后您可以将控制节点的 <code>/etc/kubernetes/admin.conf</code> 拷贝到本地的 <code>$HOME/.kube/config</code>，这样您就可以在本地操作整个集群了。配置好 Kubernetes 命令行环境后，可以通过下列命令确认整个集群的运转情况：</p>
+<figure class="highlight bash"><table><tbody><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># 查看集群中的节点以及状态，正常情况下应该看到各个节点的状态都是 Ready</span></span><br><span class="line">kubectl get nodes -o wide</span><br><span class="line"><span class="comment"># 查看集群中运行的 Pod，正常情况下每个节点都有kube-flannel，kube-proxy，此外控制节点额外有kube-scheduler，kube-controller，kube-apiserver，最后还有2个 coredns</span></span><br><span class="line">kubectl get pods -A -o wide</span><br><span class="line"><span class="comment"># 其中，kube-flannel 这个网络插件负责不同主机 pod 之间的通讯，您可以看到虚拟网卡 flannel.1 的 ip 段和之前配置的 pod-subnet 相同，如果您在 worker 节点执行 ifconfig 则还会看到一个 cni0 网卡，它负责同一个节点内 pod 之间的网络通讯，该网卡的 ip 域实际上就是 host 该节点上分配到的 pod 网段</span></span><br><span class="line">ifconfig</span><br><span class="line"><span class="comment"># 如果最终的效果和本文的描述有出入，可以通过下述命令进行排查</span></span><br><span class="line">journalctl -xu kubelet.service -f</span><br><span class="line"><span class="comment"># 因为我的 log 里会报一个 'Failed to get system container stats for "/system.slice/docker.service": failed to get cgroup stats for "/system.slice/docker.service"' 的错误，所以还执行了下列命令</span></span><br><span class="line">sed -i <span class="string">'/KUBELET_EXTRA_ARGS=/s/$/--runtime-cgroups=\/systemd\/system.slice --kubelet-cgroups=\/systemd\/system.slice/'</span> /etc/sysconfig/kubelet</span><br><span class="line"><span class="comment"># 上述命令在 /etc/sysconfig/kubelet 末尾增加了一句--runtime-cgroups=/systemd/system.slice --kubelet-cgroups=/systemd/system.slice</span></span><br><span class="line"><span class="comment"># 最后重启 kubelet 就能解决上述报错</span></span><br><span class="line">systemctl restart kubelet</span><br></pre></td></tr></tbody></table></figure>
+
+<h3 id="部署应用"><a href="#部署应用" class="headerlink" title="部署应用"></a>部署应用</h3><p>配置好 Kubernetes 集群后，我们就通过之前 Docker 试玩环节使用的 Node Demo <code>kubia</code> 来体验一下如何在 Kubernetes 中部署应用。这里我们先通过 ReplicationController 接口来启动该应用，首先我们要创建一个配置文件 rc.yaml:</p>
+<figure class="highlight yaml"><table><tbody><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br></pre></td><td class="code"><pre><span class="line"><span class="attr">apiVersion:</span> <span class="string">v1</span></span><br><span class="line"><span class="attr">kind:</span> <span class="string">ReplicationController</span></span><br><span class="line"><span class="attr">metadata:</span></span><br><span class="line">  <span class="attr">name:</span> <span class="string">kubia</span></span><br><span class="line"><span class="attr">spec:</span></span><br><span class="line">  <span class="attr">replicas:</span> <span class="number">3</span> <span class="comment"># 同时运行 3 个服务</span></span><br><span class="line">  <span class="attr">selector:</span></span><br><span class="line">    <span class="attr">app:</span> <span class="string">kubia</span></span><br><span class="line">  <span class="attr">template:</span></span><br><span class="line">    <span class="attr">metadata:</span></span><br><span class="line">      <span class="attr">name:</span> <span class="string">kubia</span></span><br><span class="line">      <span class="attr">labels:</span></span><br><span class="line">        <span class="attr">app:</span> <span class="string">kubia</span></span><br><span class="line">    <span class="attr">spec:</span></span><br><span class="line">      <span class="attr">containers:</span></span><br><span class="line">      <span class="bullet">-</span> <span class="attr">name:</span> <span class="string">kubia</span></span><br><span class="line">        <span class="attr">image:</span> <span class="string">beikejiedeliulangmao/kubia</span> <span class="comment"># 镜像</span></span><br><span class="line">        <span class="attr">ports:</span></span><br><span class="line">        <span class="bullet">-</span> <span class="attr">containerPort:</span> <span class="number">8080</span></span><br></pre></td></tr></tbody></table></figure>
+
+<p>准备好配置文件之后，我们通过命令行工具来注册该 ReplicationController：</p>
+<figure class="highlight bash"><table><tbody><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">kubectl apply -f rc.yaml</span><br></pre></td></tr></tbody></table></figure>
+
+<p>如果上述命令正常执行，您将像我一样创建了一个名为 <code>kubia</code> 的 ReplicationController，它会帮助我们维持整个集群恰好有 3 个 kubia 服务（之前的 Node 服务），您可以通过 <code>kubectl get pod -o wide</code> 查看 ReplicationController 为我们创建的 Pod，您可以删除任意一个 Pod 来模拟服务中崩溃，当你再次查看运行中的 pod 时，你会发现 ReplicationController 帮我们又重建了一个新的 Pod。</p>
+<p>一个 Pod 是一组紧密相关的容器，它们总是一起运行在同一个工作节点上，以及同一个 Linux 命名空间中。每个 pod 就像一个独立的逻辑机器，拥有自己的 IP、主机名、进程等，运行一个独立的应用程序。应用程序可以是单个进程，运行在单个容器中，也可以是一个主应用进程或者其他支持进程，每个进程都在自己的容器中运行。一个 pod 的所有容器都运行在同一个逻辑机器上，而其他 pod 中的容器，即使运行在同一个工作节点上，也会出现在不同的节点上。<br><img src="/images/loading-cat.gif" data-original="https://bbm-hexo.oss-accelerate.aliyuncs.com/images/kubernetes/pod.png" alt="pod"><br>当运行 kubectl 命令时，它通过向 Kubernetes API 服务器发送一个 REST HTTP 请求来创建一个 ReplicationController，ReplicationController 创建成功后，会根据配置文件中指定的 Pod 个数，在集群中创建一个相应数量 Pod 对象。然后，调度器将其调度到一个工作节点上。随后，该工作节点上的 Kubelet 看到 pod 被调度到自己身上，就告知 Docker 从镜像中心中拉取指定的镜像，因为本地没有该镜像。下载镜像后，Docker 创建并运行容器。<br><img src="/images/loading-cat.gif" data-original="https://bbm-hexo.oss-accelerate.aliyuncs.com/images/kubernetes/kubectl-run.png" alt="kubectl-run"><br>那么，既然服务已经运行起来了，我们怎么访问该服务呢？我们提到过每个 Pod 都有自己的 IP，但是 Pod 可能随时都会崩溃，为了让集群内部的其他服务能够稳定的访问前面创建的 kubia，我们还需要创建一个服务对象，来暴露刚才的 <code>kubia</code> Pods，这里我们创建一个 ClusterIP 类型的 service，它会在之前配置的 serviceSubnet 网络中暴露服务。</p>
+<figure class="highlight bash"><table><tbody><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># 创建 service 对象</span></span><br><span class="line">kubectl expose rc kubia --<span class="built_in">type</span>=NodePort --name kubia</span><br><span class="line"><span class="comment"># 查看 service 对象</span></span><br><span class="line">kubectl get service</span><br></pre></td></tr></tbody></table></figure>
+
+<p>通过上述命令，我们就会看到 kubernetes 为我们创建的 service ip（又名 CLUSTER-IP），您可以在集群中的任意机器中通过 <code>curl &lt;YOUR_SERVICE_IP&gt;:8080</code> 访问刚才创建的服务，kubernetes 会自动帮我们做负载均衡，将请求转发到不同的 Pod 中。</p>
+<p>您可能已经注意到了，这时候的 service ip 仍然是只能集群内访问的虚拟 ip，它只是能保证无论 pod 何时崩溃，我们都能通过恒定不变的 service ip 访问其他可用的 kubia 服务。那么如何让集群之外的机器也能访问 kubia 服务呢？有一种方法是创建 LoadBalance 类型的 service，这需要云服务提供商开放一定的 LoadBalance 服务，让 Kubernetes 集群可以自主创建和修改 VIP。不过我所使用的云服务并不提供该功能，所以我手动创建了 VIP，并将 VIP 的 target 指向了所有的节点（master 和 worker），因为前面创建 service 时，使用的 service 类型是 NodePort，Kubernetes 会在所有节点上找一个相同的端口暴露服务，我在手动创建 VIP 时就指定了该端口。</p>
+<p>到此为止，我们就构建出了一个稳定可靠的服务集群，并且外部网络就能访问我们的服务。现在让我们来创造更多魔法。</p>
+<p>使用 Kubernetes 的一个主要好处是可以简单地扩展部署。让我们看看扩容 pod 有多容易。</p>
+<figure class="highlight bash"><table><tbody><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># 将 kubia 服务扩容为 6 个 pod</span></span><br><span class="line">kubectl scale rc kubia --replicas=6</span><br></pre></td></tr></tbody></table></figure>
+
+<p>现在已经告诉 Kubernetes 需要确保 pod 始终有六个实例在运行。注意，你没有告诉 Kubernetes 需要采取什么行动，也没有告诉 Kubernetes 增加三个 pod, 只设置新的期望的实例数量并让 Kubernetes 决定需要采取哪些操作来实现期望的状态。</p>
+<p>这是 Kubernetes 最基本的原则之一。不是告诉 Kubernetes 应该执行什么操作，而是声明性地改变系统的期望状态，并让 Kubernetes 检查当前的状态是否与期望的状态一致，如果不一致的话，它会自动的进行处理。在整个 Kubernetes 世界中都是这样的。</p>
+<p>我们可以查看一下现在的 kubia 服务是否如我们所愿，变成了六个 pod。</p>
+<figure class="highlight bash"><table><tbody><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># 确认 ReplicationController 的状态</span></span><br><span class="line">kubectl get rc</span><br><span class="line"><span class="comment"># 查看 pod 您可以看到每个 pod 都运行在哪个工作节点上</span></span><br><span class="line">kubectl get pod -o wide</span><br></pre></td></tr></tbody></table></figure>
+
+<p>在试玩环节的最后，让我们看看探索 Kubernetes 集群的另一种方式。到目前为止，我们只使用了 kubectl 命令行工具。实际上 Kubernetes 也提供了一个图形化的 web 用户界面，接下来我们就使用一下它，首先你可以通过如下命令启动 dashboard 功能。</p>
+<figure class="highlight bash"><table><tbody><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># 启动 dashboard 服务</span></span><br><span class="line">kubectl apply -f https://raw.githubusercontent.com/kubernetes/dashboard/v2.0.0-beta4/aio/deploy/recommended.yaml</span><br><span class="line"><span class="comment"># 打开 dashboard 服务代理，这样我们就可以从本地访问 dashboard 服务</span></span><br><span class="line">kubectl proxy</span><br></pre></td></tr></tbody></table></figure>
+
+<p>成功执行上述命令后，您就可以打开 <span class="exturl" data-url="aHR0cDovL2xvY2FsaG9zdDo4MDAxL2FwaS92MS9uYW1lc3BhY2VzL2t1YmVybmV0ZXMtZGFzaGJvYXJkL3NlcnZpY2VzL2h0dHBzOmt1YmVybmV0ZXMtZGFzaGJvYXJkOi9wcm94eS8u" title="http://localhost:8001/api/v1/namespaces/kubernetes-dashboard/services/https:kubernetes-dashboard:/proxy/.">本地 Dashboard 页面<i class="fa fa-external-link"></i></span>。<br><img src="/images/loading-cat.gif" data-original="https://bbm-hexo.oss-accelerate.aliyuncs.com/images/kubernetes/dashboard-login.png" alt="dashboard-login"><br>看来是要登录，那么怎么获取登录的信息呢？您可以通过如下命令创建账号并获取token：</p>
+<figure class="highlight bash"><table><tbody><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># 创建账号</span></span><br><span class="line">kubectl create serviceaccount cluster-admin-dashboard-sa</span><br><span class="line"><span class="comment"># 赋予权限</span></span><br><span class="line">kubectl create clusterrolebinding cluster-admin-dashboard-sa \</span><br><span class="line">  --clusterrole=cluster-admin \</span><br><span class="line">  --serviceaccount=default:cluster-admin-dashboard-sa</span><br><span class="line"><span class="comment"># 获取 token</span></span><br><span class="line">kubectl describe secret $(kubectl get secret | grep cluster-admin-dashboard-sa | awk <span class="string">'{print $1}'</span>)</span><br></pre></td></tr></tbody></table></figure>
+
+<p>将上述命令获取的 token 输入到登录页面，就能访问 dashboard 的主页面啦！<br><img src="/images/loading-cat.gif" data-original="https://bbm-hexo.oss-accelerate.aliyuncs.com/images/kubernetes/dashboard-index.png" alt="dashboard-index"></p>
+<h2 id="参考内容"><a href="#参考内容" class="headerlink" title="参考内容"></a>参考内容</h2><p>[1] <span class="exturl" data-url="aHR0cHM6Ly9naXRodWIuY29tL2t1YmVybmV0ZXMva3ViZXJuZXRlcw==" title="https://github.com/kubernetes/kubernetes">kubernetes GitHub 仓库<i class="fa fa-external-link"></i></span><br>[2] <span class="exturl" data-url="aHR0cHM6Ly9rdWJlcm5ldGVzLmlv" title="https://kubernetes.io">Kubernetes 官方主页<i class="fa fa-external-link"></i></span><br>[3] <span class="exturl" data-url="aHR0cHM6Ly9naXRodWIuY29tL2t1YmVybmV0ZXMvZXhhbXBsZXM=" title="https://github.com/kubernetes/examples">Kubernetes 官方 Demo<i class="fa fa-external-link"></i></span><br>[4] 《Kubernetes in Action》<br>[5] <span class="exturl" data-url="aHR0cHM6Ly90b255YmFpLmNvbS8yMDE3LzAxLzE3L3VuZGVyc3RhbmRpbmctZmxhbm5lbC1uZXR3b3JrLWZvci1rdWJlcm5ldGVzLw==" title="https://tonybai.com/2017/01/17/understanding-flannel-network-for-kubernetes/">理解Kubernetes网络之Flannel网络<i class="fa fa-external-link"></i></span><br>[6] <span class="exturl" data-url="aHR0cHM6Ly9qaW1teXNvbmcuaW8vcG9zdHMvd2hhdC1pcy1hLXBhdXNlLWNvbnRhaW5lci8=" title="https://jimmysong.io/posts/what-is-a-pause-container/">Kubernetes Handbook<i class="fa fa-external-link"></i></span><br>[7] <span class="exturl" data-url="aHR0cHM6Ly92ZXJubGl1bS5naXRodWIuaW8vMjAxNy8wOS8yMS9pcHRhYmxlc+amguW/teS7i+e7jeWPiuebuOWFs+aTjeS9nC1rOHMtOC8=" title="https://vernlium.github.io/2017/09/21/iptables概念介绍及相关操作-k8s-8/">iptables概念介绍及相关操作<i class="fa fa-external-link"></i></span><br>[8] <span class="exturl" data-url="aHR0cHM6Ly93d3cubGludXhpZGMuY29tL0xpbnV4LzIwMTYtMDkvMTM0ODMyLmh0bQ==" title="https://www.linuxidc.com/Linux/2016-09/134832.htm">iptables超全详解<i class="fa fa-external-link"></i></span><br>[9] <span class="exturl" data-url="aHR0cHM6Ly90b255YmFpLmNvbS8yMDE3LzAxLzExL3VuZGVyc3RhbmRpbmctbGludXgtbmV0d29yay1uYW1lc3BhY2UtZm9yLWRvY2tlci1uZXR3b3JrLw==" title="https://tonybai.com/2017/01/11/understanding-linux-network-namespace-for-docker-network/">理解Docker容器网络之Linux Network Namespace<i class="fa fa-external-link"></i></span><br>[10] <span class="exturl" data-url="aHR0cHM6Ly9zb29rb2NoZWZmLmNvbS9wb3N0L2t1YmVybmV0ZXMvdW5kZXJzdGFuZGluZy1rdWJlcm5ldGVzLW5ldHdvcmtpbmctbW9kZWwv" title="https://sookocheff.com/post/kubernetes/understanding-kubernetes-networking-model/">A Guide to the Kubernetes Networking Model<i class="fa fa-external-link"></i></span><br>[11] <span class="exturl" data-url="aHR0cHM6Ly9tZWRpdW0uY29tL0Bhbmlsa3JlZGR5ci9rdWJlcm5ldGVzLXdpdGgtZmxhbm5lbC11bmRlcnN0YW5kaW5nLXRoZS1uZXR3b3JraW5nLXBhcnQtMi03OGI1M2U1MzY0Yzc=" title="https://medium.com/@anilkreddyr/kubernetes-with-flannel-understanding-the-networking-part-2-78b53e5364c7">Kubernetes with Flannel — Understanding the Networking<i class="fa fa-external-link"></i></span><br>[12] <span class="exturl" data-url="aHR0cHM6Ly9qYW1pbnpoYW5nLmdpdGh1Yi5pby9sYi9MNC1MNy1Mb2FkLUJhbGFuY2VyLURpZmZlcmVuY2Uv" title="https://jaminzhang.github.io/lb/L4-L7-Load-Balancer-Difference/">四层、七层负载均衡的区别<i class="fa fa-external-link"></i></span></p>
+
+    </div>
+
+    
+    
+    
+
+      
+        <div id="wechat_subscriber" style="display: block; padding: 10px 0; margin: 20px auto; width: 100%; text-align: center">
+  <img id="wechat_subscriber_qcode" src="/images/qrcode_for_wechat.jpg" alt="贝克街的流浪猫 wechat" style="width: 400px; max-width: 100%;">
+  <div></div>
+</div>
+
+      
+        <div class="reward-container">
+  <div>您的打赏将鼓励我继续分享!</div>
+  <button disable="enable" onclick="var qr = document.getElementById(&quot;qr&quot;); qr.style.display = (qr.style.display === 'none') ? 'block' : 'none';">
+    打赏
+  </button>
+  <div id="qr" style="display: none;">
+      
+      <div style="display: inline-block;">
+        <img src="/images/wechat.jpg" alt="贝克街的流浪猫 微信支付">
+        <p>微信支付</p>
+      </div>
+      
+      <div style="display: inline-block;">
+        <img src="/images/alipay.jpg" alt="贝克街的流浪猫 支付宝">
+        <p>支付宝</p>
+      </div>
+
+  </div>
+</div>
+
+        
+
+<div>
+<ul class="post-copyright">
+  <li class="post-copyright-author">
+    <strong>本文作者： </strong>贝克街的流浪猫
+  </li>
+  <li class="post-copyright-link">
+    <strong>本文链接：</strong>
+    <a href="https://www.beikejiedeliulangmao.top/container/kubernetes/introduction/" title="Kubernetes 简介">https://www.beikejiedeliulangmao.top/container/kubernetes/introduction/</a>
+  </li>
+  <li class="post-copyright-license">
+    <strong>版权声明： </strong>本博客所有文章除特别声明外，均采用 <span class="exturl" data-url="aHR0cHM6Ly9jcmVhdGl2ZWNvbW1vbnMub3JnL2xpY2Vuc2VzL2J5LW5jLXNhLzQuMC9udWxs"><i class="fa fa-fw fa-creative-commons"></i>BY-NC-SA</span> 许可协议，转载请注明出处！
+  </li>
+  <li class="post-copyright-license">
+    <strong>创作声明： </strong>本文基于上述所有参考内容进行创作，其中可能涉及复制、修改或者转换，图片均来自网络，如有侵权请联系我，我会第一时间进行删除。
+  </li>
+</ul>
+</div>
+
+
+      <footer class="post-footer">
+          <div class="post-tags">
+              <a href="/tags/Distributed/" rel="tag"># Distributed</a>
+              <a href="/tags/MicroService/" rel="tag"># MicroService</a>
+              <a href="/tags/Network/" rel="tag"># Network</a>
+              <a href="/tags/Kubernetes/" rel="tag"># Kubernetes</a>
+              <a href="/tags/Docker/" rel="tag"># Docker</a>
+              <a href="/tags/k8s/" rel="tag"># k8s</a>
+              <a href="/tags/etcd/" rel="tag"># etcd</a>
+              <a href="/tags/Containers/" rel="tag"># Containers</a>
+              <a href="/tags/CNCF/" rel="tag"># CNCF</a>
+          </div>
+
+        
+
+          <div class="post-nav">
+            <div class="post-nav-next post-nav-item">
+                <a href="/container/kubernetes/concept/" rel="next" title="Kubernetes 常用功能">
+                  <i class="fa fa-chevron-left"></i> Kubernetes 常用功能
+                </a>
+            </div>
+
+            <span class="post-nav-divider"></span>
+
+            <div class="post-nav-prev post-nav-item">
+                <a href="/linux/network/" rel="prev" title="Linux 网络">
+                  Linux 网络 <i class="fa fa-chevron-right"></i>
+                </a>
+            </div>
+          </div>
+      </footer>
+    
+  </article>
+  
+  
+  
+
+  </div>
+
+
+          </div>
+          
+    <div class="comments" id="gitalk-container"></div>
+
+        </div>
+          
+  
+  <div class="toggle sidebar-toggle">
+    <span class="toggle-line toggle-line-first"></span>
+    <span class="toggle-line toggle-line-middle"></span>
+    <span class="toggle-line toggle-line-last"></span>
+  </div>
+
+  <aside class="sidebar">
+    <div class="sidebar-inner">
+
+      <ul class="sidebar-nav motion-element">
+        <li class="sidebar-nav-toc">
+          文章目录
+        </li>
+        <li class="sidebar-nav-overview">
+          站点概览
+        </li>
+      </ul>
+
+      <!--noindex-->
+      <div class="post-toc-wrap sidebar-panel">
+          <div class="post-toc motion-element"><ol class="nav"><li class="nav-item nav-level-2"><a class="nav-link" href="#%E5%BC%95%E8%A8%80"><span class="nav-number">1.</span> <span class="nav-text">引言</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E4%BB%8B%E7%BB%8D"><span class="nav-number">2.</span> <span class="nav-text">介绍</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#%E8%83%8C%E6%99%AF"><span class="nav-number">2.1.</span> <span class="nav-text">背景</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E5%AE%B9%E5%99%A8"><span class="nav-number">2.2.</span> <span class="nav-text">容器</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#Kubernetes"><span class="nav-number">2.3.</span> <span class="nav-text">Kubernetes</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E8%AF%95%E7%8E%A9%E7%8E%AF%E8%8A%82"><span class="nav-number">3.</span> <span class="nav-text">试玩环节</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#Docker"><span class="nav-number">3.1.</span> <span class="nav-text">Docker</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#Kubernetes-%E9%9B%86%E7%BE%A4"><span class="nav-number">3.2.</span> <span class="nav-text">Kubernetes 集群</span></a><ol class="nav-child"><li class="nav-item nav-level-4"><a class="nav-link" href="#%E6%90%AD%E5%BB%BA-etcd-%E9%9B%86%E7%BE%A4"><span class="nav-number">3.2.1.</span> <span class="nav-text">搭建 etcd 集群</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#%E6%90%AD%E5%BB%BA%E6%8E%A7%E5%88%B6%E8%8A%82%E7%82%B9"><span class="nav-number">3.2.2.</span> <span class="nav-text">搭建控制节点</span></a></li></ol></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E9%83%A8%E7%BD%B2%E5%BA%94%E7%94%A8"><span class="nav-number">3.3.</span> <span class="nav-text">部署应用</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E5%8F%82%E8%80%83%E5%86%85%E5%AE%B9"><span class="nav-number">4.</span> <span class="nav-text">参考内容</span></a></li></ol></div>
+      </div>
+      <!--/noindex-->
+
+      <div class="site-overview-wrap sidebar-panel">
+        <div class="site-author motion-element" itemprop="author" itemscope="" itemtype="http://schema.org/Person">
+    <img class="site-author-image" itemprop="image" alt="贝克街的流浪猫" src="/images/avatar.jpg">
+  <p class="site-author-name" itemprop="name">贝克街的流浪猫</p>
+  <div class="site-description" itemprop="description">贝贝猫</div>
+</div>
+<div class="site-state-wrap motion-element">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+          <a href="/archives/">
+        
+          <span class="site-state-item-count">120</span>
+          <span class="site-state-item-name">日志</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-categories">
+            <a href="/categories/">
+          
+        <span class="site-state-item-count">24</span>
+        <span class="site-state-item-name">分类</span></a>
+      </div>
+      <div class="site-state-item site-state-tags">
+            <a href="/tags/">
+          
+        <span class="site-state-item-count">158</span>
+        <span class="site-state-item-name">标签</span></a>
+      </div>
+  </nav>
+</div>
+  <div class="feed-link motion-element">
+    <a href="/atom.xml" rel="alternate">
+      <i class="fa fa-rss"></i>RSS
+    </a>
+  </div>
+  <div class="links-of-author motion-element">
+      <span class="links-of-author-item">
+        <span class="exturl" data-url="aHR0cHM6Ly9naXRodWIuY29tL0JlaUtlSmllRGVMaXVMYW5nTWFv" title="GitHub → https://github.com/BeiKeJieDeLiuLangMao"><i class="fa fa-fw fa-github"></i></span>
+      </span>
+      <span class="links-of-author-item">
+        <span class="exturl" data-url="aHR0cHM6Ly96aHVhbmxhbi56aGlodS5jb20vY18xMTY3NDI5NTg4NzExMzM3OTg1" title="知乎 → https://zhuanlan.zhihu.com/c_1167429588711337985"><i class="fa fa-fw fa-book"></i></span>
+      </span>
+      <span class="links-of-author-item">
+        <span class="exturl" data-url="bWFpbHRvOjUxNzM3NTY4NUBxcS5jb20=" title="E-Mail → mailto:517375685@qq.com"><i class="fa fa-fw fa-envelope"></i></span>
+      </span>
+      <span class="links-of-author-item">
+        <span class="exturl" data-url="aHR0cHM6Ly9zdGFja292ZXJmbG93LmNvbS91c2Vycy84NzgyOTY0L3lhbmctY2hlbj90YWI9cHJvZmlsZQ==" title="StackOverflow → https://stackoverflow.com/users/8782964/yang-chen?tab=profile"><i class="fa fa-fw fa-stack-overflow"></i></span>
+      </span>
+  </div>
+
+
+
+      </div>
+        <div class="back-to-top motion-element">
+          <i class="fa fa-arrow-up"></i>
+          <span>0%</span>
+        </div>
+
+    </div>
+  </aside>
+  <div id="sidebar-dimmer"></div>
+
+
+      </div>
+    </main>
+
+    <footer class="footer">
+      <div class="footer-inner">
+        
+  <div class="beian"><span class="exturl" data-url="aHR0cDovL3d3dy5iZWlhbi5taWl0Lmdvdi5jbg==">辽ICP备19017854号 </span>
+  </div>
+
+<div class="copyright">
+  
+  © 2019 – 
+  <span itemprop="copyrightYear">2021</span>
+  <span class="with-love">
+    <i class="fa fa-heart"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">贝克街的流浪猫</span>
+    <span class="post-meta-divider">|</span>
+    <span class="post-meta-item-icon">
+      <i class="fa fa-area-chart"></i>
+    </span>
+      <span class="post-meta-item-text">站点总字数：</span>
+    <span title="站点总字数">1.5m</span>
+    <span class="post-meta-divider">|</span>
+    <span class="post-meta-item-icon">
+      <i class="fa fa-coffee"></i>
+    </span>
+      <span class="post-meta-item-text">站点阅读时长 ≈</span>
+    <span title="站点阅读时长">22:36</span>
+</div>
+
+        
+<div class="busuanzi-count">
+  <script async="" src="https://busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js"></script>
+    <span class="post-meta-item" id="busuanzi_container_site_uv" style="display: none;">
+      <span class="post-meta-item-icon">
+        <i class="fa fa-user"></i>
+      </span>
+      <span class="site-uv" title="总访客量">
+        贝贝猫有
+        <span id="busuanzi_value_site_uv"></span>
+        位同学
+      </span>
+    </span>
+    <span class="post-meta-divider">|</span>
+    <span class="post-meta-item" id="busuanzi_container_site_pv" style="display: none;">
+      <span class="post-meta-item-icon">
+        <i class="fa fa-eye"></i>
+      </span>
+      <span class="site-pv" title="总访问量">
+        笔记被翻阅
+        <span id="busuanzi_value_site_pv"></span>
+        次
+      </span>
+    </span>
+</div>
+
+
+
+
+
+
+  
+
+
+
+
+
+
+        
+      </div>
+    </footer>
+  </div>
+
+  
+  
+  <script src="//cdn.jsdelivr.net/npm/medium-zoom@1/dist/medium-zoom.min.js"></script>
+  <script src="//cdn.jsdelivr.net/npm/pangu@4/dist/browser/pangu.min.js"></script>
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+
+
+
+
+  
+
+<script src="//cdn.jsdelivr.net/npm/instantsearch.js@2/dist/instantsearch.min.js"></script>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+  
+  <script src="//cdn.jsdelivr.net/npm/quicklink@1/dist/quicklink.umd.js"></script>
+  
+
+
+
+
+
+
+
+<script type="text/javascript" src="/bundle.js"></script><script type="text/javascript">function leancloudSelector(url) {
+    return document.getElementById(url).querySelector('.leancloud-visitors-count');
+  }
+  if (CONFIG.page.isPost) {
+    function addCount(Counter) {
+      var visitors = document.querySelector('.leancloud_visitors');
+      var url = visitors.getAttribute('id').trim();
+      var title = visitors.getAttribute('data-flag-title').trim();
+
+      Counter('get', `/classes/Counter?where=${JSON.stringify({ url })}`)
+        .then(response => response.json())
+        .then(({ results }) => {
+          if (results.length > 0) {
+            var counter = results[0];
+              leancloudSelector(url).innerText = counter.time + 1;
+            Counter('put', '/classes/Counter/' + counter.objectId, { time: { '__op': 'Increment', 'amount': 1 } })
+              .then(response => response.json())
+              .catch(error => {
+                console.log('Failed to save visitor count', error);
+              })
+          } else {
+              leancloudSelector(url).innerText = 'Counter not initialized! More info at console err msg.';
+              console.error('ATTENTION! LeanCloud counter has security bug, see how to solve it here: https://github.com/theme-next/hexo-leancloud-counter-security. \n However, you can still use LeanCloud without security, by setting `security` option to `false`.');
+            
+          }
+        })
+        .catch(error => {
+          console.log('LeanCloud Counter Error', error);
+        });
+    }
+  } else {
+    function showTime(Counter) {
+      var visitors = document.querySelectorAll('.leancloud_visitors');
+      var entries = [...visitors].map(element => {
+        return element.getAttribute('id').trim();
+      });
+
+      Counter('get', `/classes/Counter?where=${JSON.stringify({ url: { '$in': entries } })}`)
+        .then(response => response.json())
+        .then(({ results }) => {
+          if (results.length === 0) {
+            document.querySelectorAll('.leancloud_visitors .leancloud-visitors-count').forEach(element => {
+              element.innerText = 0;
+            });
+            return;
+          }
+          for (var i = 0; i < results.length; i++) {
+            var item = results[i];
+            var url = item.url;
+            var time = item.time;
+            leancloudSelector(url).innerText = time;
+          }
+          for (var i = 0; i < entries.length; i++) {
+            var url = entries[i];
+            var element = leancloudSelector(url);
+            if (element.innerText == '') {
+              element.innerText = 0;
+            }
+          }
+        })
+        .catch(error => {
+          console.log('LeanCloud Counter Error', error);
+        });
+    }
+  }
+
+  fetch('https://app-router.leancloud.cn/2/route?appId=gmT3IkYtHVMymcwAjbwHhtiv-gzGzoHsz')
+    .then(response => response.json())
+    .then(({ api_server }) => {
+      var Counter = (method, url, data) => {
+        return fetch(`https://${api_server}/1.1${url}`, {
+          method: method,
+          headers: {
+            'X-LC-Id': 'gmT3IkYtHVMymcwAjbwHhtiv-gzGzoHsz',
+            'X-LC-Key': 'co6tpmcyS9za2D1uqQyMFtnN',
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(data)
+        });
+      };
+      if (CONFIG.page.isPost) {
+        const localhost = /http:\/\/(localhost|127.0.0.1|0.0.0.0)/;
+        if (localhost.test(document.URL)) return;
+        addCount(Counter);
+      } else if (document.querySelectorAll('.post-title-link').length >= 1) {
+        showTime(Counter);
+      }
+    });;(function(){
+      var bp = document.createElement('script');
+      var curProtocol = window.location.protocol.split(':')[0];
+      bp.src = (curProtocol === 'https') ? 'https://zz.bdstatic.com/linksubmit/push.js' : 'http://push.zhanzhang.baidu.com/push.js';
+      var s = document.getElementsByTagName("script")[0];
+      s.parentNode.insertBefore(bp, s);
+    })();;if (document.querySelectorAll('pre.mermaid').length) {
+  NexT.utils.getScript('//cdn.jsdelivr.net/npm/mermaid@8/dist/mermaid.min.js', () => {
+    mermaid.initialize({
+      theme: 'forest',
+      logLevel: 3,
+      flowchart: { curve: 'linear' },
+      gantt: { axisFormat: '%m/%d/%Y' },
+      sequence: { actorMargin: 50 }
+    });
+  }, window.mermaid);
+};window.addEventListener('load', () => {
+      quicklink({
+        timeout: 3000,
+        priority: true,
+        ignores: [uri => uri.includes('#'),uri => uri == 'https://www.beikejiedeliulangmao.top/container/kubernetes/introduction/',]
+      });
+      });;NexT.utils.getScript('//cdn.jsdelivr.net/npm/gitalk@1/dist/gitalk.min.js', () => {
+    var gitalk = new Gitalk({
+      clientID: '6201d1cc2825a93aa161',
+      clientSecret: '71c60f650595a3eedba64b844f811b90acac3798',
+      repo: 'HexoBlogComment',
+      owner: 'BeiKeJieDeLiuLangMao',
+      admin: ['BeiKeJieDeLiuLangMao'],
+      id: '8982c80ae18766574e73ab70b4d1835b',
+        language: 'zh-CN',
+      distractionFreeMode: 'true'
+    });
+    gitalk.render('gitalk-container');
+  }, window.Gitalk);;window.imageLazyLoadSetting = {
+                isSPA: false,
+                processImages: null,
+            };;window.addEventListener("load",function(){var t=/\.(gif|jpg|jpeg|tiff|png)$/i,r=/^data:image\/[a-z]+;base64,/;Array.prototype.slice.call(document.querySelectorAll("img[data-original]")).forEach(function(a){var e=a.parentNode;"A"===e.tagName&&(e.href.match(t)||e.href.match(r))&&(e.href=a.dataset.original)})});;!function(n){n.imageLazyLoadSetting.processImages=o;var i=n.imageLazyLoadSetting.isSPA,l=Array.prototype.slice.call(document.querySelectorAll("img[data-original]"));function o(){i&&(l=Array.prototype.slice.call(document.querySelectorAll("img[data-original]")));for(var r=0;r<l.length;r++)t=l[r],void 0,0<=(e=t.getBoundingClientRect()).bottom&&0<=e.left&&e.top<=(n.innerHeight||document.documentElement.clientHeight)&&function(t){var e,n,i,o,a=l[r];e=a,n=function(){l=l.filter(function(t){return a!==t})},i=new Image,o=e.getAttribute("data-original"),i.onload=function(){e.src=o,n&&n()},i.src=o}();var t,e}o(),n.addEventListener("scroll",function(){var t,e;t=o,e=n,clearTimeout(t.tId),t.tId=setTimeout(function(){t.call(e)},500)})}(this);</script></body></html>
