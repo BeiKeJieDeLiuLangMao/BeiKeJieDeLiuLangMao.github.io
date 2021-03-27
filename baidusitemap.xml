@@ -13,10 +13,6 @@
     <lastmod>2021-03-27</lastmod>
   </url>
   <url>
-    <loc>https://www.beikejiedeliulangmao.top/middleware/seata/introduction/</loc>
-    <lastmod>2021-01-17</lastmod>
-  </url>
-  <url>
     <loc>https://www.beikejiedeliulangmao.top/middleware/dubbo/consumer-receive-response/</loc>
     <lastmod>2021-01-17</lastmod>
   </url>
@@ -45,6 +41,10 @@
     <lastmod>2021-01-17</lastmod>
   </url>
   <url>
+    <loc>https://www.beikejiedeliulangmao.top/middleware/seata/introduction/</loc>
+    <lastmod>2021-01-17</lastmod>
+  </url>
+  <url>
     <loc>https://www.beikejiedeliulangmao.top/middleware/dubbo/cluster/</loc>
     <lastmod>2021-01-17</lastmod>
   </url>
@@ -65,11 +65,11 @@
     <lastmod>2021-01-17</lastmod>
   </url>
   <url>
-    <loc>https://www.beikejiedeliulangmao.top/middleware/seata/tc/</loc>
+    <loc>https://www.beikejiedeliulangmao.top/middleware/sentinel/impl-chain/</loc>
     <lastmod>2021-01-17</lastmod>
   </url>
   <url>
-    <loc>https://www.beikejiedeliulangmao.top/middleware/sentinel/impl-chain/</loc>
+    <loc>https://www.beikejiedeliulangmao.top/middleware/seata/tc/</loc>
     <lastmod>2021-01-17</lastmod>
   </url>
   <url>
@@ -85,6 +85,10 @@
     <lastmod>2021-01-17</lastmod>
   </url>
   <url>
+    <loc>https://www.beikejiedeliulangmao.top/middleware/dubbo/design/</loc>
+    <lastmod>2021-01-17</lastmod>
+  </url>
+  <url>
     <loc>https://www.beikejiedeliulangmao.top/middleware/rocketmq/ha/</loc>
     <lastmod>2021-01-17</lastmod>
   </url>
@@ -97,7 +101,7 @@
     <lastmod>2021-01-17</lastmod>
   </url>
   <url>
-    <loc>https://www.beikejiedeliulangmao.top/middleware/dubbo/design/</loc>
+    <loc>https://www.beikejiedeliulangmao.top/middleware/dubbo/service-invoke/</loc>
     <lastmod>2021-01-17</lastmod>
   </url>
   <url>
@@ -106,10 +110,6 @@
   </url>
   <url>
     <loc>https://www.beikejiedeliulangmao.top/middleware/rocketmq/store-message-file/</loc>
-    <lastmod>2021-01-17</lastmod>
-  </url>
-  <url>
-    <loc>https://www.beikejiedeliulangmao.top/middleware/dubbo/service-invoke/</loc>
     <lastmod>2021-01-17</lastmod>
   </url>
   <url>
@@ -189,6 +189,10 @@
     <lastmod>2021-01-17</lastmod>
   </url>
   <url>
+    <loc>https://www.beikejiedeliulangmao.top/java/web/java-web/</loc>
+    <lastmod>2021-01-17</lastmod>
+  </url>
+  <url>
     <loc>https://www.beikejiedeliulangmao.top/java/jvm/bytecode-tech/</loc>
     <lastmod>2021-01-17</lastmod>
   </url>
@@ -209,10 +213,6 @@
     <lastmod>2021-01-17</lastmod>
   </url>
   <url>
-    <loc>https://www.beikejiedeliulangmao.top/java/web/java-web/</loc>
-    <lastmod>2021-01-17</lastmod>
-  </url>
-  <url>
     <loc>https://www.beikejiedeliulangmao.top/webrtc/use-in-java/prepare/</loc>
     <lastmod>2021-01-17</lastmod>
   </url>
@@ -225,11 +225,11 @@
     <lastmod>2021-01-17</lastmod>
   </url>
   <url>
-    <loc>https://www.beikejiedeliulangmao.top/java/jvm/load-class/</loc>
+    <loc>https://www.beikejiedeliulangmao.top/java/jvm/lock/</loc>
     <lastmod>2021-01-17</lastmod>
   </url>
   <url>
-    <loc>https://www.beikejiedeliulangmao.top/java/jvm/lock/</loc>
+    <loc>https://www.beikejiedeliulangmao.top/java/jvm/load-class/</loc>
     <lastmod>2021-01-17</lastmod>
   </url>
   <url>
@@ -305,11 +305,11 @@
     <lastmod>2021-01-17</lastmod>
   </url>
   <url>
-    <loc>https://www.beikejiedeliulangmao.top/linux/time-management/</loc>
+    <loc>https://www.beikejiedeliulangmao.top/linux/system-call/</loc>
     <lastmod>2021-01-17</lastmod>
   </url>
   <url>
-    <loc>https://www.beikejiedeliulangmao.top/linux/system-call/</loc>
+    <loc>https://www.beikejiedeliulangmao.top/linux/time-management/</loc>
     <lastmod>2021-01-17</lastmod>
   </url>
   <url>
