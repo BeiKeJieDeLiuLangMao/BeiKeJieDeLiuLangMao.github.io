@@ -29,6 +29,10 @@
     <lastmod>2021-01-17</lastmod>
   </url>
   <url>
+    <loc>https://www.beikejiedeliulangmao.top/middleware/seata/introduction/</loc>
+    <lastmod>2021-01-17</lastmod>
+  </url>
+  <url>
     <loc>https://www.beikejiedeliulangmao.top/middleware/sentinel/impl-context/</loc>
     <lastmod>2021-01-17</lastmod>
   </url>
@@ -38,10 +42,6 @@
   </url>
   <url>
     <loc>https://www.beikejiedeliulangmao.top/middleware/sentinel/introduction/</loc>
-    <lastmod>2021-01-17</lastmod>
-  </url>
-  <url>
-    <loc>https://www.beikejiedeliulangmao.top/middleware/seata/introduction/</loc>
     <lastmod>2021-01-17</lastmod>
   </url>
   <url>
@@ -65,11 +65,11 @@
     <lastmod>2021-01-17</lastmod>
   </url>
   <url>
-    <loc>https://www.beikejiedeliulangmao.top/middleware/sentinel/impl-chain/</loc>
+    <loc>https://www.beikejiedeliulangmao.top/middleware/seata/tc/</loc>
     <lastmod>2021-01-17</lastmod>
   </url>
   <url>
-    <loc>https://www.beikejiedeliulangmao.top/middleware/seata/tc/</loc>
+    <loc>https://www.beikejiedeliulangmao.top/middleware/sentinel/impl-chain/</loc>
     <lastmod>2021-01-17</lastmod>
   </url>
   <url>
@@ -161,11 +161,11 @@
     <lastmod>2021-01-17</lastmod>
   </url>
   <url>
-    <loc>https://www.beikejiedeliulangmao.top/database/mysql/</loc>
+    <loc>https://www.beikejiedeliulangmao.top/distributed/zookeeper/</loc>
     <lastmod>2021-01-17</lastmod>
   </url>
   <url>
-    <loc>https://www.beikejiedeliulangmao.top/distributed/zookeeper/</loc>
+    <loc>https://www.beikejiedeliulangmao.top/database/mysql/</loc>
     <lastmod>2021-01-17</lastmod>
   </url>
   <url>
@@ -189,7 +189,15 @@
     <lastmod>2021-01-17</lastmod>
   </url>
   <url>
-    <loc>https://www.beikejiedeliulangmao.top/java/web/java-web/</loc>
+    <loc>https://www.beikejiedeliulangmao.top/webrtc/use-in-java/prepare/</loc>
+    <lastmod>2021-01-17</lastmod>
+  </url>
+  <url>
+    <loc>https://www.beikejiedeliulangmao.top/java/concurrent/aqs-data/</loc>
+    <lastmod>2021-01-17</lastmod>
+  </url>
+  <url>
+    <loc>https://www.beikejiedeliulangmao.top/java/concurrent/concurrent-skip-list-map/</loc>
     <lastmod>2021-01-17</lastmod>
   </url>
   <url>
@@ -205,15 +213,7 @@
     <lastmod>2021-01-17</lastmod>
   </url>
   <url>
-    <loc>https://www.beikejiedeliulangmao.top/java/concurrent/aqs-data/</loc>
-    <lastmod>2021-01-17</lastmod>
-  </url>
-  <url>
-    <loc>https://www.beikejiedeliulangmao.top/java/concurrent/concurrent-skip-list-map/</loc>
-    <lastmod>2021-01-17</lastmod>
-  </url>
-  <url>
-    <loc>https://www.beikejiedeliulangmao.top/webrtc/use-in-java/prepare/</loc>
+    <loc>https://www.beikejiedeliulangmao.top/java/web/java-web/</loc>
     <lastmod>2021-01-17</lastmod>
   </url>
   <url>
@@ -221,15 +221,7 @@
     <lastmod>2021-01-17</lastmod>
   </url>
   <url>
-    <loc>https://www.beikejiedeliulangmao.top/java/jvm/execution-engine/</loc>
-    <lastmod>2021-01-17</lastmod>
-  </url>
-  <url>
-    <loc>https://www.beikejiedeliulangmao.top/java/jvm/lock/</loc>
-    <lastmod>2021-01-17</lastmod>
-  </url>
-  <url>
-    <loc>https://www.beikejiedeliulangmao.top/java/jvm/load-class/</loc>
+    <loc>https://www.beikejiedeliulangmao.top/protocol/http/a-http-request/</loc>
     <lastmod>2021-01-17</lastmod>
   </url>
   <url>
@@ -245,7 +237,15 @@
     <lastmod>2021-01-17</lastmod>
   </url>
   <url>
-    <loc>https://www.beikejiedeliulangmao.top/protocol/http/a-http-request/</loc>
+    <loc>https://www.beikejiedeliulangmao.top/java/jvm/execution-engine/</loc>
+    <lastmod>2021-01-17</lastmod>
+  </url>
+  <url>
+    <loc>https://www.beikejiedeliulangmao.top/java/jvm/load-class/</loc>
+    <lastmod>2021-01-17</lastmod>
+  </url>
+  <url>
+    <loc>https://www.beikejiedeliulangmao.top/java/jvm/lock/</loc>
     <lastmod>2021-01-17</lastmod>
   </url>
   <url>
@@ -305,11 +305,11 @@
     <lastmod>2021-01-17</lastmod>
   </url>
   <url>
-    <loc>https://www.beikejiedeliulangmao.top/linux/system-call/</loc>
+    <loc>https://www.beikejiedeliulangmao.top/linux/time-management/</loc>
     <lastmod>2021-01-17</lastmod>
   </url>
   <url>
-    <loc>https://www.beikejiedeliulangmao.top/linux/time-management/</loc>
+    <loc>https://www.beikejiedeliulangmao.top/linux/system-call/</loc>
     <lastmod>2021-01-17</lastmod>
   </url>
   <url>
@@ -317,11 +317,11 @@
     <lastmod>2021-01-17</lastmod>
   </url>
   <url>
-    <loc>https://www.beikejiedeliulangmao.top/container/kubernetes/k8s-network-pod/</loc>
+    <loc>https://www.beikejiedeliulangmao.top/container/kubernetes/k8s-network-service/</loc>
     <lastmod>2021-01-17</lastmod>
   </url>
   <url>
-    <loc>https://www.beikejiedeliulangmao.top/container/kubernetes/k8s-network-service/</loc>
+    <loc>https://www.beikejiedeliulangmao.top/container/kubernetes/k8s-network-pod/</loc>
     <lastmod>2021-01-17</lastmod>
   </url>
   <url>
