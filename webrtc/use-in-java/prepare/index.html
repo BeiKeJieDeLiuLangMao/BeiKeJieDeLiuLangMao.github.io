@@ -63,7 +63,7 @@
 <meta property="og:image" content="https://www.beikejiedeliulangmao.top/images/loading-cat.gif">
 <meta property="og:image" content="https://www.beikejiedeliulangmao.top/images/loading-cat.gif">
 <meta property="article:published_time" content="2019-01-29T10:47:59.000Z">
-<meta property="article:modified_time" content="2021-01-17T04:25:40.566Z">
+<meta property="article:modified_time" content="2021-03-27T11:40:42.772Z">
 <meta property="article:author" content="贝克街的流浪猫">
 <meta property="article:tag" content="WebRTC">
 <meta property="article:tag" content="JNI">
@@ -1432,7 +1432,7 @@ pre .javascript .function {
 }
 .links-of-author a::before,
 .links-of-author span.exturl::before {
-  background: #ffffed;
+  background: #f50352;
   border-radius: 50%;
   content: ' ';
   display: inline-block;
@@ -3212,7 +3212,7 @@ ul.breadcrumb li + li:last-child {
                 <i class="fa fa-file-word-o"></i>
               </span>
                 <span class="post-meta-item-text">本文字数：</span>
-              <span>7.2k</span>
+              <span>7.3k</span>
             </span>
             <span class="post-meta-item" title="阅读时长">
               <span class="post-meta-item-icon">
@@ -3231,7 +3231,7 @@ ul.breadcrumb li + li:last-child {
     <div class="post-body" itemprop="articleBody">
 
       
-        <h2 id="引言"><a href="#引言" class="headerlink" title="引言"></a>引言</h2><p>最近一段时间的主要工作内容是开发一个远程控制手机的功能，其中音视频传输的部分是采用WebRTC技术来进行的，而我们的手机都是通过与其直接连接的Agent服务器进行管理，Agent服务是Java写的，现在市面上又没有合适的Java版WebRTC库，所以我就基于Google开源代码，写了一个JNI调用WebRTC Native的库。之前的一篇文章，我主要讲了讲我是怎么<a href="https://www.beikejiedeliulangmao.top/webrtc/build-webrtc-native-lib">编译WebRTC</a>的。这篇文章，我就来分享一下我是怎么在Java中使用WebRTC的，以及我根据业务需要对WebRTC的一些改动。其他在 Java 中使用 WebRTC 的经验均收录于<a href="https://www.beikejiedeliulangmao.top/categories/WebRTC/Use-WebRTC-In-Java/">&lt;在 Java 中使用 WebRTC&gt;</a>中，对这个方向感兴趣的同学可以翻阅一下。</p>
+        <h2 id="引言"><a href="#引言" class="headerlink" title="引言"></a>引言</h2><p>最近一段时间的主要工作内容是开发一个远程控制手机的功能，其中音视频传输的部分是采用WebRTC技术来进行的，而我们的手机都是通过与其直接连接的Agent服务器进行管理，Agent服务是Java写的，现在市面上又没有合适的Java版WebRTC库，所以我就基于Google开源代码，写了一个JNI调用WebRTC Native的库。之前的一篇文章，我主要讲了讲我是怎么<a href="https://www.beikejiedeliulangmao.top/webrtc/build-webrtc-native-lib">编译WebRTC</a>的。这篇文章，我就来分享一下我是怎么在Java中使用WebRTC的，以及我根据业务需要对WebRTC的一些改动。其他在 Java 中使用 WebRTC 的经验均收录于<a href="https://www.beikejiedeliulangmao.top/categories/WebRTC/Use-WebRTC-In-Java/">&lt;在 Java 中使用 WebRTC&gt;</a>中，对这个方向感兴趣的同学可以翻阅一下。本文源代码可通过扫描文章下方的公众号获取或<span class="exturl" data-url="aHR0cHM6Ly9kb3dubG9hZC5jc2RuLm5ldC9kb3dubG9hZC9CZWlLZUppZURlTGl1TGFuZ01hby8xNjE2MjQ0OA==" title="https://download.csdn.net/download/BeiKeJieDeLiuLangMao/16162448">付费下载<i class="fa fa-external-link"></i></span>。</p>
 <a id="more"></a>
 <h2 id="Native-APIs介绍"><a href="#Native-APIs介绍" class="headerlink" title="Native APIs介绍"></a>Native APIs介绍</h2><p>如果您也要进行和我类似的工作，我觉得最主要的还是要先熟悉整个Native APIs的使用流程，梳理一下，你就会发现整个使用过程其实非常简单，也就八个大步骤。接下来我会先简单介绍这八个主要步骤，然后再针对每一个步骤，详细的介绍我是怎么做的。<br><img src="/images/loading-cat.gif" data-original="https://bbm-hexo.oss-accelerate.aliyuncs.com/images/webrtc/webrtc-native-apis.png" alt="Native APIs"><br><strong>Native APIs使用流程:</strong></p>
 <ol>

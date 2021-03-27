@@ -1419,7 +1419,7 @@ pre .javascript .function {
 }
 .links-of-author a::before,
 .links-of-author span.exturl::before {
-  background: #ffffed;
+  background: #f50352;
   border-radius: 50%;
   content: ' ';
   display: inline-block;
@@ -3588,7 +3588,7 @@ ul.breadcrumb li + li:last-child {
                 <i class="fa fa-file-word-o"></i>
               </span>
                 <span class="post-meta-item-text">本文字数：</span>
-              <span>7.2k</span>
+              <span>7.3k</span>
             </span>
             <span class="post-meta-item" title="阅读时长">
               <span class="post-meta-item-icon">
@@ -3607,7 +3607,7 @@ ul.breadcrumb li + li:last-child {
     <div class="post-body" itemprop="articleBody">
 
       
-          <h2 id="引言"><a href="#引言" class="headerlink" title="引言"></a>引言</h2><p>最近一段时间的主要工作内容是开发一个远程控制手机的功能，其中音视频传输的部分是采用WebRTC技术来进行的，而我们的手机都是通过与其直接连接的Agent服务器进行管理，Agent服务是Java写的，现在市面上又没有合适的Java版WebRTC库，所以我就基于Google开源代码，写了一个JNI调用WebRTC Native的库。之前的一篇文章，我主要讲了讲我是怎么<a href="https://www.beikejiedeliulangmao.top/webrtc/build-webrtc-native-lib">编译WebRTC</a>的。这篇文章，我就来分享一下我是怎么在Java中使用WebRTC的，以及我根据业务需要对WebRTC的一些改动。其他在 Java 中使用 WebRTC 的经验均收录于<a href="https://www.beikejiedeliulangmao.top/categories/WebRTC/Use-WebRTC-In-Java/">&lt;在 Java 中使用 WebRTC&gt;</a>中，对这个方向感兴趣的同学可以翻阅一下。</p>
+          <h2 id="引言"><a href="#引言" class="headerlink" title="引言"></a>引言</h2><p>最近一段时间的主要工作内容是开发一个远程控制手机的功能，其中音视频传输的部分是采用WebRTC技术来进行的，而我们的手机都是通过与其直接连接的Agent服务器进行管理，Agent服务是Java写的，现在市面上又没有合适的Java版WebRTC库，所以我就基于Google开源代码，写了一个JNI调用WebRTC Native的库。之前的一篇文章，我主要讲了讲我是怎么<a href="https://www.beikejiedeliulangmao.top/webrtc/build-webrtc-native-lib">编译WebRTC</a>的。这篇文章，我就来分享一下我是怎么在Java中使用WebRTC的，以及我根据业务需要对WebRTC的一些改动。其他在 Java 中使用 WebRTC 的经验均收录于<a href="https://www.beikejiedeliulangmao.top/categories/WebRTC/Use-WebRTC-In-Java/">&lt;在 Java 中使用 WebRTC&gt;</a>中，对这个方向感兴趣的同学可以翻阅一下。本文源代码可通过扫描文章下方的公众号获取或<a target="_blank" rel="external nofollow noopener noreferrer" href="https://download.csdn.net/download/BeiKeJieDeLiuLangMao/16162448">付费下载</a>。</p>
           <!--noindex-->
             <div class="post-button">
               <a class="btn" href="/webrtc/use-in-java/prepare/#more" rel="contents">
@@ -3710,7 +3710,7 @@ ul.breadcrumb li + li:last-child {
     <div class="post-body" itemprop="articleBody">
 
       
-          <h2 id="引言"><a href="#引言" class="headerlink" title="引言"></a>引言</h2><p>上篇文章中，我们已经将一些准备工作处理完了，所以这篇文章，我就来分享一下我是怎么在Java中使用WebRTC Native API的。其他在 Java 中使用 WebRTC 的经验均收录于<a href="https://www.beikejiedeliulangmao.top/categories/WebRTC/Use-WebRTC-In-Java/">&lt;在 Java 中使用 WebRTC&gt;</a>中，对这个方向感兴趣的同学可以翻阅一下。</p>
+          <h2 id="引言"><a href="#引言" class="headerlink" title="引言"></a>引言</h2><p>上篇文章中，我们已经将一些准备工作处理完了，所以这篇文章，我就来分享一下我是怎么在Java中使用WebRTC Native API的。其他在 Java 中使用 WebRTC 的经验均收录于<a href="https://www.beikejiedeliulangmao.top/categories/WebRTC/Use-WebRTC-In-Java/">&lt;在 Java 中使用 WebRTC&gt;</a>中，对这个方向感兴趣的同学可以翻阅一下。本文源代码可通过扫描文章下方的公众号获取或<a target="_blank" rel="external nofollow noopener noreferrer" href="https://download.csdn.net/download/BeiKeJieDeLiuLangMao/16162448">付费下载</a>。</p>
           <!--noindex-->
             <div class="post-button">
               <a class="btn" href="/webrtc/use-in-java/use-native-api/#more" rel="contents">
@@ -3813,7 +3813,7 @@ ul.breadcrumb li + li:last-child {
     <div class="post-body" itemprop="articleBody">
 
       
-          <h2 id="引言"><a href="#引言" class="headerlink" title="引言"></a>引言</h2><p>在前面的文章中，我已经介绍了如何使用 WebRTC 的 Native API，通过它们大家应该已经了解了正常 API 的一些使用方法和套路。从本文开始，我将介绍一下我这边对 Native API 默认实现的覆写过程，本文我们将先来介绍一些如何把 Java 中的音视频传输给 WebRTC Lib。其他在 Java 中使用 WebRTC 的经验均收录于<a href="https://www.beikejiedeliulangmao.top/categories/WebRTC/Use-WebRTC-In-Java/">&lt;在 Java 中使用 WebRTC&gt;</a>中，对这个方向感兴趣的同学可以翻阅一下。</p>
+          <h2 id="引言"><a href="#引言" class="headerlink" title="引言"></a>引言</h2><p>在前面的文章中，我已经介绍了如何使用 WebRTC 的 Native API，通过它们大家应该已经了解了正常 API 的一些使用方法和套路。从本文开始，我将介绍一下我这边对 Native API 默认实现的覆写过程，本文我们将先来介绍一些如何把 Java 中的音视频传输给 WebRTC Lib。其他在 Java 中使用 WebRTC 的经验均收录于<a href="https://www.beikejiedeliulangmao.top/categories/WebRTC/Use-WebRTC-In-Java/">&lt;在 Java 中使用 WebRTC&gt;</a>中，对这个方向感兴趣的同学可以翻阅一下。本文源代码可通过扫描文章下方的公众号获取或<a target="_blank" rel="external nofollow noopener noreferrer" href="https://download.csdn.net/download/BeiKeJieDeLiuLangMao/16162448">付费下载</a>。</p>
           <!--noindex-->
             <div class="post-button">
               <a class="btn" href="/webrtc/use-in-java/record-from-java/#more" rel="contents">
@@ -3916,7 +3916,7 @@ ul.breadcrumb li + li:last-child {
     <div class="post-body" itemprop="articleBody">
 
       
-          <h2 id="引言"><a href="#引言" class="headerlink" title="引言"></a>引言</h2><p>在本文中，我们将继续介绍一些对 WebRTC Native Lib 的覆写过程，主要涉及如何限制端口的使用以及如何重写编解码过程。其他在 Java 中使用 WebRTC 的经验均收录于<a href="https://www.beikejiedeliulangmao.top/categories/WebRTC/Use-WebRTC-In-Java/">&lt;在 Java 中使用 WebRTC&gt;</a>中，对这个方向感兴趣的同学可以翻阅一下。</p>
+          <h2 id="引言"><a href="#引言" class="headerlink" title="引言"></a>引言</h2><p>在本文中，我们将继续介绍一些对 WebRTC Native Lib 的覆写过程，主要涉及如何限制端口的使用以及如何重写编解码过程。其他在 Java 中使用 WebRTC 的经验均收录于<a href="https://www.beikejiedeliulangmao.top/categories/WebRTC/Use-WebRTC-In-Java/">&lt;在 Java 中使用 WebRTC&gt;</a>中，对这个方向感兴趣的同学可以翻阅一下。本文源代码可通过扫描文章下方的公众号获取或<a target="_blank" rel="external nofollow noopener noreferrer" href="https://download.csdn.net/download/BeiKeJieDeLiuLangMao/16162448">付费下载</a>。</p>
           <!--noindex-->
             <div class="post-button">
               <a class="btn" href="/webrtc/use-in-java/port-limit-and-encode/#more" rel="contents">

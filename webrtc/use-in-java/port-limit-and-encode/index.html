@@ -50,15 +50,15 @@
   };
 </script>
 
-  <meta name="description" content="引言在本文中，我们将继续介绍一些对 WebRTC Native Lib 的覆写过程，主要涉及如何限制端口的使用以及如何重写编解码过程。其他在 Java 中使用 WebRTC 的经验均收录于<在 Java 中使用 WebRTC>中，对这个方向感兴趣的同学可以翻阅一下。">
+  <meta name="description" content="引言在本文中，我们将继续介绍一些对 WebRTC Native Lib 的覆写过程，主要涉及如何限制端口的使用以及如何重写编解码过程。其他在 Java 中使用 WebRTC 的经验均收录于<在 Java 中使用 WebRTC>中，对这个方向感兴趣的同学可以翻阅一下。本文源代码可通过扫描文章下方的公众号获取或付费下载。">
 <meta property="og:type" content="article">
 <meta property="og:title" content="在 Java 中使用 WebRTC 传输视频——端口限制和自定义编解码">
 <meta property="og:url" content="https://www.beikejiedeliulangmao.top/webrtc/use-in-java/port-limit-and-encode/index.html">
 <meta property="og:site_name" content="贝克街的流浪猫">
-<meta property="og:description" content="引言在本文中，我们将继续介绍一些对 WebRTC Native Lib 的覆写过程，主要涉及如何限制端口的使用以及如何重写编解码过程。其他在 Java 中使用 WebRTC 的经验均收录于<在 Java 中使用 WebRTC>中，对这个方向感兴趣的同学可以翻阅一下。">
+<meta property="og:description" content="引言在本文中，我们将继续介绍一些对 WebRTC Native Lib 的覆写过程，主要涉及如何限制端口的使用以及如何重写编解码过程。其他在 Java 中使用 WebRTC 的经验均收录于<在 Java 中使用 WebRTC>中，对这个方向感兴趣的同学可以翻阅一下。本文源代码可通过扫描文章下方的公众号获取或付费下载。">
 <meta property="og:locale" content="zh_CN">
 <meta property="article:published_time" content="2019-01-29T10:47:56.000Z">
-<meta property="article:modified_time" content="2020-09-07T05:58:49.077Z">
+<meta property="article:modified_time" content="2021-03-27T11:40:43.937Z">
 <meta property="article:author" content="贝克街的流浪猫">
 <meta property="article:tag" content="Java">
 <meta property="article:tag" content="WebRTC">
@@ -1427,7 +1427,7 @@ pre .javascript .function {
 }
 .links-of-author a::before,
 .links-of-author span.exturl::before {
-  background: #ffffed;
+  background: #f50352;
   border-radius: 50%;
   content: ' ';
   display: inline-block;
@@ -3226,7 +3226,7 @@ ul.breadcrumb li + li:last-child {
     <div class="post-body" itemprop="articleBody">
 
       
-        <h2 id="引言"><a href="#引言" class="headerlink" title="引言"></a>引言</h2><p>在本文中，我们将继续介绍一些对 WebRTC Native Lib 的覆写过程，主要涉及如何限制端口的使用以及如何重写编解码过程。其他在 Java 中使用 WebRTC 的经验均收录于<a href="https://www.beikejiedeliulangmao.top/categories/WebRTC/Use-WebRTC-In-Java/">&lt;在 Java 中使用 WebRTC&gt;</a>中，对这个方向感兴趣的同学可以翻阅一下。</p>
+        <h2 id="引言"><a href="#引言" class="headerlink" title="引言"></a>引言</h2><p>在本文中，我们将继续介绍一些对 WebRTC Native Lib 的覆写过程，主要涉及如何限制端口的使用以及如何重写编解码过程。其他在 Java 中使用 WebRTC 的经验均收录于<a href="https://www.beikejiedeliulangmao.top/categories/WebRTC/Use-WebRTC-In-Java/">&lt;在 Java 中使用 WebRTC&gt;</a>中，对这个方向感兴趣的同学可以翻阅一下。本文源代码可通过扫描文章下方的公众号获取或<span class="exturl" data-url="aHR0cHM6Ly9kb3dubG9hZC5jc2RuLm5ldC9kb3dubG9hZC9CZWlLZUppZURlTGl1TGFuZ01hby8xNjE2MjQ0OA==" title="https://download.csdn.net/download/BeiKeJieDeLiuLangMao/16162448">付费下载<i class="fa fa-external-link"></i></span>。</p>
 <a id="more"></a>
 <h2 id="限制连接端口"><a href="#限制连接端口" class="headerlink" title="限制连接端口"></a>限制连接端口</h2><p>回顾一下之前进行端口限制的完成流程，在<strong>创建PeerConnectionFactory</strong>的时候，我们实例化了一个SocketFactory和一个默认的NetworkManager，随后在<strong>创建PeerConnection</strong>的时候，我们通过这两个实例创建了一个PortAllocator，并将这个PortAllocator注入到PeerConnection中。整个流程中，真正做端口限制的代码都在SocketFactory中，当然，也用到了PortAllocator的API。这里你可能会有疑问，PortAllocator中不是有接口可以限制端口范围吗，怎么还需要SocketFactory？</p>
 <figure class="highlight cpp"><table><tbody><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="built_in">std</span>::<span class="built_in">unique_ptr</span>&lt;cricket::PortAllocator&gt; <span class="title">port_allocator</span><span class="params">(</span></span></span><br><span class="line"><span class="function"><span class="params"><span class="keyword">new</span> cricket::BasicPortAllocator(network_manager.get(), socket_factory.get()))</span></span>;</span><br><span class="line">port_allocator-&gt;SetPortRange(<span class="keyword">this</span>-&gt;min_port, <span class="keyword">this</span>-&gt;max_port); <span class="comment">// Port allocator的端口限制API</span></span><br></pre></td></tr></tbody></table></figure>
